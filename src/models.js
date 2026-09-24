@@ -1,223 +1,1144 @@
-// Procedural low-poly models. Every model faces +Z and stands on y = 0.
+// Procedural, toon-shaded models. Every model faces +Z and stands on y = 0.
+// Style: cel shading, ink outlines, big expressive eyes and chunky proportions.
 // Swap these out for real 3D art (glTF) later without touching game logic.
 import * as THREE from 'three';
 
-const matCache = new Map();
-export function mat(color, opts = {}) {
-  const key = color + JSON.stringify(opts);
-  if (!matCache.has(key)) {
-    matCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true, ...opts }));
+const INK = 0x1a1030;
+const UP = new THREE.Vector3(0, 1, 0);
+const FWD = new THREE.Vector3(0, 0, 1);
+const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const sph = (r, w = 12, h = 9) => new THREE.SphereGeometry(r, w, h);
+const darker = (hex, k = 0.7) => new THREE.Color(hex).multiplyScalar(k).getHex();
+const lighter = (hex, k = 0.35) => new THREE.Color(hex).lerp(new THREE.Color(0xffffff), k).getHex();
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+// ---------------------------------------------------------------- materials
+
+let ramp = null;
+function toonRamp() {
+  if (!ramp) {
+    ramp = new THREE.DataTexture(new Uint8Array([150, 200, 242, 255]), 4, 1, THREE.RedFormat);
+    ramp.minFilter = ramp.magFilter = THREE.NearestFilter;
+    ramp.generateMipmaps = false;
+    ramp.needsUpdate = true;
   }
-  return matCache.get(key);
-}
-export function glowMat(color, intensity = 1.6) {
-  return mat(color, { emissive: color, emissiveIntensity: intensity, roughness: 0.4 });
+  return ramp;
 }
 
-function mesh(geo, material, x = 0, y = 0, z = 0) {
+const cache = new Map();
+// Cel-shaded material, shared between models with the same settings.
+export function mat(color, opts = {}) {
+  const key = 't' + color + JSON.stringify(opts);
+  if (!cache.has(key)) {
+    const { roughness, metalness, flatShading, ...rest } = opts;
+    cache.set(key, new THREE.MeshToonMaterial({ color, gradientMap: toonRamp(), ...rest }));
+  }
+  return cache.get(key);
+}
+// Glowing parts keep their colour: a dark base lit by a strong emissive.
+export function glowMat(color, intensity = 1.6) {
+  return mat(darker(color, 0.35), { emissive: color, emissiveIntensity: Math.min(1.3, 0.55 + intensity * 0.3) });
+}
+// Unlit material: eyes, ink details and bright magic bits.
+export function basic(color, opts = {}) {
+  const key = 'b' + color + JSON.stringify(opts);
+  if (!cache.has(key)) cache.set(key, new THREE.MeshBasicMaterial({ color, ...opts }));
+  return cache.get(key);
+}
+// A material this model animates on its own, so it must not be shared.
+function ownMat(color, opts = {}) {
+  return new THREE.MeshToonMaterial({ color, gradientMap: toonRamp(), ...opts });
+}
+
+const hullMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+
+// ---------------------------------------------------------------- building helpers
+
+function add(parent, geo, material, x = 0, y = 0, z = 0, o = {}) {
   const m = new THREE.Mesh(geo, material);
   m.position.set(x, y, z);
-  m.castShadow = true;
+  if (o.rx || o.ry || o.rz) m.rotation.set(o.rx || 0, o.ry || 0, o.rz || 0);
+  if (o.s !== undefined) {
+    if (typeof o.s === 'number') m.scale.setScalar(o.s);
+    else m.scale.set(o.s[0], o.s[1], o.s[2]);
+  }
+  m.castShadow = o.shadow !== false;
   m.receiveShadow = true;
+  if (o.noOutline) m.userData.noOutline = true;
+  parent.add(m);
   return m;
 }
 
-// ---------------------------------------------------------------- Wizards
+// A tapered cylinder from point a (radius rA) to point b (radius rB).
+function limb(parent, a, b, rA, rB, material, seg = 10) {
+  const dir = b.clone().sub(a);
+  const m = add(parent, new THREE.CylinderGeometry(rB, rA, dir.length(), seg), material);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(UP, dir.normalize());
+  return m;
+}
 
-export function makeWizard({ robe = 0x3355ff, hat = robe, trim = 0xf2c14e, skin = 0xf1c9a5, gem = trim, beard = false } = {}) {
+// A tube along smooth points (tails, horns). Tubes are not outlined.
+function tube(parent, points, radius, material, seg = 20) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => V3(...p)));
+  return add(parent, new THREE.TubeGeometry(curve, seg, radius, 8, false), material, 0, 0, 0, { noOutline: true });
+}
+
+function group(parent, x = 0, y = 0, z = 0) {
   const g = new THREE.Group();
-  const body = new THREE.Group();
-  g.add(body);
+  g.position.set(x, y, z);
+  parent.add(g);
+  return g;
+}
 
-  body.add(mesh(new THREE.ConeGeometry(0.62, 1.5, 10), mat(robe), 0, 0.75, 0));
-  body.add(mesh(new THREE.CylinderGeometry(0.36, 0.38, 0.12, 10), mat(trim), 0, 0.98, 0));
-  // cape collar
-  body.add(mesh(new THREE.CylinderGeometry(0.26, 0.42, 0.25, 10), mat(robe), 0, 1.38, 0));
-  // head + eyes
-  body.add(mesh(new THREE.SphereGeometry(0.3, 14, 12), mat(skin, { flatShading: false }), 0, 1.68, 0));
-  const eye = mat(0x1d1a2b);
-  body.add(mesh(new THREE.SphereGeometry(0.045, 6, 6), eye, -0.1, 1.72, 0.27));
-  body.add(mesh(new THREE.SphereGeometry(0.045, 6, 6), eye, 0.1, 1.72, 0.27));
-  if (beard) {
-    const b = mesh(new THREE.ConeGeometry(0.22, 0.7, 8), mat(0xeeeeee), 0, 1.35, 0.2);
-    b.rotation.x = Math.PI;
-    body.add(b);
+// Ink outline ("inverted hull"): a slightly larger back-face copy of each part.
+export function outline(root, width = 0.026, minSize = 0.07) {
+  const targets = [];
+  root.traverse((o) => {
+    if (!o.isMesh || o.userData.noOutline || o.userData.isHull) return;
+    const m = o.material;
+    if (!m || m.isMeshBasicMaterial || m.transparent || m.side === THREE.DoubleSide) return;
+    targets.push(o);
+  });
+  const size = V3(), c = V3();
+  for (const o of targets) {
+    const geo = o.geometry;
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    geo.boundingBox.getSize(size);
+    if (Math.max(size.x * Math.abs(o.scale.x), size.y * Math.abs(o.scale.y), size.z * Math.abs(o.scale.z)) < minSize) continue;
+    geo.boundingBox.getCenter(c);
+    const hull = new THREE.Mesh(geo, hullMat);
+    hull.userData.isHull = true;
+    const k = (axisSize, s) => 1 + (2 * width / Math.abs(s)) / Math.max(axisSize, 0.03);
+    hull.scale.set(k(size.x, o.scale.x), k(size.y, o.scale.y), k(size.z, o.scale.z));
+    hull.position.set(c.x * (1 - hull.scale.x), c.y * (1 - hull.scale.y), c.z * (1 - hull.scale.z));
+    hull.raycast = () => {};
+    o.add(hull);
   }
-  // hat: brim, band, floppy cone
-  body.add(mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.05, 18), mat(hat), 0, 1.9, 0));
-  body.add(mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.12, 14), mat(trim), 0, 1.98, 0));
-  const tip = new THREE.Group();
-  tip.position.set(0, 1.95, 0);
-  const cone = mesh(new THREE.ConeGeometry(0.34, 1.0, 12), mat(hat), 0, 0.5, 0);
-  tip.add(cone);
-  tip.rotation.x = -0.25;
-  tip.rotation.z = 0.12;
-  body.add(tip);
-  // staff
-  const staff = new THREE.Group();
-  staff.position.set(0.58, 0, 0.15);
-  staff.add(mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.95, 6), mat(0x6b4a2b), 0, 0.98, 0));
-  const gemMesh = mesh(new THREE.OctahedronGeometry(0.14), glowMat(gem, 2.2), 0, 2.05, 0);
-  staff.add(gemMesh);
-  body.add(staff);
+  return root;
+}
 
+// Marks a mesh that the model's animation moves, so it is never merged away.
+function dyn(m) {
+  m.userData.dynamic = true;
+  return m;
+}
+
+// Joins many geometries (each with its own transform) into one, for one draw call.
+export function mergeGeometries(items) {
+  const parts = [];
+  let total = 0;
+  for (const { geo, matrix } of items) {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone();
+    g.applyMatrix4(matrix);
+    if (matrix.determinant() < 0) {
+      // mirrored parts would turn inside out: flip each triangle back
+      for (const name of ['position', 'normal', 'uv']) {
+        const a = g.attributes[name];
+        if (!a) continue;
+        const n = a.itemSize, arr = a.array;
+        for (let t = 0; t < a.count; t += 3) {
+          for (let k = 0; k < n; k++) {
+            const i1 = (t + 1) * n + k, i2 = (t + 2) * n + k;
+            const tmp = arr[i1]; arr[i1] = arr[i2]; arr[i2] = tmp;
+          }
+        }
+      }
+    }
+    parts.push(g);
+    total += g.attributes.position.count;
+  }
+  const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), uv = new Float32Array(total * 2);
+  let o = 0;
+  for (const g of parts) {
+    const c = g.attributes.position.count;
+    pos.set(g.attributes.position.array, o * 3);
+    if (g.attributes.normal) nor.set(g.attributes.normal.array, o * 3);
+    if (g.attributes.uv) uv.set(g.attributes.uv.array.subarray(0, c * 2), o * 2);
+    o += c;
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  out.computeBoundingSphere();
+  out.computeBoundingBox();
+  return out;
+}
+
+// Merges a model's non-moving parts into one mesh per material.
+// `flatten`: the whole model is static, so every part is merged into the root.
+export function optimize(root, flatten = false) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4();
+  const containers = [];
+  if (flatten) containers.push(root);
+  else root.traverse(o => { if (!o.isMesh) containers.push(o); });
+  for (const node of containers) {
+    const meshes = [];
+    if (flatten) {
+      node.traverse(o => { if (o.isMesh && !o.userData.isHull && !o.userData.dynamic) meshes.push(o); });
+    } else {
+      for (const c of node.children) {
+        if (c.isMesh && !c.userData.dynamic && c.children.every(k => k.userData.isHull)) meshes.push(c);
+      }
+    }
+    if (meshes.length < 2) continue;
+    inv.copy(node.matrixWorld).invert();
+    const buckets = new Map();
+    const push = (obj, receive, cast) => {
+      const key = obj.material.uuid + (receive ? '|r' : '|n');
+      if (!buckets.has(key)) buckets.set(key, { material: obj.material, receive, cast: false, items: [] });
+      const b = buckets.get(key);
+      b.cast ||= cast;
+      b.items.push({ geo: obj.geometry, matrix: new THREE.Matrix4().multiplyMatrices(inv, obj.matrixWorld) });
+    };
+    for (const m of meshes) {
+      push(m, m.receiveShadow, m.castShadow);
+      for (const h of m.children) if (h.userData.isHull) push(h, false, false);
+    }
+    for (const m of meshes) m.parent.remove(m);
+    for (const b of buckets.values()) {
+      const merged = new THREE.Mesh(mergeGeometries(b.items), b.material);
+      merged.castShadow = b.cast;
+      merged.receiveShadow = b.receive;
+      merged.userData.merged = true;
+      if (b.material === hullMat) merged.userData.isHull = true;
+      node.add(merged);
+    }
+  }
+  if (flatten) root.userData.static = true;
+  return root;
+}
+
+// Outline, then merge. Every model builder ends here.
+function finish(root, width, minSize, isStatic = false) {
+  outline(root, width, minSize);
+  return optimize(root, isStatic);
+}
+
+// ---------------------------------------------------------------- faces
+
+function makeEye(r, { iris = null, pupil = INK, glow = null } = {}) {
+  const g = new THREE.Group();
+  if (glow) {
+    add(g, sph(r, 16, 10), basic(glow), 0, 0, 0, { shadow: false });
+    add(g, sph(r * 0.3, 8, 6), basic(0xffffff), r * 0.3, r * 0.3, r * 0.78, { shadow: false });
+    return g;
+  }
+  add(g, sph(r * 1.13, 12, 8), hullMat, 0, 0, 0, { shadow: false });
+  add(g, sph(r, 14, 10), basic(0xffffff), 0, 0, 0, { shadow: false });
+  const cap = (rr, theta, color) => add(g, new THREE.SphereGeometry(rr, 14, 4, 0, Math.PI * 2, 0, theta), basic(color), 0, 0, 0, { rx: Math.PI / 2, shadow: false });
+  if (iris) cap(r * 1.012, 0.72, iris);
+  cap(r * 1.024, iris ? 0.4 : 0.55, pupil);
+  add(g, sph(r * 0.21, 8, 6), basic(0xffffff), r * 0.3, r * 0.32, r * 0.92, { shadow: false });
+  add(g, sph(r * 0.1, 6, 4), basic(0xffffff), -r * 0.22, -r * 0.24, r * 0.97, { shadow: false });
+  return g;
+}
+
+// A face that hugs the front of a sphere of radius R centred on the group's origin.
+function makeFace(R, o = {}) {
+  const {
+    eyeR = R * 0.2, gap = R * 0.36, eyeY = R * 0.06, iris = null, pupil = INK, glow = null,
+    brows = null, browColor = INK, mouth = 'smile', mouthY = -R * 0.34, mouthW = R * 0.15,
+    cheeks = false, cheekColor = 0xff8fa3,
+  } = o;
+  const g = new THREE.Group();
+  const surf = (x, y) => Math.sqrt(Math.max(0.0001, R * R - x * x - y * y));
+  const eyePair = group(g, 0, eyeY, 0);
+  for (const s of [-1, 1]) {
+    const x = s * gap;
+    const e = makeEye(eyeR, { iris, pupil, glow });
+    e.position.set(x, 0, surf(x, eyeY) - eyeR * 0.4);
+    e.rotation.set(-Math.asin(eyeY / R) * 0.7, Math.asin(x / R) * 0.7, 0);
+    eyePair.add(e);
+    if (brows) {
+      const by = eyeY + eyeR * (brows === 'bushy' ? 1.35 : 1.5);
+      const bx = x * 1.04;
+      const bushy = brows === 'bushy';
+      const b = add(g, new THREE.CapsuleGeometry(eyeR * (bushy ? 0.32 : 0.2), eyeR * (bushy ? 1.3 : 1.05), 4, 8),
+        bushy ? mat(browColor) : basic(browColor), bx, by, surf(bx, by) + (bushy ? -0.01 : 0.004), { shadow: false, noOutline: true });
+      const tilt = brows === 'angry' ? 0.5 : brows === 'worried' ? -0.4 : brows === 'happy' ? -0.18 : 0;
+      b.rotation.set(-Math.asin(by / R) * 0.7, Math.asin(bx / R) * 0.7, Math.PI / 2 + s * tilt);
+    }
+    if (cheeks) {
+      const cx = x * 1.3, cy = eyeY - eyeR * 1.4;
+      add(g, sph(eyeR * 0.6, 12, 8), basic(cheekColor), cx, cy, surf(cx, cy) - eyeR * 0.12,
+        { s: [1, 0.62, 0.3], ry: Math.asin(cx / R), shadow: false });
+    }
+  }
+  const mz = surf(0, mouthY) + 0.004;
+  const pitch = Math.asin(-mouthY / R);
+  const dark = basic(0x3a0c1c);
+  const white = basic(0xffffff);
+  const o2 = { rx: pitch, shadow: false };
+  switch (mouth) {
+    case 'smile':
+      add(g, new THREE.TorusGeometry(mouthW, mouthW * 0.2, 6, 16, Math.PI), basic(INK), 0, mouthY + mouthW * 0.35, mz + mouthW * 0.12, { rx: pitch, rz: Math.PI, shadow: false });
+      break;
+    case 'frown':
+      add(g, new THREE.TorusGeometry(mouthW, mouthW * 0.2, 6, 16, Math.PI), basic(INK), 0, mouthY - mouthW * 0.4, mz + mouthW * 0.12, o2);
+      break;
+    case 'open':
+      add(g, new THREE.CircleGeometry(mouthW, 18, Math.PI, Math.PI), dark, 0, mouthY + mouthW * 0.4, mz + 0.01, o2);
+      add(g, new THREE.CircleGeometry(mouthW * 0.55, 14, Math.PI, Math.PI), basic(0xff6a8a), 0, mouthY - mouthW * 0.05, mz + 0.013, o2);
+      break;
+    case 'grin': {
+      const w = mouthW * 1.3;
+      add(g, new THREE.CircleGeometry(w, 20, Math.PI, Math.PI), dark, 0, mouthY + w * 0.4, mz + 0.01, o2);
+      for (let k = -1.5; k <= 1.5; k++) {
+        add(g, new THREE.ConeGeometry(w * 0.15, w * 0.34, 3), white, k * w * 0.42, mouthY + w * 0.4 - w * 0.16, mz + 0.018, { rx: Math.PI + pitch, shadow: false });
+      }
+      break;
+    }
+    case 'fangs':
+      add(g, new THREE.TorusGeometry(mouthW, mouthW * 0.2, 6, 16, Math.PI), basic(INK), 0, mouthY + mouthW * 0.35, mz + mouthW * 0.12, { rx: pitch, rz: Math.PI, shadow: false });
+      for (const s of [-1, 1]) add(g, new THREE.ConeGeometry(mouthW * 0.2, mouthW * 0.5, 4), white, s * mouthW * 0.55, mouthY - mouthW * 0.25, mz + mouthW * 0.1, { rx: Math.PI + pitch, shadow: false });
+      break;
+    case 'o':
+      add(g, sph(mouthW * 0.6, 12, 8), dark, 0, mouthY, mz - mouthW * 0.1, { s: [0.8, 1, 0.35], rx: pitch, shadow: false });
+      break;
+    case 'flat':
+      add(g, new THREE.CapsuleGeometry(mouthW * 0.14, mouthW * 1.2, 4, 8), basic(INK), 0, mouthY, mz, { rx: pitch, rz: Math.PI / 2, shadow: false });
+      break;
+  }
+  optimize(eyePair, true);
+  g.userData.eyes = [eyePair];
+  return g;
+}
+
+// Blinks every few seconds.
+function blinker(eyes) {
+  let next = rnd(0.5, 3.5);
+  return (t) => {
+    if (t < next - 10) next = t + rnd(1, 3); // clock went backwards
+    const phase = t - next;
+    let s = 1;
+    if (phase > 0 && phase < 0.13) s = 0.12;
+    else if (phase >= 0.13) next = t + rnd(1.8, 5);
+    for (const e of eyes) e.scale.y = s;
+  };
+}
+
+// A doorway / window shape: a rectangle with a round top, extruded forward.
+function archGeo(w, h, depth) {
+  const s = new THREE.Shape();
+  s.moveTo(-w / 2, 0);
+  s.lineTo(w / 2, 0);
+  s.lineTo(w / 2, h - w / 2);
+  s.absarc(0, h - w / 2, w / 2, 0, Math.PI, false);
+  s.lineTo(-w / 2, 0);
+  return new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 14 });
+}
+
+// A zig-zag lightning bolt.
+function boltGeo(size = 1) {
+  const s = new THREE.Shape();
+  const p = [[0, 0], [0.09, 0.2], [0.03, 0.2], [0.12, 0.44], [-0.02, 0.2], [0.04, 0.2], [-0.05, 0]];
+  s.moveTo(p[0][0] * size, p[0][1] * size);
+  for (const [x, y] of p.slice(1)) s.lineTo(x * size, y * size);
+  return new THREE.ExtrudeGeometry(s, { depth: 0.04 * size, bevelEnabled: false });
+}
+
+function batWingGeo(w = 0.7, h = 0.5) {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.lineTo(w * 0.45, h * 0.55);
+  s.lineTo(w, h * 0.38);
+  s.quadraticCurveTo(w * 0.86, h * 0.05, w * 0.9, -h * 0.28);
+  s.quadraticCurveTo(w * 0.72, -h * 0.1, w * 0.62, -h * 0.42);
+  s.quadraticCurveTo(w * 0.46, -h * 0.16, w * 0.32, -h * 0.46);
+  s.quadraticCurveTo(w * 0.2, -h * 0.16, 0, -h * 0.22);
+  s.lineTo(0, 0);
+  return new THREE.ShapeGeometry(s, 8);
+}
+
+// A flame: three nested cones in one mesh (vertex colours) that flickers.
+const flameGeos = new Map();
+const flameMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+function flameGeo(colors) {
+  const key = colors.join(',');
+  if (!flameGeos.has(key)) {
+    const items = colors.map((c, i) => {
+      const cone = new THREE.ConeGeometry(0.16 * (1 - i * 0.28), 0.5 * (1 - i * 0.2), 8);
+      cone.translate(0, 0.25 * (1 - i * 0.2) + i * 0.02, i * 0.035);
+      return { geo: cone, matrix: new THREE.Matrix4() };
+    });
+    const geo = mergeGeometries(items);
+    const col = new Float32Array(geo.attributes.position.count * 3);
+    let o = 0;
+    items.forEach(({ geo: cone }, i) => {
+      const c = new THREE.Color(colors[i]);
+      const n = cone.index ? cone.index.count : cone.attributes.position.count;
+      for (let k = 0; k < n; k++, o++) col.set([c.r, c.g, c.b], o * 3);
+    });
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    flameGeos.set(key, geo);
+  }
+  return flameGeos.get(key);
+}
+function flame(parent, x, y, z, size = 1, colors = [0xff4a10, 0xffa020, 0xffe680]) {
+  const f = group(parent, x, y, z);
+  const m = dyn(add(f, flameGeo(colors), flameMat, 0, 0, 0, { shadow: false, noOutline: true, s: size }));
+  f.userData.flicker = (t) => m.scale.set(size * (1 + Math.sin(t * 17 + x * 3) * 0.08), size * (1 + Math.sin(t * 13 + z * 3) * 0.2), size);
+  return f;
+}
+
+// ---------------------------------------------------------------- wizards
+
+export function makeWizard(o = {}) {
+  const {
+    robe = 0x3355ff, hat = robe, trim = 0xf2c14e, skin = 0xf6cfae, hair = 0x6b4226, gem = trim,
+    eyeColor = 0x3a6ea5, beard = false, glasses = false, goggles = false, backpack = false,
+    hatStyle = 'wizard', tip = gem,
+  } = o;
+  const g = new THREE.Group();
+  const body = group(g);
+  const robeM = mat(robe), trimM = mat(trim), skinM = mat(skin), hairM = mat(hair), hatM = mat(hat);
+
+  // robe, trim, belt, collar
+  const profile = [[0, 0], [0.74, 0], [0.79, 0.07], [0.69, 0.3], [0.53, 0.68], [0.41, 1.0], [0.44, 1.2], [0.41, 1.38], [0.28, 1.52], [0.13, 1.6], [0, 1.62]];
+  add(body, new THREE.LatheGeometry(profile.map(([x, y]) => new THREE.Vector2(x, y)), 20), robeM);
+  add(body, new THREE.TorusGeometry(0.755, 0.05, 6, 24), trimM, 0, 0.07, 0, { rx: Math.PI / 2 });
+  add(body, new THREE.TorusGeometry(0.42, 0.06, 6, 24), mat(0x4a2e1f), 0, 1.0, 0, { rx: Math.PI / 2 });
+  add(body, new THREE.BoxGeometry(0.17, 0.15, 0.07), mat(0xf2c14e), 0, 1.0, 0.47);
+  add(body, new THREE.TorusGeometry(0.25, 0.08, 6, 22), trimM, 0, 1.5, 0, { rx: Math.PI / 2 });
+  add(body, sph(0.04, 10, 8), trimM, 0, 1.2, 0.45);
+  add(body, sph(0.04, 10, 8), trimM, 0, 1.32, 0.43);
+  for (const s of [-1, 1]) add(body, sph(0.16), mat(0x3a2418), s * 0.22, 0.08, 0.72, { s: [1, 0.6, 1.45] });
+
+  // arms with bell sleeves
+  const makeArm = (side, hand) => {
+    const sh = V3(side * 0.36, 1.38, 0.02);
+    const grp = group(body, sh.x, sh.y, sh.z);
+    const rel = hand.clone().sub(sh);
+    const wrist = rel.clone().multiplyScalar(0.8);
+    limb(grp, V3(), wrist, 0.11, 0.2, robeM);
+    const cuff = add(grp, new THREE.TorusGeometry(0.19, 0.045, 6, 20), trimM, wrist.x, wrist.y, wrist.z);
+    cuff.quaternion.setFromUnitVectors(FWD, wrist.clone().normalize());
+    add(grp, sph(0.12, 14, 10), skinM, rel.x, rel.y, rel.z);
+    return { grp, rel };
+  };
+  const armL = makeArm(-1, V3(-0.6, 0.93, 0.2));
+  const armR = makeArm(1, V3(0.74, 0.98, 0.3));
+
+  // staff with a curled head cradling a glowing gem
+  const staff = group(armR.grp, armR.rel.x, armR.rel.y, armR.rel.z);
+  const wood = mat(0x7a5230);
+  add(staff, new THREE.CylinderGeometry(0.04, 0.05, 2.02, 8), wood, 0, 0.02, 0);
+  add(staff, new THREE.TorusGeometry(0.052, 0.02, 6, 12), mat(0x5a3a20), 0, 0.42, 0, { rx: Math.PI / 2 });
+  add(staff, new THREE.TorusGeometry(0.14, 0.042, 6, 20, Math.PI * 1.5), wood, 0, 1.16, 0, { rz: -Math.PI * 0.25 });
+  const gemMesh = dyn(add(staff, new THREE.OctahedronGeometry(0.14, 0), glowMat(gem, 2.2), 0, 1.16, 0));
+  const sparks = [0, 1].map(() => dyn(add(staff, new THREE.OctahedronGeometry(0.045), basic(lighter(gem, 0.5)), 0, 1.16, 0, { shadow: false })));
+
+  // head
+  const head = group(body, 0, 1.97, 0.03);
+  const R = 0.43;
+  add(head, sph(R, 16, 10), skinM);
+  for (const s of [-1, 1]) add(head, sph(0.1, 12, 10), skinM, s * 0.41, -0.02, -0.02, { s: [0.55, 1, 0.8] });
+  add(head, sph(0.055, 12, 10), mat(darker(skin, 0.93)), 0, -0.07, R - 0.01);
+  const face = makeFace(R, {
+    eyeR: 0.095, gap: 0.155, eyeY: 0.02, iris: eyeColor,
+    brows: beard ? 'bushy' : 'happy', browColor: beard ? 0xf4f4f4 : darker(hair, 0.75),
+    mouth: beard ? 'none' : 'smile', mouthY: -0.17, mouthW: 0.065, cheeks: true,
+  });
+  head.add(face);
+
+  // hair
+  if (hatStyle !== 'helmet') {
+    if (hatStyle !== 'hood') add(head, sph(R * 1.04, 16, 10), hairM, 0, 0.04, -0.08, { s: [1.02, 0.95, 0.95] });
+    for (const [x, y, z, r] of [[-0.2, 0.27, 0.3, 0.13], [0.0, 0.31, 0.31, 0.14], [0.2, 0.27, 0.3, 0.13]]) add(head, sph(r, 14, 10), hairM, x, y, z);
+    for (const s of [-1, 1]) add(head, sph(0.13, 14, 10), hairM, s * 0.37, -0.1, -0.04, { s: [0.75, 1.35, 0.9] });
+  }
+
+  // headwear
+  const joints = [];
+  if (hatStyle === 'wizard') {
+    const hatG = group(head, 0, 0.31, -0.03);
+    hatG.rotation.set(-0.12, 0, 0.07);
+    add(hatG, new THREE.CylinderGeometry(0.62, 0.86, 0.08, 18), hatM);
+    add(hatG, new THREE.CylinderGeometry(0.43, 0.45, 0.15, 18), trimM, 0, 0.1, 0);
+    add(hatG, new THREE.OctahedronGeometry(0.08), glowMat(tip, 1.4), 0, 0.1, 0.46, { s: [1, 1.2, 0.45] });
+    add(hatG, new THREE.CylinderGeometry(0.27, 0.44, 0.58, 18), hatM, 0, 0.33, 0);
+    const j1 = group(hatG, 0, 0.6, 0);
+    add(j1, new THREE.CylinderGeometry(0.14, 0.27, 0.46, 18), hatM, 0, 0.22, 0);
+    const j2 = group(j1, 0, 0.44, 0);
+    add(j2, new THREE.ConeGeometry(0.14, 0.4, 20), hatM, 0, 0.19, 0);
+    add(j2, new THREE.OctahedronGeometry(0.08), glowMat(tip, 2), 0, 0.43, 0);
+    joints.push(j1, j2);
+    if (goggles) {
+      for (const s of [-1, 1]) {
+        add(hatG, new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), mat(0xc9a24a), s * 0.12, 0.13, 0.42, { rx: Math.PI / 2 });
+        add(hatG, new THREE.CircleGeometry(0.06, 16), basic(0x9fe6ff), s * 0.12, 0.13, 0.465, { shadow: false });
+      }
+    }
+  } else if (hatStyle === 'helmet') {
+    const steel = mat(hat);
+    add(head, new THREE.SphereGeometry(R * 1.1, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.42), steel, 0, 0.03, 0);
+    add(head, new THREE.TorusGeometry(0.46, 0.045, 6, 24), trimM, 0, 0.15, 0, { rx: Math.PI / 2 });
+    add(head, new THREE.BoxGeometry(0.07, 0.24, 0.06), steel, 0, 0.1, R + 0.04);
+    const plumeM = mat(0xc0392b);
+    add(head, sph(0.13, 12, 10), plumeM, 0, 0.52, 0.02, { s: [0.55, 1, 1.3] });
+    add(head, sph(0.12, 12, 10), plumeM, 0, 0.52, -0.2, { s: [0.55, 1, 1.3] });
+    add(head, sph(0.1, 12, 10), plumeM, 0, 0.44, -0.38, { s: [0.55, 1, 1.3] });
+  } else if (hatStyle === 'hood') {
+    // an open-fronted cowl: outer shell, darker lining, and a floppy point at the back
+    const open = 0.8;
+    const shell = (r, material) => new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12, Math.PI / 2 + open, Math.PI * 2 - open * 2, 0, Math.PI * 0.74), material);
+    const outer = shell(0.53, hatM);
+    const lining = shell(0.5, mat(darker(hat, 0.5), { side: THREE.BackSide }));
+    for (const m of [outer, lining]) { m.position.set(0, 0.07, -0.05); m.castShadow = true; head.add(m); }
+    lining.userData.noOutline = true;
+    add(head, new THREE.ConeGeometry(0.2, 0.6, 16), hatM, 0, 0.3, -0.55, { rx: -2.1 });
+    add(head, sph(0.1, 12, 10), trimM, 0, 0.02, -0.82);
+  }
+
+  if (glasses) {
+    const frame = basic(0x3a2418);
+    for (const s of [-1, 1]) add(head, new THREE.TorusGeometry(0.118, 0.014, 6, 20), frame, s * 0.155, 0.02, 0.47, { shadow: false });
+    add(head, new THREE.BoxGeometry(0.08, 0.016, 0.016), frame, 0, 0.04, 0.47, { shadow: false });
+  }
+  if (beard) {
+    const bm = mat(0xf2f2f2);
+    add(head, new THREE.ConeGeometry(0.3, 0.85, 20), bm, 0, -0.52, 0.24, { rx: Math.PI + 0.3 });
+    add(head, sph(0.22, 16, 10), bm, 0, -0.26, 0.3, { s: [1.3, 0.9, 0.8] });
+    for (const s of [-1, 1]) add(head, sph(0.1, 12, 10), bm, s * 0.1, -0.14, R - 0.02, { s: [1.5, 0.65, 0.8], rz: s * 0.35 });
+  }
+  if (o.quiver) {
+    const q = group(body, 0.2, 1.3, -0.42);
+    q.rotation.set(0.25, 0, -0.45);
+    add(q, new THREE.CylinderGeometry(0.13, 0.11, 0.8, 12), mat(0x6b4a2b));
+    add(q, new THREE.TorusGeometry(0.13, 0.03, 6, 14), trimM, 0, 0.38, 0, { rx: Math.PI / 2 });
+    for (const [x, z] of [[-0.05, 0.02], [0.05, -0.03], [0, 0.05]]) {
+      add(q, new THREE.CylinderGeometry(0.015, 0.015, 0.5, 5), mat(0xd8c090), x, 0.55, z);
+      add(q, new THREE.ConeGeometry(0.05, 0.14, 3), mat(0xc0392b), x, 0.82, z);
+    }
+  }
+  if (backpack) {
+    const bp = group(body, 0, 1.15, -0.46);
+    add(bp, new THREE.BoxGeometry(0.66, 0.78, 0.4), mat(0x7a5230));
+    add(bp, new THREE.BoxGeometry(0.68, 0.28, 0.42), mat(0x5a3a20), 0, 0.3, 0.01);
+    add(bp, new THREE.CylinderGeometry(0.14, 0.14, 0.8, 14), mat(0xa0346a), 0, 0.52, -0.02, { rz: Math.PI / 2 });
+    add(bp, sph(0.13), mat(0x3a3a44), 0.42, -0.15, 0);
+    add(bp, new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8), glowMat(0xffc86b, 2), -0.42, -0.1, 0);
+  }
+
+  head.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
+  const blink = blinker(face.userData.eyes);
   g.userData = {
-    body, gem: gemMesh, hatTip: tip,
+    body, head, gem: gemMesh,
     anim(t, moving) {
-      body.position.y = moving ? Math.abs(Math.sin(t * 10)) * 0.12 : Math.sin(t * 2) * 0.02;
-      body.rotation.z = moving ? Math.sin(t * 10) * 0.05 : 0;
-      tip.rotation.z = 0.12 + Math.sin(t * 3) * 0.06;
+      blink(t);
+      const w = Math.sin(t * 10);
+      body.position.y = moving ? Math.abs(w) * 0.1 : 0;
+      body.rotation.x = moving ? 0.07 : 0;
+      body.rotation.z = moving ? w * 0.04 : Math.sin(t * 1.1) * 0.012;
+      body.scale.y = moving ? 1 : 1 + Math.sin(t * 2.2) * 0.012;
+      armL.grp.rotation.x = moving ? w * 0.55 : Math.sin(t * 2.2) * 0.05;
+      armR.grp.rotation.x = moving ? -w * 0.2 : 0;
+      head.rotation.y = moving ? 0 : Math.sin(t * 0.6) * 0.15;
+      head.rotation.z = Math.sin(t * 1.3) * 0.035;
+      if (joints.length) {
+        joints[0].rotation.set(-0.32 + Math.sin(t * 2.4) * 0.05 - (moving ? 0.12 : 0), 0, 0.1 + Math.sin(t * 1.7) * 0.06);
+        joints[1].rotation.set(-0.62 + Math.sin(t * 2.4 + 0.8) * 0.1 - (moving ? 0.2 : 0), 0, Math.sin(t * 1.7 + 0.5) * 0.1);
+      }
       gemMesh.rotation.y = t * 2;
+      sparks.forEach((s, i) => {
+        const a = t * 3 + i * Math.PI;
+        s.position.set(Math.cos(a) * 0.26, 1.16 + Math.sin(a * 1.5) * 0.1, Math.sin(a) * 0.26);
+      });
     },
   };
-  return g;
+  return finish(g, 0.026, 0.07);
 }
 
-// ---------------------------------------------------------------- Enemies
+// ---------------------------------------------------------------- Chapter 1 enemies
 
+// A mischievous shadow bulb with leafy hair and a toothy grin.
 function sprig() {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  body.add(mesh(new THREE.DodecahedronGeometry(0.6), mat(0x2b3324), 0, 0.75, 0));
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    const spike = mesh(new THREE.ConeGeometry(0.1, 0.7, 5), mat(0x3d2f24), Math.cos(a) * 0.45, 1.05, Math.sin(a) * 0.45);
-    spike.rotation.set(Math.sin(a) * 0.7, 0, -Math.cos(a) * 0.7);
-    body.add(spike);
+  const body = group(g);
+  const bulb = group(body, 0, 0.74, 0);
+  const R = 0.56;
+  add(bulb, sph(R, 16, 10), mat(0x3d2656), 0, 0, 0, { s: [1, 0.94, 1] });
+  for (const [x, y, z] of [[-0.42, 0.18, -0.25], [0.38, -0.12, -0.32], [0.05, 0.3, -0.48], [-0.3, -0.3, -0.35]]) {
+    add(bulb, sph(0.09, 10, 8), mat(0x7a4aa8), x, y, z, { s: [1, 1, 0.4] });
   }
-  const leaf = mesh(new THREE.ConeGeometry(0.25, 0.6, 4), mat(0x6a2c8a), 0, 1.5, 0);
-  body.add(leaf);
-  body.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), glowMat(0xc07bff, 3), -0.2, 0.85, 0.5));
-  body.add(mesh(new THREE.SphereGeometry(0.09, 8, 6), glowMat(0xc07bff, 3), 0.2, 0.85, 0.5));
+  const face = makeFace(R, { eyeR: 0.15, gap: 0.2, eyeY: 0.1, iris: 0xc07bff, brows: 'angry', browColor: 0x14081e, mouth: 'grin', mouthY: -0.16, mouthW: 0.14 });
+  bulb.add(face);
+  const crown = group(bulb, 0, R * 0.85, 0);
+  const leaves = [[0, 0.75, 0x3e8a4c], [2.1, 0.8, 0x2f7040], [4.2, 0.7, 0x7a3aa0], [1.05, 0.35, 0x4ea85c]];
+  for (const [a, tilt, c] of leaves) {
+    const p = group(crown);
+    p.rotation.set(tilt, a, 0, 'YXZ');
+    add(p, sph(0.2, 14, 10), mat(c), 0, 0.3, 0, { s: [0.55, 1.5, 0.2] });
+  }
+  add(crown, new THREE.CylinderGeometry(0.03, 0.05, 0.35, 6), mat(0x2f5a34), 0, 0.15, 0);
+  const bud = dyn(add(crown, sph(0.1, 12, 10), glowMat(0xd08bff, 1.4), 0, 0.36, 0));
+  const twig = mat(0x5a3a24);
+  for (const s of [-1, 1]) {
+    const hand = V3(s * 0.88, 0.95, 0.15);
+    limb(body, V3(s * 0.5, 0.7, 0.05), hand, 0.05, 0.035, twig, 6);
+    for (const k of [-1, 0, 1]) limb(body, hand, hand.clone().add(V3(s * 0.12, 0.08 + k * 0.08, k * 0.06)), 0.03, 0.015, twig, 5);
+    add(body, sph(0.14, 12, 10), mat(0x4a3024), s * 0.24, 0.07, 0.14, { s: [1, 0.5, 1.4] });
+  }
+  const blink = blinker(face.userData.eyes);
   g.userData.anim = (t, moving) => {
-    body.position.y = Math.abs(Math.sin(t * (moving ? 8 : 3))) * (moving ? 0.35 : 0.08);
-    body.rotation.y = Math.sin(t * 1.5) * 0.2;
+    blink(t);
+    const h = Math.abs(Math.sin(t * (moving ? 8 : 3.2)));
+    body.position.y = h * (moving ? 0.35 : 0.1);
+    const sq = 1 - (1 - h) * (moving ? 0.12 : 0.05);
+    bulb.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq));
+    crown.rotation.z = Math.sin(t * 3) * 0.15;
+    bud.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
+    body.rotation.y = Math.sin(t * 1.5) * 0.15;
   };
-  return g;
+  return finish(g, 0.026, 0.07);
 }
 
+// A chubby, grumpy rat with a burning tail.
 function rat() {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const torso = mesh(new THREE.SphereGeometry(0.5, 10, 8), mat(0x8a3a1c), 0, 0.55, 0);
-  torso.scale.set(1, 0.85, 1.5);
-  body.add(torso);
-  const head = mesh(new THREE.SphereGeometry(0.33, 10, 8), mat(0x9c4522), 0, 0.72, 0.75);
-  head.scale.set(1, 0.9, 1.25);
-  body.add(head);
-  body.add(mesh(new THREE.SphereGeometry(0.07, 6, 6), mat(0x1a0d08), 0, 0.72, 1.15));
+  const body = group(g);
+  const fur = mat(0x8c3b22), pale = mat(0xe8b07a);
+  add(body, sph(0.55, 16, 10), fur, 0, 0.56, -0.05, { s: [0.95, 0.8, 1.2] });
+  add(body, sph(0.45, 16, 10), pale, 0, 0.44, 0.18, { s: [0.8, 0.65, 1] });
+  for (const [x, z] of [[-0.3, 0.42], [0.3, 0.42], [-0.32, -0.42], [0.32, -0.42]]) add(body, sph(0.11), mat(0xd08070), x, 0.08, z, { s: [1, 0.6, 1.35] });
+  const head = group(body, 0, 0.88, 0.62);
+  add(head, sph(0.4, 16, 10), fur);
+  for (const s of [-1, 1]) add(head, sph(0.17), pale, s * 0.22, -0.12, 0.14);
+  const snout = dyn(add(head, sph(0.2, 16, 10), pale, 0, -0.11, 0.33, { s: [1, 0.8, 1.2] }));
+  const nose = dyn(add(head, sph(0.07, 12, 10), mat(0xff6a8a), 0, -0.05, 0.56));
+  const face = makeFace(0.4, { eyeR: 0.1, gap: 0.15, eyeY: 0.09, iris: 0xffb020, brows: 'angry', browColor: 0x3a1a10, mouth: 'none' });
+  head.add(face);
+  for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.06, 0.09, 0.03), basic(0xffffff), s * 0.033, -0.25, 0.5, { shadow: false });
+  const whisk = basic(0x3a1a10);
+  for (const s of [-1, 1]) for (const k of [-1, 1]) limb(head, V3(s * 0.13, -0.12, 0.48), V3(s * 0.46, -0.1 + k * 0.07, 0.4), 0.007, 0.004, whisk, 4);
+  const ears = [];
   for (const s of [-1, 1]) {
-    const ear = mesh(new THREE.ConeGeometry(0.13, 0.3, 6), mat(0xff8a3d), s * 0.2, 1.0, 0.62);
-    body.add(ear);
-    body.add(mesh(new THREE.SphereGeometry(0.06, 6, 6), glowMat(0xffd23d, 3), s * 0.15, 0.82, 1.0));
+    const p = group(head, s * 0.27, 0.3, -0.05);
+    p.rotation.z = -s * 0.35;
+    add(p, new THREE.CylinderGeometry(0.21, 0.21, 0.05, 18), fur, 0, 0.12, 0, { rx: Math.PI / 2 });
+    add(p, new THREE.CylinderGeometry(0.13, 0.13, 0.02, 16), mat(0xff9aa8), 0, 0.12, 0.03, { rx: Math.PI / 2 });
+    ears.push(p);
   }
-  const tail = mesh(new THREE.CylinderGeometry(0.03, 0.08, 1.1, 5), glowMat(0xff6a2b, 1.5), 0, 0.6, -1.1);
-  tail.rotation.x = Math.PI / 2.6;
-  body.add(tail);
-  // embers along the back
-  for (let i = 0; i < 4; i++) body.add(mesh(new THREE.ConeGeometry(0.08, 0.25, 4), glowMat(0xff8a2b, 2.5), 0, 0.98 - i * 0.03, 0.3 - i * 0.25));
+  for (const [y, z] of [[1.0, 0.15], [1.02, -0.15], [0.98, -0.45]]) add(body, new THREE.ConeGeometry(0.08, 0.26, 5), glowMat(0xff8a2b, 2.2), 0, y, z, { shadow: false });
+  const tail = group(body, 0, 0.5, -0.62);
+  tube(tail, [[0, 0, 0], [0, 0.1, -0.35], [0.1, 0.4, -0.6], [0.05, 0.75, -0.55]], 0.05, mat(0xc07060));
+  const fire = flame(tail, 0.05, 0.75, -0.55, 0.8);
+  const blink = blinker(face.userData.eyes);
   g.userData.anim = (t, moving) => {
-    body.position.y = moving ? Math.abs(Math.sin(t * 14)) * 0.1 : 0;
-    tail.rotation.z = Math.sin(t * 6) * 0.4;
+    blink(t);
+    body.position.y = moving ? Math.abs(Math.sin(t * 14)) * 0.1 : Math.sin(t * 2.5) * 0.015;
+    head.rotation.x = Math.sin(t * 1.7) * 0.06;
+    nose.scale.setScalar(1 + Math.max(0, Math.sin(t * 9)) * 0.2);
+    snout.rotation.y = Math.sin(t * 9) * 0.04;
+    tail.rotation.z = Math.sin(t * 3) * 0.25;
+    ears.forEach((e, i) => { e.rotation.x = Math.sin(t * 5 + i) * 0.1; });
+    fire.userData.flicker(t);
   };
-  return g;
+  return finish(g, 0.026, 0.07);
 }
 
+// A shy little ice ghost with an icicle crown.
 function wisp() {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const core = mesh(new THREE.IcosahedronGeometry(0.5, 0), glowMat(0x9fe6ff, 1.2), 0, 1.4, 0);
-  core.material = new THREE.MeshStandardMaterial({ color: 0x9fe6ff, emissive: 0x3fb8ff, emissiveIntensity: 1.2, transparent: true, opacity: 0.85, flatShading: true });
-  body.add(core);
-  body.add(mesh(new THREE.IcosahedronGeometry(0.22, 0), glowMat(0xffffff, 3), 0, 1.4, 0));
-  const shards = [];
-  for (let i = 0; i < 5; i++) {
-    const s = mesh(new THREE.OctahedronGeometry(0.12), glowMat(0xbff2ff, 2), 0, 1.4, 0);
-    shards.push(s); body.add(s);
+  const body = group(g);
+  const ice = mat(0xcaf2ff, { emissive: 0x3aa8ff, emissiveIntensity: 0.3 });
+  const head = group(body, 0, 1.5, 0);
+  add(head, sph(0.55, 16, 10), ice);
+  const tail = group(body, 0, 1.2, -0.05);
+  const tails = [[0.42, 0, -0.18, -0.05], [0.3, 0, -0.5, -0.2], [0.19, 0, -0.74, -0.38], [0.1, 0, -0.9, -0.52]].map(([r, x, y, z]) => dyn(add(tail, sph(r, 16, 10), ice, x, y, z)));
+  const face = makeFace(0.55, { eyeR: 0.15, gap: 0.2, eyeY: 0.02, iris: 0x2a7ad0, brows: 'worried', browColor: 0x2a5a8a, mouth: 'o', mouthY: -0.2, mouthW: 0.1, cheeks: true, cheekColor: 0x8fd0ff });
+  head.add(face);
+  const crown = group(head, 0, 0.42, 0);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const c = add(crown, new THREE.ConeGeometry(0.07, i % 2 ? 0.26 : 0.36, 6), glowMat(0xe8fbff, 0.9), Math.cos(a) * 0.26, 0.12, Math.sin(a) * 0.26);
+    c.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
   }
-  for (const s of [-1, 1]) body.add(mesh(new THREE.SphereGeometry(0.07, 6, 6), mat(0x0b2a44), s * 0.17, 1.5, 0.43));
+  const arms = [-1, 1].map(s => dyn(add(head, sph(0.14, 14, 10), ice, s * 0.55, -0.2, 0.1, { s: [0.7, 1, 0.7] })));
+  const flakes = [];
+  for (let i = 0; i < 4; i++) flakes.push(dyn(add(body, new THREE.OctahedronGeometry(0.07), basic(0xffffff), 0, 1.5, 0, { shadow: false })));
+  const blink = blinker(face.userData.eyes);
   g.userData.anim = (t) => {
-    body.position.y = Math.sin(t * 2) * 0.2;
-    core.rotation.y = t * 0.8;
-    shards.forEach((s, i) => {
-      const a = t * 1.8 + (i / shards.length) * Math.PI * 2;
-      s.position.set(Math.cos(a) * 0.85, 1.4 + Math.sin(a * 2) * 0.25, Math.sin(a) * 0.85);
-      s.rotation.x = t * 3;
+    blink(t);
+    body.position.y = Math.sin(t * 2) * 0.18;
+    tail.rotation.z = Math.sin(t * 2.4) * 0.25;
+    tail.rotation.x = Math.sin(t * 1.7) * 0.15;
+    tails.forEach((s, i) => { s.position.x = Math.sin(t * 3 - i * 0.8) * 0.06 * i; });
+    arms.forEach((a, i) => { a.position.y = -0.2 + Math.sin(t * 3 + i * Math.PI) * 0.06; });
+    crown.rotation.y = t * 0.6;
+    flakes.forEach((f, i) => {
+      const a = t * 1.6 + (i / 4) * Math.PI * 2;
+      f.position.set(Math.cos(a) * 0.95, 1.4 + Math.sin(a * 2) * 0.3, Math.sin(a) * 0.95);
+      f.rotation.set(t * 2, t * 3, 0);
     });
   };
-  return g;
+  return finish(g, 0.026, 0.07);
 }
 
-function knight(scale = 1, boss = false) {
+// Chunky enchanted armour; `boss` makes it Lord Hollowmere.
+function knight({ armor = 0x707894, dark = 0x2d2a3a, accent = 0x9a2a3a, eye = 0x7de0ff, boss = false } = {}) {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const steel = mat(boss ? 0x2a2438 : 0x55586a, { roughness: 0.5, metalness: 0.4 });
-  const dark = mat(0x1a1822);
-  const eyeC = boss ? 0xc542ff : 0x7de0ff;
-  for (const s of [-1, 1]) body.add(mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.85, 6), dark, s * 0.2, 0.43, 0));
-  body.add(mesh(new THREE.BoxGeometry(0.85, 0.9, 0.5), steel, 0, 1.3, 0));
-  body.add(mesh(new THREE.BoxGeometry(1.1, 0.22, 0.55), steel, 0, 1.7, 0));
-  const helm = mesh(new THREE.CylinderGeometry(0.3, 0.33, 0.55, 8), steel, 0, 2.08, 0);
-  body.add(helm);
-  body.add(mesh(new THREE.BoxGeometry(0.4, 0.07, 0.05), glowMat(eyeC, 3), 0, 2.1, 0.31));
+  const body = group(g);
+  const A = mat(armor), D = mat(dark), acc = mat(accent), lite = mat(lighter(armor, 0.25));
+  const legs = [-1, 1].map(s => {
+    const leg = group(body, s * 0.23, 0.78, 0);
+    limb(leg, V3(), V3(0.01 * s, -0.58, 0), 0.14, 0.12, D);
+    add(leg, sph(0.18, 14, 10), A, 0, -0.66, 0.06, { s: [1, 0.62, 1.45] });
+    add(leg, sph(0.13, 12, 10), A, 0, -0.3, 0.1, { s: [1, 1, 0.7] });
+    return leg;
+  });
+  add(body, new THREE.CylinderGeometry(0.44, 0.52, 0.38, 18), D, 0, 0.88, 0);
+  add(body, new THREE.TorusGeometry(0.46, 0.05, 6, 24), boss ? mat(0xf2c14e) : A, 0, 1.04, 0, { rx: Math.PI / 2 });
+  add(body, sph(0.56, 16, 10), A, 0, 1.4, 0, { s: [1, 1.05, 0.82] });
+  add(body, sph(0.46, 16, 10), lite, 0, 1.44, 0.14, { s: [0.9, 0.95, 0.72] });
+  add(body, new THREE.OctahedronGeometry(0.11), glowMat(boss ? 0xc542ff : accent, 1.8), 0, 1.5, 0.48, { s: [1, 1.3, 0.5] });
+  add(body, sph(0.24, 14, 10), basic(0x0a0414), 0, 1.9, 0);
+  for (const s of [-1, 1]) {
+    add(body, new THREE.SphereGeometry(0.32, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), A, s * 0.58, 1.72, 0, { rz: -s * 0.4 });
+    add(body, new THREE.TorusGeometry(0.31, 0.04, 6, 22), boss ? mat(0xf2c14e) : D, s * 0.58, 1.72, 0, { rx: Math.PI / 2, ry: -s * 0.4 });
+    if (boss) for (let k = 0; k < 3; k++) add(body, new THREE.ConeGeometry(0.06, 0.3, 5), mat(0xf2c14e), s * (0.5 + k * 0.1), 1.95 - k * 0.04, -0.1 + k * 0.1, { rz: -s * 0.5 });
+  }
+  // helmet with glowing eyes in the dark
+  const helm = group(body, 0, 2.16, 0);
+  add(helm, new THREE.CylinderGeometry(0.35, 0.38, 0.6, 18), A);
+  add(helm, new THREE.SphereGeometry(0.35, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2), A, 0, 0.3, 0);
+  add(helm, new THREE.BoxGeometry(0.52, 0.1, 0.12), basic(0x0a0414), 0, 0.02, 0.33, { shadow: false });
+  add(helm, new THREE.BoxGeometry(0.1, 0.3, 0.1), basic(0x0a0414), 0, -0.14, 0.34, { shadow: false });
+  const eyes = [-1, 1].map(s => dyn(add(helm, sph(0.055, 10, 8), basic(eye), s * 0.12, 0.02, 0.37, { shadow: false })));
   if (boss) {
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      body.add(mesh(new THREE.ConeGeometry(0.07, 0.35, 4), glowMat(0xc542ff, 1.5), Math.cos(a) * 0.3, 2.5, Math.sin(a) * 0.3));
+    add(helm, new THREE.TorusGeometry(0.34, 0.05, 6, 24), mat(0xf2c14e), 0, 0.42, 0, { rx: Math.PI / 2 });
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      add(helm, new THREE.ConeGeometry(0.065, 0.32, 5), mat(0xf2c14e), Math.cos(a) * 0.33, 0.6, Math.sin(a) * 0.33);
+      add(helm, new THREE.OctahedronGeometry(0.05), glowMat(0xc542ff, 2.5), Math.cos(a) * 0.33, 0.78, Math.sin(a) * 0.33, { shadow: false });
     }
   } else {
-    body.add(mesh(new THREE.ConeGeometry(0.06, 0.45, 4), mat(0x6b1f2a), 0, 2.55, 0));
+    add(helm, new THREE.BoxGeometry(0.07, 0.3, 0.62), acc, 0, 0.58, -0.02);
   }
-  // cape
-  const cape = mesh(new THREE.PlaneGeometry(0.9, 1.5), mat(boss ? 0x4a1466 : 0x2c2230, { side: THREE.DoubleSide }), 0, 1.0, -0.3);
-  cape.rotation.x = 0.12;
-  body.add(cape);
   // sword arm
-  const arm = new THREE.Group();
-  arm.position.set(0.55, 1.55, 0.1);
-  arm.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.7, 6), steel, 0, -0.35, 0));
-  const blade = mesh(new THREE.BoxGeometry(0.1, 1.3, 0.04), boss ? glowMat(0x9a4dff, 1.2) : mat(0xb8bcc8, { metalness: 0.6, roughness: 0.3 }), 0, -0.3, 0.7);
-  blade.rotation.x = Math.PI / 2;
-  arm.add(blade);
-  body.add(arm);
-  g.scale.setScalar(scale);
+  const armR = group(body, 0.62, 1.62, 0);
+  limb(armR, V3(), V3(0.14, -0.58, 0.3), 0.12, 0.11, A);
+  add(armR, sph(0.15, 14, 10), D, 0.14, -0.6, 0.32);
+  const sword = group(armR, 0.14, -0.6, 0.32);
+  sword.rotation.set(0.35, 0, -0.45);
+  add(sword, new THREE.CylinderGeometry(0.035, 0.035, 0.3, 8), mat(0x4a2e1f), 0, -0.02, 0);
+  add(sword, new THREE.BoxGeometry(0.38, 0.07, 0.08), boss ? mat(0xf2c14e) : D, 0, 0.14, 0);
+  const bladeM = boss ? glowMat(0xa04dff, 1.5) : mat(0xd0d6e4);
+  add(sword, new THREE.BoxGeometry(0.13, 1.25, 0.04), bladeM, 0, 0.8, 0);
+  add(sword, new THREE.ConeGeometry(0.092, 0.22, 4), bladeM, 0, 1.53, 0, { ry: Math.PI / 4, s: [1, 1, 0.3] });
+  // shield arm
+  const armL = group(body, -0.62, 1.62, 0);
+  limb(armL, V3(), V3(-0.12, -0.55, 0.3), 0.12, 0.11, A);
+  add(armL, sph(0.15, 14, 10), D, -0.12, -0.57, 0.32);
+  add(armL, new THREE.CylinderGeometry(0.44, 0.44, 0.08, 18), boss ? mat(0x3a2a5a) : mat(0x5a3a2a), -0.14, -0.55, 0.46, { rx: Math.PI / 2 });
+  add(armL, new THREE.TorusGeometry(0.44, 0.05, 6, 24), boss ? mat(0xf2c14e) : A, -0.14, -0.55, 0.48);
+  add(armL, new THREE.OctahedronGeometry(0.13), boss ? glowMat(0xc542ff, 1.8) : acc, -0.14, -0.55, 0.53, { s: [1, 1.3, 0.4] });
+  const cape = dyn(add(body, new THREE.PlaneGeometry(0.95, 1.45, 1, 4), mat(boss ? 0x4a1466 : 0x3a2440, { side: THREE.DoubleSide }), 0, 1.05, -0.44, { rx: 0.12 }));
+  const wisps = [];
+  if (boss) for (let i = 0; i < 3; i++) wisps.push(flame(body, 0, 1.6, 0, 0.7, [0x7a2ad0, 0xc542ff, 0xf0c8ff]));
   g.userData.anim = (t, moving) => {
-    body.position.y = moving ? Math.abs(Math.sin(t * 7)) * 0.08 : 0;
-    arm.rotation.x = Math.sin(t * (moving ? 7 : 1.5)) * 0.2;
-    cape.rotation.x = 0.12 + Math.sin(t * 2.5) * 0.08;
+    const w = Math.sin(t * 7);
+    body.position.y = moving ? Math.abs(w) * 0.08 : Math.sin(t * 1.6) * 0.02;
+    legs.forEach((l, i) => { l.rotation.x = moving ? (i ? w : -w) * 0.4 : 0; });
+    armR.rotation.x = moving ? -w * 0.2 : Math.sin(t * 1.5) * 0.12;
+    armL.rotation.x = moving ? w * 0.2 : 0;
+    helm.rotation.y = Math.sin(t * 0.8) * 0.12;
+    cape.rotation.x = 0.12 + Math.sin(t * 2.5) * 0.08 + (moving ? 0.25 : 0);
+    const glow = 1 + Math.sin(t * 5) * 0.2;
+    eyes.forEach(e => e.scale.setScalar(glow));
+    wisps.forEach((f, i) => {
+      const a = t * 1.2 + (i / 3) * Math.PI * 2;
+      f.position.set(Math.cos(a) * 1.25, 1.5 + Math.sin(t * 2 + i) * 0.25, Math.sin(a) * 1.25);
+      f.userData.flicker(t);
+    });
   };
-  return g;
+  return finish(g, 0.028, 0.07);
 }
 
+// A round, cranky storm bird with a lightning crest.
 function crow() {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const b = mesh(new THREE.SphereGeometry(0.4, 10, 8), mat(0x1e1b2a), 0, 1.5, 0);
-  b.scale.set(0.9, 0.9, 1.4);
-  body.add(b);
-  body.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), mat(0x241f33), 0, 1.75, 0.45));
-  const beak = mesh(new THREE.ConeGeometry(0.09, 0.35, 5), mat(0xf2c14e), 0, 1.72, 0.8);
-  beak.rotation.x = Math.PI / 2;
-  body.add(beak);
-  for (const s of [-1, 1]) body.add(mesh(new THREE.SphereGeometry(0.05, 6, 6), glowMat(0xd08bff, 3), s * 0.13, 1.82, 0.66));
-  const wings = [];
-  for (const s of [-1, 1]) {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.3, 1.6, 0);
-    const w = mesh(new THREE.BoxGeometry(1.1, 0.05, 0.55), mat(0x2d2640), s * 0.55, 0, 0);
-    pivot.add(w);
-    // sparks on wing tips
-    pivot.add(mesh(new THREE.OctahedronGeometry(0.08), glowMat(0xb46bff, 3), s * 1.1, 0, 0));
-    wings.push({ pivot, s });
-    body.add(pivot);
+  const body = group(g, 0, 1.45, 0);
+  const feather = mat(0x2c2a4c), belly = mat(0x5c5a92), tipM = mat(0x8a5ad0);
+  add(body, sph(0.52, 16, 10), feather);
+  add(body, sph(0.4, 16, 10), belly, 0, -0.12, 0.2, { s: [1, 1, 0.8] });
+  const face = makeFace(0.52, { eyeR: 0.14, gap: 0.2, eyeY: 0.12, iris: 0xffd23d, brows: 'angry', browColor: 0x120a24, mouth: 'none' });
+  body.add(face);
+  add(body, new THREE.ConeGeometry(0.12, 0.36, 4), mat(0xffa020), 0, -0.05, 0.62, { rx: Math.PI / 2, ry: Math.PI / 4 });
+  add(body, new THREE.ConeGeometry(0.07, 0.2, 4), mat(0xd07010), 0, -0.13, 0.55, { rx: Math.PI / 2 + 0.3, ry: Math.PI / 4 });
+  const bolt = glowMat(0xffe14d, 2);
+  const crest = group(body, 0, 0.42, -0.02);
+  for (const [x, rz, sz] of [[-0.13, 0.55, 0.8], [0, 0.05, 1.05], [0.13, -0.45, 0.8]]) {
+    const b = add(crest, boltGeo(sz), bolt, x, 0, -0.02, { rz });
+    b.userData.noOutline = false;
   }
-  const tail = mesh(new THREE.BoxGeometry(0.35, 0.04, 0.5), mat(0x2d2640), 0, 1.45, -0.7);
-  body.add(tail);
+  // wings: a fan of long flat feathers, dark near the body and purple at the tips
+  const wings = [-1, 1].map(s => {
+    const p = group(body, s * 0.4, 0.1, -0.05);
+    for (let k = 0; k < 4; k++) {
+      const ang = -s * (1.35 + k * 0.32);
+      const len = 0.62 - k * 0.07;
+      const dir = V3(-Math.sin(ang), Math.cos(ang), 0);
+      const f = add(p, sph(0.2, 14, 10), k < 2 ? feather : tipM, dir.x * len * 0.5, dir.y * len * 0.5, -k * 0.04, { s: [0.42, len / 0.4, 0.16], rz: ang });
+      f.renderOrder = k;
+    }
+    return { p, s };
+  });
+  for (let k = -1; k <= 1; k++) add(body, new THREE.CapsuleGeometry(0.07, 0.35, 4, 8), k ? feather : tipM, k * 0.1, -0.3, -0.5, { rx: -1.0, rz: k * 0.35 });
+  for (const s of [-1, 1]) {
+    limb(body, V3(s * 0.15, -0.45, 0.05), V3(s * 0.17, -0.8, 0.1), 0.025, 0.025, mat(0xffa020), 5);
+    for (const k of [-1, 0, 1]) limb(body, V3(s * 0.17, -0.8, 0.1), V3(s * 0.17 + k * 0.07, -0.85, 0.22), 0.02, 0.015, mat(0xffa020), 4);
+  }
+  const sparks = [];
+  for (let i = 0; i < 3; i++) sparks.push(dyn(add(body, new THREE.OctahedronGeometry(0.06), basic(0xfff27a), 0, 0, 0, { shadow: false })));
+  const blink = blinker(face.userData.eyes);
   g.userData.anim = (t) => {
-    body.position.y = Math.sin(t * 3) * 0.15;
-    for (const w of wings) w.pivot.rotation.z = w.s * Math.sin(t * 9) * 0.6;
+    blink(t);
+    body.position.y = 1.45 + Math.sin(t * 3) * 0.15;
+    body.rotation.z = Math.sin(t * 1.5) * 0.05;
+    for (const w of wings) w.p.rotation.z = w.s * (Math.sin(t * 9) * 0.55 - 0.1);
+    crest.scale.setScalar(1 + Math.sin(t * 12) * 0.06);
+    sparks.forEach((s, i) => {
+      const a = t * 4 + i * 2.1;
+      s.visible = Math.sin(t * 7 + i * 3) > -0.2;
+      s.position.set(Math.cos(a) * 0.75, 0.3 + Math.sin(a * 1.7) * 0.4, Math.sin(a) * 0.75);
+    });
   };
-  return g;
+  return finish(g, 0.026, 0.07);
+}
+
+// ---------------------------------------------------------------- Chapter 2 enemies
+
+// A pot-bellied fire devil with a tiny trident.
+function imp() {
+  const g = new THREE.Group();
+  const body = group(g, 0, 0.25, 0);
+  const red = mat(0xd83a2a), tum = mat(0xffa06a), horn = mat(0x3a1a14);
+  add(body, sph(0.44, 16, 10), red, 0, 0.82, 0, { s: [1, 1.05, 0.95] });
+  add(body, sph(0.33, 16, 10), tum, 0, 0.76, 0.2, { s: [1, 1, 0.75] });
+  const head = group(body, 0, 1.42, 0.02);
+  add(head, sph(0.4, 16, 10), red);
+  const face = makeFace(0.4, { eyeR: 0.13, gap: 0.16, eyeY: 0.06, iris: 0xffd23d, brows: 'angry', browColor: 0x2a0a08, mouth: 'grin', mouthY: -0.17, mouthW: 0.12 });
+  head.add(face);
+  for (const s of [-1, 1]) {
+    tube(head, [[s * 0.2, 0.28, 0], [s * 0.32, 0.45, -0.02], [s * 0.3, 0.62, -0.1]], 0.05, horn, 10);
+    add(head, new THREE.ConeGeometry(0.05, 0.14, 8), horn, s * 0.3, 0.66, -0.12, { rz: -s * 0.2, rx: -0.3 });
+    add(head, new THREE.ConeGeometry(0.08, 0.28, 8), red, s * 0.44, 0.06, -0.02, { rz: -s * (Math.PI / 2 + 0.3) });
+  }
+  const wingM = mat(0x7a1a14, { side: THREE.DoubleSide });
+  const wings = [-1, 1].map(s => {
+    const p = group(body, s * 0.25, 1.05, -0.28);
+    p.scale.x = s;
+    add(p, batWingGeo(0.75, 0.55), wingM, 0, 0, 0);
+    return { p, s };
+  });
+  const arms = [-1, 1].map(s => {
+    const a = group(body, s * 0.38, 0.95, 0.05);
+    limb(a, V3(), V3(s * 0.2, -0.28, 0.2), 0.07, 0.06, red, 8);
+    add(a, sph(0.09, 12, 10), red, s * 0.2, -0.3, 0.22);
+    return a;
+  });
+  const fork = group(arms[1], 0.2, -0.3, 0.22);
+  add(fork, new THREE.CylinderGeometry(0.025, 0.025, 1.2, 6), mat(0x3a2a2a), 0, 0.15, 0);
+  for (const k of [-1, 0, 1]) add(fork, new THREE.ConeGeometry(0.035, 0.22, 6), glowMat(0xff8a2b, 1.8), k * 0.08, 0.82, 0, { rz: -k * 0.2 });
+  add(fork, new THREE.BoxGeometry(0.22, 0.04, 0.04), mat(0x3a2a2a), 0, 0.72, 0);
+  for (const s of [-1, 1]) {
+    limb(body, V3(s * 0.18, 0.5, 0), V3(s * 0.2, 0.08, 0.03), 0.08, 0.07, red, 8);
+    add(body, sph(0.1, 12, 10), horn, s * 0.2, 0.04, 0.08, { s: [1, 0.6, 1.3] });
+  }
+  const tail = group(body, 0, 0.62, -0.38);
+  tube(tail, [[0, 0, 0], [0, -0.15, -0.3], [0.1, 0.05, -0.55], [0.05, 0.35, -0.6]], 0.04, red, 16);
+  add(tail, new THREE.ConeGeometry(0.1, 0.22, 4), glowMat(0xff8a2b, 1.8), 0.05, 0.45, -0.6, { s: [1, 1, 0.4] });
+  const blink = blinker(face.userData.eyes);
+  g.userData.anim = (t, moving) => {
+    blink(t);
+    body.position.y = 0.25 + Math.sin(t * 5) * 0.12;
+    body.rotation.x = moving ? 0.2 : 0;
+    for (const w of wings) w.p.rotation.y = w.s * (0.45 + Math.sin(t * 14) * 0.45);
+    tail.rotation.z = Math.sin(t * 4) * 0.35;
+    head.rotation.z = Math.sin(t * 2) * 0.08;
+    arms[0].rotation.x = Math.sin(t * 5) * 0.25;
+    fork.rotation.x = Math.sin(t * 2.5) * 0.12;
+  };
+  return finish(g, 0.026, 0.07);
+}
+
+// A fiery hound with a burning mane and a spiked collar.
+function hound() {
+  const g = new THREE.Group();
+  const body = group(g);
+  const fur = mat(0x5a3e3a), pale = mat(0x8a6660);
+  add(body, new THREE.CapsuleGeometry(0.37, 0.8, 8, 18), fur, 0, 0.95, -0.05, { rx: Math.PI / 2 });
+  for (const s of [-1, 1]) for (const z of [0.25, -0.05, -0.35]) {
+    add(body, new THREE.BoxGeometry(0.03, 0.3, 0.07), basic(0xff8a2a), s * 0.37, 1.0, z, { rz: s * 0.2, rx: 0.3, shadow: false, noOutline: true });
+  }
+  add(body, sph(0.4, 16, 10), pale, 0, 1.0, 0.45, { s: [1, 1, 0.8] });
+  const head = group(body, 0, 1.38, 0.8);
+  add(head, sph(0.34, 16, 10), fur);
+  add(head, new THREE.CapsuleGeometry(0.15, 0.22, 6, 12), pale, 0, -0.1, 0.3, { rx: Math.PI / 2 });
+  add(head, sph(0.075, 12, 10), mat(0x140a0a), 0, -0.04, 0.53);
+  const face = makeFace(0.34, { eyeR: 0.1, gap: 0.14, eyeY: 0.1, iris: 0xff7a1a, brows: 'angry', browColor: 0xff6a1a, mouth: 'none' });
+  head.add(face);
+  for (const s of [-1, 1]) {
+    add(head, new THREE.ConeGeometry(0.03, 0.1, 5), basic(0xffffff), s * 0.08, -0.25, 0.4, { rx: Math.PI, shadow: false });
+    add(head, new THREE.ConeGeometry(0.11, 0.32, 8), fur, s * 0.2, 0.32, -0.05, { rz: -s * 0.3, rx: -0.2 });
+    add(head, new THREE.ConeGeometry(0.06, 0.2, 8), glowMat(0xff6a1a, 1.5), s * 0.2, 0.32, -0.02, { rz: -s * 0.3, rx: -0.2 });
+  }
+  add(head, new THREE.TorusGeometry(0.28, 0.06, 6, 22), mat(0x8a1a1a), 0, -0.28, -0.12, { rx: Math.PI / 2 + 0.4 });
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    add(head, new THREE.ConeGeometry(0.035, 0.12, 5), mat(0xc0c0c8), Math.cos(a) * 0.3, -0.28 + Math.sin(a) * 0.1, -0.12 + Math.sin(a) * 0.26, { rx: Math.PI / 2 });
+  }
+  const legs = [[-0.24, 0.45], [0.24, 0.45], [-0.24, -0.5], [0.24, -0.5]].map(([x, z]) => {
+    const l = group(body, x, 0.82, z);
+    limb(l, V3(), V3(0, -0.7, 0.02), 0.11, 0.09, fur, 8);
+    add(l, sph(0.12, 12, 10), pale, 0, -0.74, 0.06, { s: [1, 0.7, 1.3] });
+    return l;
+  });
+  const mane = [];
+  for (let i = 0; i < 7; i++) mane.push(flame(body, (i % 2 ? 0.08 : -0.08), 1.25 - i * 0.02, 0.6 - i * 0.18, 1.5 - i * 0.12));
+  mane.forEach(m => { m.rotation.x = -0.6; });
+  const tail = group(body, 0, 1.05, -0.62);
+  tube(tail, [[0, 0, 0], [0, 0.2, -0.3], [0, 0.55, -0.4]], 0.06, fur, 12);
+  const tailFire = flame(tail, 0, 0.55, -0.4, 1.2);
+  const blink = blinker(face.userData.eyes);
+  g.userData.anim = (t, moving) => {
+    blink(t);
+    const sp = moving ? 14 : 2;
+    legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(t * sp + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.55 : 0; });
+    body.position.y = moving ? Math.abs(Math.sin(t * sp)) * 0.1 : Math.sin(t * 2) * 0.02;
+    head.rotation.x = Math.sin(t * 1.5) * 0.08;
+    tail.rotation.z = Math.sin(t * (moving ? 12 : 6)) * 0.35;
+    mane.forEach(m => m.userData.flicker(t));
+    tailFire.userData.flicker(t);
+  };
+  return finish(g, 0.026, 0.07);
+}
+
+// A hunched shaman in ash robes, hiding behind a painted bone mask.
+function shaman() {
+  const g = new THREE.Group();
+  const body = group(g);
+  body.rotation.x = 0.12;
+  const robeM = mat(0x5a4e5e), bone = mat(0xece0c4);
+  const prof = [[0, 0], [0.7, 0], [0.62, 0.35], [0.5, 0.9], [0.42, 1.35], [0.34, 1.62], [0, 1.7]];
+  add(body, new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x, y)), 24), robeM);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    add(body, new THREE.ConeGeometry(0.1, 0.25, 4), robeM, Math.cos(a) * 0.66, 0.02, Math.sin(a) * 0.66, { rx: Math.PI });
+  }
+  for (let i = 0; i < 7; i++) {
+    const a = -Math.PI / 2 + ((i - 3) / 7) * 1.8;
+    add(body, new THREE.CylinderGeometry(0.03, 0.03, 0.12, 6), bone, Math.sin(-a - Math.PI / 2) * 0.36, 1.48 - Math.abs(i - 3) * -0.01, Math.cos(a + Math.PI / 2) * 0.36 + 0.02);
+  }
+  const head = group(body, 0, 2.0, 0);
+  add(head, sph(0.46, 16, 10), mat(0x4a3e4e), 0, 0, -0.05);
+  add(head, new THREE.ConeGeometry(0.22, 0.6, 14), mat(0x4a3e4e), 0, 0.3, -0.45, { rx: -2.1 });
+  add(head, sph(0.37, 16, 10), basic(0x120a18), 0, -0.02, 0.1, { shadow: false });
+  const mask = group(head, 0, 0, 0.35);
+  add(mask, sph(0.3, 16, 10), bone, 0, 0, 0, { s: [1, 1.25, 0.42] });
+  for (const s of [-1, 1]) {
+    add(mask, sph(0.075, 12, 10), basic(0x120a18), s * 0.11, 0.08, 0.1, { s: [1, 1.2, 0.5], shadow: false });
+    add(mask, sph(0.035, 8, 6), basic(0xe08bff), s * 0.11, 0.08, 0.13, { shadow: false });
+    add(mask, new THREE.BoxGeometry(0.05, 0.2, 0.02), basic(0xc0392b), s * 0.18, -0.08, 0.1, { rz: s * 0.2, shadow: false });
+  }
+  for (let k = -2; k <= 2; k++) add(mask, new THREE.BoxGeometry(0.04, 0.06, 0.02), basic(0x120a18), k * 0.055, -0.2, 0.1, { shadow: false });
+  for (const [x, c, rz] of [[-0.18, 0xc0392b, 0.4], [0, 0xff8a2b, 0], [0.18, 0xc0392b, -0.4]]) add(head, sph(0.1, 10, 8), mat(c), x, 0.45, -0.1, { s: [0.45, 1.7, 0.2], rz });
+  const staff = group(body, 0.55, 0, 0.35);
+  add(staff, new THREE.CylinderGeometry(0.04, 0.055, 2.4, 7), mat(0x3a2418), 0, 1.2, 0);
+  add(staff, sph(0.17, 16, 10), bone, 0, 2.5, 0);
+  add(staff, new THREE.BoxGeometry(0.16, 0.08, 0.12), bone, 0, 2.36, 0.05);
+  for (const s of [-1, 1]) add(staff, sph(0.045, 8, 6), basic(0xe08bff), s * 0.06, 2.53, 0.15, { shadow: false });
+  for (const s of [-1, 1]) add(staff, sph(0.05, 8, 6), glowMat(0x9a4dff, 2), s * 0.12, 2.1, 0.05);
+  limb(body, V3(0.32, 1.45, 0.05), V3(0.55, 1.2, 0.35), 0.1, 0.16, robeM);
+  add(body, sph(0.1, 12, 10), mat(0x8a7a6a), 0.55, 1.18, 0.35);
+  limb(body, V3(-0.32, 1.45, 0.05), V3(-0.45, 1.0, 0.3), 0.1, 0.16, robeM);
+  add(body, sph(0.1, 12, 10), mat(0x8a7a6a), -0.45, 0.96, 0.32);
+  const orbs = [0, 1, 2].map(() => dyn(add(g, sph(0.11, 12, 10), glowMat(0x9a4dff, 2.4), 0, 1.4, 0, { shadow: false })));
+  g.userData.anim = (t) => {
+    body.position.y = Math.sin(t * 1.8) * 0.05;
+    body.rotation.z = Math.sin(t * 0.9) * 0.05;
+    head.rotation.y = Math.sin(t * 0.7) * 0.2;
+    staff.rotation.z = Math.sin(t * 1.8) * 0.05;
+    orbs.forEach((o, i) => {
+      const a = t * 2 + (i / 3) * Math.PI * 2;
+      o.position.set(Math.cos(a) * 1.0, 1.4 + Math.sin(t * 3 + i) * 0.25, Math.sin(a) * 1.0);
+    });
+  };
+  return finish(g, 0.026, 0.07);
+}
+
+// A lumbering rock giant with a single glowing eye.
+function golem({ lava = false, scale = 1, helm = false } = {}) {
+  const g = new THREE.Group();
+  const body = group(g);
+  const rock = mat(lava ? 0x5e3a30 : 0x4a4268), rock2 = mat(lava ? 0x74483a : 0x5e5684);
+  const glowC = lava ? 0xff6a1a : 0xb46bff;
+  const glow = glowMat(glowC, 2.4);
+  add(body, new THREE.DodecahedronGeometry(0.85, 1), rock, 0, 1.55, 0, { s: [1.15, 1, 0.9] });
+  add(body, sph(0.22, 16, 10), glow, 0, 1.6, 0.7);
+  add(body, new THREE.TorusGeometry(0.26, 0.06, 6, 16), rock2, 0, 1.6, 0.72);
+  for (const [x, y, rz, len] of [[-0.35, 1.9, 0.6, 0.35], [0.4, 1.25, -0.7, 0.3], [-0.45, 1.3, 1.2, 0.25], [0.3, 2.0, -0.3, 0.25]]) {
+    add(body, new THREE.BoxGeometry(0.05, len, 0.04), glow, x, y, 0.72, { rz, shadow: false, noOutline: true });
+  }
+  const head = group(body, 0, 2.48, 0.12);
+  add(head, new THREE.DodecahedronGeometry(0.4, 0), rock2);
+  const eye = makeEye(0.22, { iris: glowC });
+  eye.position.set(0, 0.02, 0.26);
+  head.add(eye);
+  add(head, new THREE.BoxGeometry(0.46, 0.1, 0.14), rock, 0, 0.2, 0.3, { rx: 0.2 });
+  if (helm) {
+    for (let i = 0; i < 5; i++) add(head, new THREE.ConeGeometry(0.07, 0.35, 5), mat(0x241816), -0.28 + i * 0.14, 0.42, -0.02, { rz: (i - 2) * -0.2 });
+  }
+  const arms = [-1, 1].map(s => {
+    add(body, new THREE.DodecahedronGeometry(0.38, 0), rock2, s * 0.98, 2.05, 0);
+    const a = group(body, s * 1.0, 1.95, 0);
+    add(a, new THREE.DodecahedronGeometry(0.3, 0), rock, s * 0.05, -0.4, 0.05);
+    add(a, new THREE.DodecahedronGeometry(0.5, 1), rock2, s * 0.08, -1.0, 0.15);
+    add(a, new THREE.BoxGeometry(0.3, 0.05, 0.04), glow, s * 0.08, -0.95, 0.63, { shadow: false, noOutline: true });
+    return a;
+  });
+  for (const s of [-1, 1]) {
+    add(body, new THREE.DodecahedronGeometry(0.36, 0), rock, s * 0.42, 0.45, 0);
+    add(body, new THREE.BoxGeometry(0.5, 0.2, 0.62), rock2, s * 0.44, 0.1, 0.08);
+  }
+  for (const [x, y, z, rz] of [[-0.45, 2.2, -0.45, 0.4], [0.2, 2.35, -0.5, -0.2], [0.55, 2.1, -0.35, -0.6]]) {
+    add(body, new THREE.ConeGeometry(0.12, 0.55, 5), glowMat(glowC, 1.2), x, y, z, { rz, rx: -0.4 });
+  }
+  g.scale.setScalar(scale);
+  const blinkEye = blinker([eye]);
+  g.userData.anim = (t, moving) => {
+    blinkEye(t);
+    arms.forEach((a, i) => { a.rotation.x = Math.sin(t * (moving ? 5 : 1.2) + i * Math.PI) * 0.25; });
+    body.rotation.z = moving ? Math.sin(t * 5) * 0.06 : Math.sin(t * 0.8) * 0.02;
+    body.position.y = Math.sin(t * 1.6) * 0.03;
+    head.rotation.y = Math.sin(t * 0.5) * 0.2;
+  };
+  return finish(g, 0.03, 0.07);
+}
+
+// A lava serpent rearing up out of its pool.
+function serpent() {
+  const g = new THREE.Group();
+  const scaleA = mat(0xd8502a), scaleB = mat(0xb03a1a), fin = glowMat(0xff8a2b, 1.8);
+  const pool = dyn(add(g, new THREE.CircleGeometry(1.2, 24), glowMat(0xff5a10, 1.5), 0, 0.04, 0, { rx: -Math.PI / 2, shadow: false }));
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    add(g, new THREE.DodecahedronGeometry(0.22, 0), mat(0x2a1a18), Math.cos(a) * 1.25, 0.08, Math.sin(a) * 1.25, { s: [1, 0.55, 1] });
+  }
+  const segs = [];
+  for (let i = 0; i < 7; i++) {
+    const r = 0.44 - i * 0.03;
+    const s = dyn(add(g, sph(r, 16, 10), i % 2 ? scaleB : scaleA, 0, 0.3 + i * 0.36, 0));
+    add(s, new THREE.ConeGeometry(0.08, 0.22, 5), mat(0x2a1a18), 0, r * 0.7, -r * 0.7, { rx: -0.8 });
+    segs.push(s);
+  }
+  const head = group(g);
+  add(head, sph(0.36, 16, 10), scaleA, 0, 0, 0.12, { s: [1, 0.82, 1.3] });
+  const jaw = group(head, 0, -0.12, 0.05);
+  add(jaw, sph(0.27, 16, 10), mat(0xffb070), 0, -0.05, 0.25, { s: [1, 0.45, 1.3] });
+  add(head, sph(0.22, 14, 10), basic(0x3a0c1c), 0, -0.1, 0.4, { s: [1, 0.4, 0.8], shadow: false });
+  for (const s of [-1, 1]) {
+    add(head, new THREE.ConeGeometry(0.04, 0.14, 5), basic(0xffffff), s * 0.12, -0.12, 0.54, { rx: Math.PI, shadow: false });
+    const e = makeEye(0.11, { iris: 0xffd23d });
+    e.position.set(s * 0.22, 0.14, 0.3);
+    e.rotation.y = s * 0.5;
+    head.add(e);
+    add(head, new THREE.BoxGeometry(0.2, 0.05, 0.05), basic(0x2a0a08), s * 0.22, 0.27, 0.34, { rz: s * 0.45, ry: s * 0.5, shadow: false });
+    add(head, new THREE.ConeGeometry(0.06, 0.35, 6), mat(0x2a1a18), s * 0.18, 0.25, -0.2, { rx: -1.1, rz: -s * 0.3 });
+    add(head, new THREE.ConeGeometry(0.14, 0.45, 4), fin, s * 0.36, 0.02, -0.02, { rz: -s * 1.4, s: [1, 1, 0.3] });
+  }
+  const eyes = head.children.filter(c => c.isGroup && c !== jaw);
+  const blink = blinker(eyes);
+  g.userData.anim = (t) => {
+    blink(t);
+    segs.forEach((s, i) => {
+      s.position.x = Math.sin(t * 2.5 - i * 0.6) * 0.18 * i * 0.4;
+      s.position.z = Math.cos(t * 2 - i * 0.5) * 0.08 * i;
+    });
+    const top = segs[segs.length - 1].position;
+    head.position.set(top.x, top.y + 0.35, top.z + 0.1);
+    head.rotation.x = Math.sin(t * 2) * 0.12 + 0.15;
+    head.rotation.z = Math.sin(t * 1.3) * 0.1;
+    jaw.rotation.x = 0.1 + Math.max(0, Math.sin(t * 1.6)) * 0.25;
+    pool.scale.setScalar(1 + Math.sin(t * 3) * 0.04);
+  };
+  return finish(g, 0.026, 0.07);
+}
+
+// The Molten King: a towering magma giant with a fiery crown and beard.
+function pyrrhon() {
+  const g = new THREE.Group();
+  const body = group(g);
+  const rock = mat(0x553330), rock2 = mat(0x6e4234), gold = mat(0xf2c14e);
+  const magma = basic(0xff7a1a);
+  for (const s of [-1, 1]) {
+    add(body, new THREE.DodecahedronGeometry(0.5, 1), rock, s * 0.55, 0.62, 0);
+    add(body, new THREE.BoxGeometry(0.62, 0.26, 0.8), rock2, s * 0.58, 0.13, 0.1);
+  }
+  add(body, new THREE.DodecahedronGeometry(1.1, 1), rock, 0, 2.0, 0, { s: [1.2, 1.05, 0.95] });
+  add(body, sph(0.45, 16, 10), basic(0xff5a10), 0, 1.9, 0.82, { s: [1, 1, 0.5] });
+  const core = dyn(add(body, sph(0.28, 16, 10), basic(0xffd040), 0, 1.9, 0.98, { s: [1, 1, 0.4] }));
+  for (const [x, y, rz, len] of [[-0.6, 2.4, 0.5, 0.6], [0.65, 2.3, -0.6, 0.55], [-0.75, 1.6, 1.3, 0.4], [0.7, 1.55, -1.2, 0.45], [0, 1.25, 0, 0.35], [-0.35, 2.8, -0.2, 0.4], [0.3, 2.85, 0.3, 0.35], [-1.0, 2.1, 0.2, 0.4], [1.0, 2.0, -0.2, 0.4]]) {
+    add(body, new THREE.BoxGeometry(0.07, len, 0.05), magma, x, y, 0.9, { rz, shadow: false, noOutline: true });
+  }
+  const pauldrons = [];
+  for (const s of [-1, 1]) {
+    add(body, new THREE.DodecahedronGeometry(0.55, 1), rock2, s * 1.35, 2.62, 0);
+    for (let k = 0; k < 3; k++) pauldrons.push(flame(body, s * (1.2 + k * 0.15), 3.0 - k * 0.05, -0.1 + k * 0.12, 1.1 - k * 0.15));
+  }
+  const head = group(body, 0, 3.22, 0.22);
+  add(head, new THREE.DodecahedronGeometry(0.58, 1), rock2);
+  add(head, new THREE.BoxGeometry(0.8, 0.14, 0.25), rock, 0, 0.14, 0.44, { rx: 0.25 });
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.12, { glow: 0xffd23d });
+    e.position.set(s * 0.2, 0.0, 0.5);
+    head.add(e);
+    add(head, new THREE.BoxGeometry(0.3, 0.08, 0.08), rock, s * 0.2, 0.15, 0.52, { rz: s * 0.45 });
+  }
+  add(head, new THREE.CircleGeometry(0.2, 16, Math.PI, Math.PI), basic(0xffa020), 0, -0.2, 0.57, { shadow: false });
+  const beard = [];
+  for (const [x, len, c] of [[-0.3, 0.55, 0xff4a10], [-0.15, 0.75, 0xff7a1a], [0, 0.9, 0xffa020], [0.15, 0.75, 0xff7a1a], [0.3, 0.55, 0xff4a10]]) {
+    beard.push(dyn(add(head, new THREE.ConeGeometry(0.11, len, 8), basic(c), x, -0.32 - len / 2, 0.42, { rx: Math.PI + 0.2, shadow: false, noOutline: true })));
+  }
+  const crown = group(head, 0, 0.5, 0);
+  add(crown, new THREE.CylinderGeometry(0.44, 0.48, 0.2, 18, 1, true), gold, 0, 0, 0);
+  add(crown, new THREE.TorusGeometry(0.47, 0.05, 6, 24), gold, 0, -0.1, 0, { rx: Math.PI / 2 });
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    add(crown, new THREE.ConeGeometry(0.09, 0.42, 5), gold, Math.cos(a) * 0.44, 0.28, Math.sin(a) * 0.44);
+    add(crown, new THREE.OctahedronGeometry(0.07), glowMat(0xff3a2a, 2.2), Math.cos(a) * 0.46, 0.05, Math.sin(a) * 0.46, { shadow: false });
+  }
+  const crownFire = [flame(crown, 0, 0.1, 0, 1.3), flame(crown, 0.18, 0.08, 0.1, 0.9), flame(crown, -0.18, 0.08, -0.1, 0.9)];
+  const arms = [-1, 1].map(s => {
+    const a = group(body, s * 1.38, 2.4, 0);
+    add(a, new THREE.DodecahedronGeometry(0.42, 1), rock, s * 0.05, -0.5, 0.05);
+    add(a, new THREE.DodecahedronGeometry(0.66, 1), rock2, s * 0.1, -1.25, 0.2);
+    add(a, new THREE.BoxGeometry(0.42, 0.06, 0.05), magma, s * 0.1, -1.15, 0.85, { shadow: false, noOutline: true });
+    return a;
+  });
+  const cape = dyn(add(body, new THREE.PlaneGeometry(2.4, 2.6, 1, 6), mat(0x8a1a08, { emissive: 0xc02a08, emissiveIntensity: 0.7, side: THREE.DoubleSide }), 0, 1.7, -0.95, { rx: 0.1 }));
+  const orbit = [0, 1, 2, 3].map(() => dyn(add(g, new THREE.DodecahedronGeometry(0.22, 0), mat(0x6e4234, { emissive: 0xff4a10, emissiveIntensity: 0.6 }), 0, 2, 0)));
+  g.scale.setScalar(1.25);
+  g.userData.anim = (t, moving) => {
+    body.position.y = Math.sin(t * 1.4) * 0.05;
+    arms.forEach((a, i) => { a.rotation.x = Math.sin(t * (moving ? 5 : 1.1) + i * Math.PI) * 0.2; });
+    head.rotation.y = Math.sin(t * 0.5) * 0.15;
+    cape.rotation.x = 0.1 + Math.sin(t * 2) * 0.08;
+    beard.forEach((b, i) => { b.scale.set(1, 1 + Math.sin(t * 11 + i * 1.7) * 0.15, 1); });
+    core.scale.set(1 + Math.sin(t * 3) * 0.08, 1 + Math.sin(t * 3) * 0.08, 0.4);
+    [...pauldrons, ...crownFire].forEach(f => f.userData.flicker(t));
+    orbit.forEach((r, i) => {
+      const a = t * 1.1 + (i / 4) * Math.PI * 2;
+      r.position.set(Math.cos(a) * 2.2, 2.4 + Math.sin(t * 2 + i) * 0.4, Math.sin(a) * 2.2);
+      r.rotation.set(t, t * 1.3, 0);
+    });
+  };
+  return finish(g, 0.03, 0.07);
 }
 
 export function makeEnemy(kind) {
@@ -225,563 +1146,614 @@ export function makeEnemy(kind) {
     case 'sprig': return sprig();
     case 'rat': return rat();
     case 'wisp': return wisp();
-    case 'knight': return knight(1);
-    case 'crow': return crow();
-    case 'boss': return knight(1.7, true);
+    case 'knight': return knight();
+    case 'crow': { const c = crow(); c.scale.setScalar(1.15); return c; }
+    case 'boss': {
+      const k = knight({ armor: 0x453466, dark: 0x1e1430, accent: 0xc542ff, eye: 0xe0a0ff, boss: true });
+      k.scale.setScalar(1.6);
+      return k;
+    }
     case 'imp': return imp();
-    case 'hound': return hound();
+    case 'hound': { const h = hound(); h.scale.setScalar(1.15); return h; }
     case 'shaman': return shaman();
-    case 'golem': return golem(1);
-    case 'guard': return golem(1.25, true);
+    case 'golem': return golem();
+    case 'guard': return golem({ lava: true, scale: 1.2, helm: true });
     case 'serpent': return serpent();
     case 'pyrrhon': return pyrrhon();
   }
   return sprig();
 }
 
-// ---------------------------------------------------------------- Chapter 2 enemies
-
-function imp() {
-  const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const red = mat(0xc4321a);
-  body.add(mesh(new THREE.SphereGeometry(0.42, 10, 8), red, 0, 0.9, 0));
-  body.add(mesh(new THREE.SphereGeometry(0.34, 10, 8), red, 0, 1.45, 0.05));
-  for (const s of [-1, 1]) {
-    const horn = mesh(new THREE.ConeGeometry(0.08, 0.35, 5), mat(0x2a1a14), s * 0.2, 1.8, 0);
-    horn.rotation.z = -s * 0.4;
-    body.add(horn);
-    body.add(mesh(new THREE.SphereGeometry(0.06, 6, 6), glowMat(0xffe14d, 3), s * 0.13, 1.5, 0.3));
-    body.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 5), red, s * 0.18, 0.35, 0));
-  }
-  const wings = [];
-  for (const s of [-1, 1]) {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.25, 1.1, -0.25);
-    const w = mesh(new THREE.ConeGeometry(0.35, 0.8, 3), mat(0x5a1a10, { side: THREE.DoubleSide }), s * 0.4, 0.1, 0);
-    w.rotation.z = s * Math.PI / 2;
-    pivot.add(w);
-    body.add(pivot);
-    wings.push({ pivot, s });
-  }
-  const flame = mesh(new THREE.ConeGeometry(0.12, 0.35, 5), glowMat(0xffa020, 3), 0, 0.7, -0.6);
-  body.add(flame);
-  g.userData.anim = (t, moving) => {
-    body.position.y = 0.2 + Math.sin(t * 5) * 0.12;
-    for (const w of wings) w.pivot.rotation.y = w.s * Math.sin(t * 14) * 0.5;
-    flame.scale.y = 1 + Math.sin(t * 20) * 0.3;
-    if (moving) body.rotation.x = 0.2; else body.rotation.x = 0;
-  };
-  return g;
-}
-
-function hound() {
-  const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const fur = mat(0x3a2a24);
-  const torso = mesh(new THREE.BoxGeometry(0.7, 0.6, 1.5), fur, 0, 0.85, 0);
-  body.add(torso);
-  const head = new THREE.Group();
-  head.position.set(0, 1.15, 0.85);
-  head.add(mesh(new THREE.BoxGeometry(0.5, 0.45, 0.55), fur, 0, 0, 0));
-  head.add(mesh(new THREE.BoxGeometry(0.3, 0.25, 0.4), fur, 0, -0.08, 0.4));
-  for (const s of [-1, 1]) {
-    head.add(mesh(new THREE.ConeGeometry(0.09, 0.3, 4), fur, s * 0.17, 0.32, -0.05));
-    head.add(mesh(new THREE.SphereGeometry(0.06, 6, 6), glowMat(0xff7a1a, 3), s * 0.13, 0.08, 0.28));
-  }
-  body.add(head);
-  const legs = [];
-  for (const [x, z] of [[-0.25, 0.55], [0.25, 0.55], [-0.25, -0.55], [0.25, -0.55]]) {
-    const leg = mesh(new THREE.BoxGeometry(0.16, 0.6, 0.16), fur, x, 0.3, z);
-    legs.push(leg);
-    body.add(leg);
-  }
-  // burning mane
-  for (let i = 0; i < 5; i++) body.add(mesh(new THREE.ConeGeometry(0.1, 0.4, 4), glowMat(0xff6a1a, 2.5), 0, 1.2, 0.5 - i * 0.28));
-  const tail = mesh(new THREE.ConeGeometry(0.1, 0.6, 5), glowMat(0xffa020, 2), 0, 1.0, -0.95);
-  tail.rotation.x = -1;
-  body.add(tail);
-  g.userData.anim = (t, moving) => {
-    const sp = moving ? 14 : 2;
-    legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(t * sp + (i % 2) * Math.PI + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0; });
-    body.position.y = moving ? Math.abs(Math.sin(t * sp)) * 0.1 : Math.sin(t * 2) * 0.02;
-    head.rotation.x = Math.sin(t * 1.5) * 0.1;
-    tail.rotation.z = Math.sin(t * 8) * 0.3;
-  };
-  return g;
-}
-
-function shaman() {
-  const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  body.add(mesh(new THREE.ConeGeometry(0.65, 1.7, 8), mat(0x3a3440), 0, 0.85, 0));
-  body.add(mesh(new THREE.ConeGeometry(0.45, 0.8, 8), mat(0x2a2430), 0, 1.95, 0));
-  const mask = mesh(new THREE.BoxGeometry(0.4, 0.5, 0.1), mat(0xd8cdb8), 0, 1.75, 0.3);
-  body.add(mask);
-  for (const s of [-1, 1]) body.add(mesh(new THREE.SphereGeometry(0.05, 6, 6), glowMat(0xc542ff, 3), s * 0.09, 1.82, 0.36));
-  const orbs = [];
-  for (let i = 0; i < 3; i++) {
-    const o = mesh(new THREE.SphereGeometry(0.13, 8, 6), glowMat(0x9a4dff, 2.5), 0, 1.4, 0);
-    orbs.push(o);
-    body.add(o);
-  }
-  const staff = mesh(new THREE.CylinderGeometry(0.04, 0.05, 2.2, 5), mat(0x2a1a14), 0.55, 1.1, 0.1);
-  body.add(staff);
-  body.add(mesh(new THREE.SphereGeometry(0.16, 8, 6), mat(0xe8e0d0), 0.55, 2.3, 0.1));
-  g.userData.anim = (t) => {
-    body.position.y = Math.sin(t * 1.8) * 0.08;
-    orbs.forEach((o, i) => {
-      const a = t * 2 + (i / 3) * Math.PI * 2;
-      o.position.set(Math.cos(a) * 0.9, 1.3 + Math.sin(t * 3 + i) * 0.2, Math.sin(a) * 0.9);
-    });
-  };
-  return g;
-}
-
-function golem(scale = 1, lava = false) {
-  const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const rock = mat(lava ? 0x2a1a18 : 0x1e1a24, { roughness: 0.6 });
-  const crack = glowMat(lava ? 0xff5a10 : 0x9a4dff, 2.5);
-  body.add(mesh(new THREE.DodecahedronGeometry(0.85, 0), rock, 0, 1.5, 0));
-  body.add(mesh(new THREE.DodecahedronGeometry(0.45, 0), rock, 0, 2.5, 0.1));
-  body.add(mesh(new THREE.BoxGeometry(0.5, 0.06, 0.05), crack, 0, 2.55, 0.5));
-  body.add(mesh(new THREE.BoxGeometry(0.08, 0.9, 0.05), crack, 0.2, 1.5, 0.82));
-  body.add(mesh(new THREE.BoxGeometry(0.6, 0.07, 0.05), crack, -0.1, 1.3, 0.83));
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const arm = new THREE.Group();
-    arm.position.set(s * 1.0, 1.9, 0);
-    arm.add(mesh(new THREE.DodecahedronGeometry(0.35, 0), rock, 0, -0.3, 0));
-    arm.add(mesh(new THREE.DodecahedronGeometry(0.42, 0), rock, 0, -0.95, 0.1));
-    body.add(arm);
-    arms.push(arm);
-    body.add(mesh(new THREE.BoxGeometry(0.35, 0.8, 0.35), rock, s * 0.4, 0.4, 0));
-  }
-  if (lava) {
-    for (let i = 0; i < 4; i++) body.add(mesh(new THREE.ConeGeometry(0.1, 0.5, 4), crack, -0.3 + i * 0.2, 2.95, 0));
-  }
-  g.scale.setScalar(scale);
-  g.userData.anim = (t, moving) => {
-    arms.forEach((a, i) => { a.rotation.x = Math.sin(t * (moving ? 5 : 1.2) + i * Math.PI) * 0.25; });
-    body.rotation.z = moving ? Math.sin(t * 5) * 0.06 : 0;
-  };
-  return g;
-}
-
-function serpent() {
-  const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const scale = mat(0x8a2a10);
-  const segs = [];
-  for (let i = 0; i < 7; i++) {
-    const r = 0.45 - i * 0.03;
-    const s = mesh(new THREE.SphereGeometry(r, 10, 8), i % 2 ? scale : mat(0xb8401a), 0, 0.3 + i * 0.38, 0);
-    segs.push(s);
-    body.add(s);
-  }
-  const head = new THREE.Group();
-  head.add(mesh(new THREE.BoxGeometry(0.55, 0.35, 0.8), scale, 0, 0, 0.2));
-  for (const s of [-1, 1]) {
-    head.add(mesh(new THREE.SphereGeometry(0.07, 6, 6), glowMat(0xffe14d, 3), s * 0.2, 0.12, 0.45));
-    const fin = mesh(new THREE.ConeGeometry(0.12, 0.5, 3), glowMat(0xff7a1a, 2), s * 0.28, 0.2, -0.05);
-    fin.rotation.z = -s * 0.8;
-    head.add(fin);
-  }
-  body.add(head);
-  // lava pool at its base
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(1.1, 16), glowMat(0xff5a10, 1.5));
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.y = 0.05;
-  g.add(pool);
-  g.userData.anim = (t) => {
-    segs.forEach((s, i) => { s.position.x = Math.sin(t * 2.5 - i * 0.6) * 0.18 * i * 0.4; s.position.z = Math.cos(t * 2 - i * 0.5) * 0.08 * i; });
-    const top = segs[segs.length - 1].position;
-    head.position.set(top.x, top.y + 0.3, top.z + 0.1);
-    head.rotation.x = Math.sin(t * 2) * 0.15 + 0.2;
-  };
-  return g;
-}
-
-function pyrrhon() {
-  const g = golem(1, true);
-  const body = g.children[0];
-  // crown of fire
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    body.add(mesh(new THREE.ConeGeometry(0.1, 0.55, 4), glowMat(0xffc020, 3), Math.cos(a) * 0.38, 3.05, 0.1 + Math.sin(a) * 0.38));
-  }
-  // magma cape
-  const cape = mesh(new THREE.PlaneGeometry(1.8, 2.2), glowMat(0xc02a08, 0.8), 0, 1.4, -0.75);
-  cape.material = new THREE.MeshStandardMaterial({ color: 0x8a1a08, emissive: 0xc02a08, emissiveIntensity: 0.8, side: THREE.DoubleSide, flatShading: true });
-  body.add(cape);
-  const orbit = [];
-  for (let i = 0; i < 4; i++) {
-    const r = mesh(new THREE.DodecahedronGeometry(0.2, 0), glowMat(0xff6a10, 2.5));
-    orbit.push(r);
-    body.add(r);
-  }
-  g.scale.setScalar(1.9);
-  const baseAnim = g.userData.anim;
-  g.userData.anim = (t, moving) => {
-    baseAnim(t, moving);
-    cape.rotation.x = 0.1 + Math.sin(t * 2) * 0.08;
-    orbit.forEach((r, i) => {
-      const a = t * 1.3 + (i / 4) * Math.PI * 2;
-      r.position.set(Math.cos(a) * 1.6, 2 + Math.sin(t * 2 + i) * 0.4, Math.sin(a) * 1.6);
-    });
-  };
-  return g;
-}
-
-// ---------------------------------------------------------------- Pets
+// ---------------------------------------------------------------- pets
 
 export function makePet(kind, color) {
   const g = new THREE.Group();
-  const body = new THREE.Group(); g.add(body);
-  const c = mat(color);
-  const eyes = (y, z, spread = 0.1) => { for (const s of [-1, 1]) body.add(mesh(new THREE.SphereGeometry(0.045, 6, 6), mat(0x111111), s * spread, y, z)); };
+  const body = group(g);
+  const c = mat(color), cream = mat(0xfff0d0);
   const wings = [];
-  const addWings = (y, size, wingMat) => {
-    for (const s of [-1, 1]) {
-      const pivot = new THREE.Group();
-      pivot.position.set(s * 0.15, y, 0);
-      const w = mesh(new THREE.BoxGeometry(size, 0.03, size * 0.6), wingMat, s * size / 2, 0, 0);
-      pivot.add(w);
-      body.add(pivot);
-      wings.push({ pivot, s });
-    }
-  };
+  let face;
+  let flies = true;
   switch (kind) {
-    case 'owl':
-      body.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), c, 0, 0.3, 0));
-      eyes(0.38, 0.22); addWings(0.3, 0.35, c);
-      for (const s of [-1, 1]) body.add(mesh(new THREE.ConeGeometry(0.06, 0.15, 4), c, s * 0.14, 0.58, 0));
-      break;
-    case 'sprite':
-      body.add(mesh(new THREE.SphereGeometry(0.2, 10, 8), glowMat(color, 1.2), 0, 0.35, 0));
-      eyes(0.4, 0.17, 0.07); addWings(0.4, 0.3, mat(0xe0ffe8, { transparent: true, opacity: 0.6 }));
-      body.add(mesh(new THREE.ConeGeometry(0.12, 0.2, 5), mat(0x3d8a3a), 0, 0.6, 0));
-      break;
-    case 'drake': {
-      body.add(mesh(new THREE.SphereGeometry(0.25, 10, 8), c, 0, 0.3, 0));
-      body.add(mesh(new THREE.SphereGeometry(0.18, 10, 8), c, 0, 0.5, 0.18));
-      eyes(0.55, 0.33, 0.07); addWings(0.4, 0.4, mat(0xffb060));
-      const tail = mesh(new THREE.ConeGeometry(0.07, 0.4, 5), c, 0, 0.25, -0.35);
-      tail.rotation.x = -1.3;
-      body.add(tail);
+    case 'owl': {
+      add(body, sph(0.3, 16, 10), c, 0, 0, 0, { s: [1, 1.05, 0.95] });
+      add(body, sph(0.22, 16, 10), cream, 0, -0.06, 0.12, { s: [1, 1, 0.8] });
+      face = makeFace(0.3, { eyeR: 0.11, gap: 0.12, eyeY: 0.07, iris: 0xff9a1a, mouth: 'none' });
+      body.add(face);
+      add(body, new THREE.ConeGeometry(0.05, 0.12, 6), mat(0xff9a1a), 0, -0.03, 0.31, { rx: Math.PI / 2 + 0.6 });
+      for (const s of [-1, 1]) {
+        add(body, new THREE.ConeGeometry(0.06, 0.18, 6), c, s * 0.17, 0.3, 0, { rz: -s * 0.4 });
+        const p = group(body, s * 0.27, 0, 0);
+        add(p, sph(0.14, 14, 10), mat(darker(color, 0.8)), s * 0.05, -0.03, 0, { s: [0.35, 1, 0.8] });
+        wings.push({ p, s, axis: 'z' });
+      }
       break;
     }
-    case 'pup':
-      body.add(mesh(new THREE.SphereGeometry(0.24, 10, 8), c, 0, 0.28, 0));
-      body.add(mesh(new THREE.SphereGeometry(0.18, 10, 8), c, 0, 0.45, 0.2));
-      eyes(0.5, 0.35, 0.07);
-      for (const s of [-1, 1]) body.add(mesh(new THREE.ConeGeometry(0.06, 0.16, 4), c, s * 0.1, 0.65, 0.15));
-      body.add(mesh(new THREE.OctahedronGeometry(0.08), glowMat(0xffffff, 2), 0, 0.7, -0.1));
+    case 'sprite': {
+      add(body, sph(0.15, 16, 10), glowMat(color, 0.8), 0, -0.1, 0);
+      add(body, sph(0.2, 16, 10), mat(0xc8f5d0), 0, 0.18, 0);
+      const hd = group(body, 0, 0.18, 0);
+      face = makeFace(0.2, { eyeR: 0.075, gap: 0.08, eyeY: 0.02, iris: 0x2a8a3a, mouth: 'smile', mouthW: 0.03, mouthY: -0.08, cheeks: true });
+      hd.add(face);
+      add(hd, new THREE.ConeGeometry(0.16, 0.32, 14), mat(0x3d9a4a), 0, 0.26, -0.02, { rx: -0.3 });
+      const wm = mat(0xe8fff0, { transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+      for (const s of [-1, 1]) {
+        const p = group(body, s * 0.08, 0.05, -0.12);
+        p.scale.x = s;
+        add(p, new THREE.CircleGeometry(0.18, 14), wm, 0.14, 0.08, 0, { s: [1, 0.55, 1], rz: 0.4 });
+        add(p, new THREE.CircleGeometry(0.13, 14), wm, 0.11, -0.08, 0, { s: [1, 0.5, 1], rz: -0.4 });
+        wings.push({ p, s, axis: 'y' });
+      }
       break;
-    case 'bat':
-      body.add(mesh(new THREE.SphereGeometry(0.2, 10, 8), c, 0, 0.35, 0));
-      for (const s of [-1, 1]) body.add(mesh(new THREE.SphereGeometry(0.045, 6, 6), glowMat(0xff4d6d, 3), s * 0.07, 0.4, 0.17));
-      addWings(0.35, 0.45, mat(0x3a2a55));
+    }
+    case 'drake': {
+      add(body, sph(0.27, 16, 10), c, 0, 0, 0);
+      add(body, sph(0.2, 16, 10), cream, 0, -0.05, 0.12, { s: [1, 1, 0.8] });
+      const hd = group(body, 0, 0.3, 0.14);
+      add(hd, sph(0.22, 16, 10), c);
+      add(hd, sph(0.12, 14, 10), c, 0, -0.05, 0.2, { s: [1, 0.8, 1.1] });
+      face = makeFace(0.22, { eyeR: 0.085, gap: 0.09, eyeY: 0.06, iris: 0xffd23d, mouth: 'none' });
+      hd.add(face);
+      for (const s of [-1, 1]) add(hd, new THREE.ConeGeometry(0.04, 0.14, 6), cream, s * 0.1, 0.2, -0.06, { rx: -0.5 });
+      const wm = mat(darker(color, 0.75), { side: THREE.DoubleSide });
+      for (const s of [-1, 1]) {
+        const p = group(body, s * 0.15, 0.12, -0.12);
+        p.scale.x = s;
+        add(p, batWingGeo(0.38, 0.3), wm);
+        wings.push({ p, s, axis: 'y' });
+      }
+      tube(body, [[0, -0.05, -0.22], [0, -0.1, -0.4], [0.05, 0, -0.55]], 0.05, c, 10);
+      g.userData.tailFire = flame(body, 0.05, 0, -0.58, 0.35);
       break;
-    case 'beetle':
-      body.add(mesh(new THREE.SphereGeometry(0.24, 10, 8), c, 0, 0.3, 0));
-      body.add(mesh(new THREE.OctahedronGeometry(0.1), glowMat(0xfff27a, 3), 0, 0.5, 0.15));
-      eyes(0.35, 0.22, 0.08); addWings(0.4, 0.3, mat(0xd0b8ff, { transparent: true, opacity: 0.7 }));
+    }
+    case 'pup': {
+      flies = false;
+      add(body, sph(0.26, 16, 10), c, 0, 0.3, 0, { s: [1, 0.9, 1.1] });
+      const hd = group(body, 0, 0.58, 0.2);
+      add(hd, sph(0.24, 16, 10), c);
+      add(hd, sph(0.1, 14, 10), mat(0xffffff), 0, -0.07, 0.2, { s: [1.2, 0.8, 1] });
+      add(hd, sph(0.04, 10, 8), mat(0x1a1030), 0, -0.03, 0.29);
+      face = makeFace(0.24, { eyeR: 0.085, gap: 0.1, eyeY: 0.05, iris: 0x2a6ad0, mouth: 'open', mouthY: -0.14, mouthW: 0.04, cheeks: true });
+      hd.add(face);
+      for (const s of [-1, 1]) add(hd, sph(0.12, 12, 10), mat(0x6ab0e0), s * 0.25, 0.02, 0.02, { s: [0.45, 1.25, 0.8], rz: s * 0.45 });
+      for (const [x, z] of [[-0.14, 0.14], [0.14, 0.14], [-0.14, -0.16], [0.14, -0.16]]) add(body, sph(0.08, 12, 10), c, x, 0.07, z, { s: [1, 1.1, 1.1] });
+      add(body, new THREE.TorusGeometry(0.16, 0.035, 6, 18), mat(0x2a6ad0), 0, 0.45, 0.14, { rx: Math.PI / 2 + 0.5 });
+      add(body, new THREE.OctahedronGeometry(0.06), glowMat(0xffffff, 1.5), 0, 0.37, 0.3);
+      tube(body, [[0, 0.3, -0.26], [0, 0.45, -0.38], [0.05, 0.6, -0.32]], 0.045, c, 8);
       break;
+    }
+    case 'bat': {
+      add(body, sph(0.22, 16, 10), c);
+      face = makeFace(0.22, { eyeR: 0.085, gap: 0.085, eyeY: 0.04, iris: 0xff4d6d, mouth: 'fangs', mouthY: -0.1, mouthW: 0.035 });
+      body.add(face);
+      for (const s of [-1, 1]) {
+        add(body, new THREE.ConeGeometry(0.08, 0.26, 8), c, s * 0.12, 0.25, 0, { rz: -s * 0.3 });
+        add(body, new THREE.ConeGeometry(0.045, 0.15, 8), mat(0xff9ac0), s * 0.12, 0.25, 0.035, { rz: -s * 0.3 });
+      }
+      const wm = mat(0x3a2a55, { side: THREE.DoubleSide });
+      for (const s of [-1, 1]) {
+        const p = group(body, s * 0.15, 0.05, -0.05);
+        p.scale.x = s;
+        add(p, batWingGeo(0.45, 0.34), wm);
+        wings.push({ p, s, axis: 'y' });
+      }
+      break;
+    }
+    case 'beetle': {
+      add(body, new THREE.SphereGeometry(0.28, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), c, 0, 0, -0.02, { s: [1, 0.9, 1.15] });
+      add(body, new THREE.CylinderGeometry(0.28, 0.28, 0.05, 18), mat(darker(color, 0.6)), 0, 0, -0.02, { s: [1, 1, 1.15] });
+      for (const [x, z] of [[-0.12, 0.05], [0.13, -0.08], [0.02, -0.18], [-0.1, -0.12]]) add(body, sph(0.045, 10, 8), glowMat(0xfff27a, 1.6), x, 0.22 - Math.abs(z) * 0.3, z, { s: [1, 0.5, 1] });
+      body.rotation.x = -0.25;
+      const hd = group(body, 0, 0.06, 0.3);
+      add(hd, sph(0.17, 16, 10), mat(0x5a4a8a));
+      face = makeFace(0.17, { eyeR: 0.075, gap: 0.075, eyeY: 0.04, iris: 0x3aa0ff, mouth: 'smile', mouthW: 0.028, mouthY: -0.08, cheeks: true });
+      hd.add(face);
+      for (const s of [-1, 1]) {
+        limb(hd, V3(s * 0.05, 0.12, 0), V3(s * 0.14, 0.34, 0.08), 0.012, 0.01, basic(0x2a1a44), 4);
+        add(hd, sph(0.04, 10, 8), glowMat(0xfff27a, 2), s * 0.14, 0.35, 0.08);
+      }
+      const wm = mat(0xd8c8ff, { transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+      for (const s of [-1, 1]) {
+        const p = group(body, s * 0.1, 0.2, -0.1);
+        p.scale.x = s;
+        add(p, new THREE.CircleGeometry(0.22, 14), wm, 0.18, 0.02, 0, { s: [1, 0.45, 1], rz: 0.2 });
+        wings.push({ p, s, axis: 'y' });
+      }
+      for (let k = -1; k <= 1; k++) for (const s of [-1, 1]) limb(body, V3(s * 0.2, -0.02, k * 0.12), V3(s * 0.3, -0.15, k * 0.16), 0.018, 0.012, basic(0x2a1a44), 4);
+      break;
+    }
   }
-  const flies = kind !== 'pup';
+  const blink = face ? blinker(face.userData.eyes) : () => {};
   g.userData.anim = (t, moving) => {
-    body.position.y = flies ? 0.9 + Math.sin(t * 3) * 0.15 : (moving ? Math.abs(Math.sin(t * 12)) * 0.15 : 0);
-    for (const w of wings) w.pivot.rotation.z = w.s * Math.sin(t * 16) * 0.6;
+    blink(t);
+    if (flies) body.position.y = 0.95 + Math.sin(t * 3) * 0.15;
+    else {
+      body.position.y = moving ? Math.abs(Math.sin(t * 12)) * 0.12 : 0;
+      body.rotation.z = moving ? 0 : Math.sin(t * 2) * 0.03;
+    }
+    for (const w of wings) {
+      if (w.axis === 'z') w.p.rotation.z = w.s * Math.sin(t * 16) * 0.6;
+      else w.p.rotation.y = w.s * (0.5 + Math.sin(t * 16) * 0.5);
+    }
+    g.userData.tailFire?.userData.flicker(t);
   };
-  return g;
+  return finish(g, 0.02, 0.07);
 }
 
-// ---------------------------------------------------------------- Chapter 2 scenery
+// ---------------------------------------------------------------- scenery: academy & lane
+
+export function makeTree(scale = 1, leaf = 0x3f8a4a) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.22, 0.34, 1.6, 8), mat(0x6b4a2b), 0, 0.8, 0);
+  const tiers = [[1.7, 2.3, 2.3], [1.35, 2.0, 3.35], [0.95, 1.7, 4.3], [0.55, 1.2, 5.1]];
+  tiers.forEach(([r, h, y], i) => {
+    const t = add(g, new THREE.ConeGeometry(r, h, 12), mat(i % 2 ? leaf : lighter(leaf, 0.08)), 0, y, 0);
+    t.rotation.y = i * 0.4;
+  });
+  g.scale.setScalar(scale);
+  g.rotation.z = rnd(-0.04, 0.04);
+  return finish(g, 0.04, 0.4, true);
+}
+
+export function makeRoundTree(scale = 1, leaf = 0xd36fae) {
+  const g = new THREE.Group();
+  const bark = mat(0x5a3d24);
+  add(g, new THREE.CylinderGeometry(0.2, 0.32, 2.3, 8), bark, 0, 1.15, 0);
+  limb(g, V3(0, 1.7, 0), V3(0.6, 2.5, 0.1), 0.12, 0.07, bark, 6);
+  limb(g, V3(0, 1.9, 0), V3(-0.55, 2.6, -0.1), 0.12, 0.07, bark, 6);
+  const L = mat(leaf), L2 = mat(lighter(leaf, 0.18));
+  for (const [x, y, z, r, m] of [[0, 3.3, 0, 1.3, L], [0.9, 2.8, 0.2, 0.9, L2], [-0.85, 2.9, -0.1, 0.95, L], [0.2, 2.7, 0.8, 0.8, L2], [-0.2, 2.8, -0.8, 0.85, L2]]) {
+    add(g, new THREE.IcosahedronGeometry(r, 1), m, x, y, z);
+  }
+  for (let i = 0; i < 6; i++) add(g, sph(0.1, 8, 6), basic(0xfff4f8), rnd(-1.1, 1.1), rnd(2.6, 4), rnd(-1, 1), { shadow: false });
+  g.scale.setScalar(scale);
+  return finish(g, 0.04, 0.4, true);
+}
+
+// Twisted dead tree; some of them have a spooky face.
+export function makeDeadTree(scale = 1, spooky = Math.random() < 0.4) {
+  const g = new THREE.Group();
+  const wood = mat(0x3e302c);
+  limb(g, V3(0, 0, 0), V3(0.2, 1.6, 0), 0.38, 0.26, wood, 7);
+  limb(g, V3(0.2, 1.55, 0), V3(-0.1, 3.1, 0.1), 0.27, 0.14, wood, 7);
+  const branches = [[V3(0.1, 2.2, 0), V3(1.1, 3.0, 0.2)], [V3(0, 2.6, 0), V3(-1.0, 3.3, -0.2)], [V3(-0.05, 2.9, 0.05), V3(0.4, 3.9, -0.4)], [V3(0.2, 1.8, 0), V3(-0.8, 2.3, 0.5)]];
+  for (const [a, b] of branches) {
+    limb(g, a, b, 0.1, 0.04, wood, 5);
+    limb(g, b, b.clone().add(V3(b.x > 0 ? 0.3 : -0.3, 0.35, 0)), 0.04, 0.015, wood, 4);
+  }
+  for (const s of [-1, 1]) limb(g, V3(0, 0.25, 0), V3(s * 0.6, 0, 0.3 * s), 0.14, 0.05, wood, 5);
+  if (spooky) {
+    for (const s of [-1, 1]) add(g, sph(0.09, 10, 8), basic(0xffd27a), 0.15 + s * 0.13, 1.25, 0.3, { s: [1, 1.3, 0.5], shadow: false });
+    add(g, sph(0.13, 12, 8), basic(0x120a18), 0.15, 0.9, 0.3, { s: [1.4, 0.7, 0.5], shadow: false });
+  }
+  g.scale.setScalar(scale);
+  return finish(g, 0.035, 0.3, true);
+}
+
+export function makeLamp(color = 0xffd27a) {
+  const g = new THREE.Group();
+  const iron = mat(0x2b2733);
+  add(g, new THREE.CylinderGeometry(0.28, 0.35, 0.3, 8), iron, 0, 0.15, 0);
+  add(g, new THREE.CylinderGeometry(0.07, 0.1, 3.2, 8), iron, 0, 1.75, 0);
+  add(g, new THREE.TorusGeometry(0.28, 0.04, 6, 16, Math.PI), iron, 0.28, 3.35, 0, { rz: Math.PI * 0.05 });
+  const lantern = group(g, 0.56, 3.15, 0);
+  add(lantern, new THREE.CylinderGeometry(0.02, 0.02, 0.2, 4), iron, 0, 0.12, 0);
+  add(lantern, new THREE.ConeGeometry(0.22, 0.18, 6), iron, 0, 0, 0);
+  add(lantern, new THREE.CylinderGeometry(0.15, 0.13, 0.36, 6), glowMat(color, 2.4), 0, -0.26, 0);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    add(lantern, new THREE.BoxGeometry(0.025, 0.38, 0.025), iron, Math.cos(a) * 0.155, -0.26, Math.sin(a) * 0.155);
+  }
+  add(lantern, new THREE.CylinderGeometry(0.17, 0.12, 0.06, 6), iron, 0, -0.46, 0);
+  // lamps are static so the renderer can batch them
+  return finish(g, 0.03, 0.3, true);
+}
+
+export function makeHouse({ w = 6, d = 6, h = 4, wall = 0xd9c7a3, roof = 0x7b3f5e, lit = true, tilt = 0 } = {}) {
+  const g = new THREE.Group();
+  const beam = mat(0x4a3024), wallM = mat(wall), stone = mat(0x7a7280), roofM = mat(roof);
+  add(g, new THREE.BoxGeometry(w, h, d), wallM, 0, h / 2, 0);
+  add(g, new THREE.BoxGeometry(w + 0.3, 0.6, d + 0.3), stone, 0, 0.3, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(g, new THREE.BoxGeometry(0.28, h, 0.28), beam, sx * w / 2, h / 2, sz * d / 2);
+  add(g, new THREE.BoxGeometry(w + 0.12, 0.22, d + 0.12), beam, 0, h * 0.5, 0);
+  add(g, new THREE.BoxGeometry(w + 0.12, 0.22, d + 0.12), beam, 0, h - 0.1, 0);
+  // gable roof
+  const rh = h * 0.7;
+  const roofG = group(g, 0, h, 0);
+  roofG.rotation.z = tilt;
+  const tri = new THREE.Shape();
+  tri.moveTo(-w / 2, 0); tri.lineTo(w / 2, 0); tri.lineTo(0, rh * 0.96); tri.closePath();
+  add(roofG, new THREE.ExtrudeGeometry(tri, { depth: d, bevelEnabled: false }), wallM, 0, 0, -d / 2);
+  const half = w / 2 + 0.55;
+  const slant = Math.hypot(half, rh), ang = Math.atan2(rh, half);
+  for (const s of [-1, 1]) add(roofG, new THREE.BoxGeometry(slant + 0.15, 0.28, d + 1.1), roofM, s * half / 2, rh / 2 - 0.05, 0, { rz: -s * ang });
+  add(roofG, new THREE.CylinderGeometry(0.16, 0.16, d + 1.2, 8), mat(darker(roof, 0.75)), 0, rh + 0.05, 0, { rx: Math.PI / 2 });
+  add(roofG, new THREE.CylinderGeometry(0.36, 0.36, 0.1, 16), lit ? glowMat(0xffc86b, 1.4) : mat(0x1c1a24), 0, rh * 0.4, d / 2 + 0.02, { rx: Math.PI / 2 });
+  add(roofG, new THREE.TorusGeometry(0.38, 0.07, 6, 16), beam, 0, rh * 0.4, d / 2 + 0.05);
+  // chimney
+  const ch = group(roofG, w * 0.25, rh * 0.45, -d * 0.2);
+  ch.rotation.z = rnd(-0.12, 0.12);
+  add(ch, new THREE.BoxGeometry(0.7, 2.0, 0.7), mat(0x7a6a64), 0, 0.6, 0);
+  add(ch, new THREE.BoxGeometry(0.9, 0.2, 0.9), stone, 0, 1.6, 0);
+  // door
+  const doorM = mat(0x6b3a24);
+  add(g, archGeo(1.5, 2.5, 0.12), beam, 0, 0.3, d / 2 - 0.04);
+  add(g, archGeo(1.22, 2.32, 0.12), doorM, 0, 0.3, d / 2);
+  for (const x of [-0.3, 0, 0.3]) add(g, new THREE.BoxGeometry(0.04, 1.9, 0.03), beam, x, 1.25, d / 2 + 0.13, { shadow: false, noOutline: true });
+  add(g, sph(0.08, 10, 8), mat(0xf2c14e), 0.42, 1.2, d / 2 + 0.16);
+  // windows with frames, crossbars and flower boxes
+  const glass = lit ? glowMat(0xffc86b, 1.4) : mat(0x1c1a24);
+  const windowAt = (x, y, z, ry) => {
+    const wg = group(g, x, y, z);
+    wg.rotation.y = ry;
+    add(wg, new THREE.BoxGeometry(1.15, 1.15, 0.12), beam);
+    add(wg, new THREE.BoxGeometry(0.9, 0.9, 0.1), glass, 0, 0, 0.03);
+    add(wg, new THREE.BoxGeometry(0.07, 0.9, 0.12), beam, 0, 0, 0.05);
+    add(wg, new THREE.BoxGeometry(0.9, 0.07, 0.12), beam, 0, 0, 0.05);
+    add(wg, new THREE.BoxGeometry(1.2, 0.25, 0.3), mat(0x6b4a2b), 0, -0.7, 0.12);
+    for (let k = -1; k <= 1; k++) add(wg, sph(0.1, 8, 6), mat([0xff5fa2, 0xf2c14e, 0xb46bff][k + 1]), k * 0.35, -0.52, 0.14);
+  };
+  for (const s of [-1, 1]) windowAt(s * w * 0.3, h * 0.66, d / 2 + 0.04, 0);
+  for (const s of [-1, 1]) windowAt(s * (w / 2 + 0.04), h * 0.66, 0, s * Math.PI / 2);
+  return finish(g, 0.045, 0.35, true);
+}
+
+export function makeTower({ r = 4, h = 16, wall = 0xcfc3e8, roof = 0x3b2d7a } = {}) {
+  const g = new THREE.Group();
+  const gold = mat(0xf2c14e);
+  add(g, new THREE.CylinderGeometry(r * 1.12, r * 1.2, 1.2, 18), mat(0x8c8398), 0, 0.6, 0);
+  add(g, new THREE.CylinderGeometry(r, r * 1.06, h, 18), mat(wall), 0, h / 2, 0);
+  add(g, new THREE.TorusGeometry(r * 1.03, 0.25, 6, 24), gold, 0, h * 0.55, 0, { rx: Math.PI / 2 });
+  add(g, new THREE.CylinderGeometry(r * 1.18, r * 1.1, 0.7, 18), gold, 0, h, 0);
+  // curved witch-hat roof
+  const pts = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    pts.push(new THREE.Vector2(r * 1.32 * Math.pow(1 - t, 1.7) + 0.02, r * 2.7 * t));
+  }
+  add(g, new THREE.LatheGeometry(pts, 18), mat(roof), 0, h + 0.3, 0);
+  add(g, new THREE.OctahedronGeometry(r * 0.2), glowMat(0xf2c14e, 2), 0, h + 0.3 + r * 2.85, 0);
+  const win = glowMat(0xffd98a, 1.3), frame = mat(darker(wall, 0.55));
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    for (let lvl = 0; lvl < 2; lvl++) {
+      const y = h * (0.3 + lvl * 0.38);
+      const rr = r * (1 + 0.06 * (1 - y / h)) - 0.12;
+      const wg = group(g, Math.sin(a) * rr, y, Math.cos(a) * rr);
+      wg.rotation.y = a;
+      add(wg, archGeo(1.1, 2.0, 0.24), frame, 0, -1.0, 0);
+      add(wg, archGeo(0.82, 1.78, 0.26), win, 0, -0.9, 0.02);
+      add(wg, new THREE.BoxGeometry(0.06, 1.7, 0.3), frame, 0, -0.1, 0.02, { noOutline: true });
+    }
+  }
+  const bannerM = mat(roof, { side: THREE.DoubleSide });
+  for (const a of [Math.PI / 6, -Math.PI / 6]) {
+    const bg = group(g, Math.sin(a) * (r + 0.1), h * 0.88, Math.cos(a) * (r + 0.1));
+    bg.rotation.y = a;
+    add(bg, new THREE.PlaneGeometry(1.1, 2.6), bannerM, 0, -1.2, 0.05);
+    add(bg, new THREE.OctahedronGeometry(0.28), gold, 0, -1.0, 0.1, { s: [1, 1, 0.3] });
+  }
+  return finish(g, 0.05, 0.5, true);
+}
+
+export function makeFountain() {
+  const g = new THREE.Group();
+  const stone = mat(0xc4bca8), stone2 = mat(0xa39a86);
+  const basin = [[0, 0], [3.3, 0], [3.4, 0.1], [3.35, 0.75], [3.1, 0.85], [2.95, 0.8], [2.95, 0.3], [0, 0.3]];
+  add(g, new THREE.LatheGeometry(basin.map(([x, y]) => new THREE.Vector2(x, y)), 36), stone);
+  const waterM = new THREE.MeshToonMaterial({ color: 0x5fc3ff, emissive: 0x1a6fc8, emissiveIntensity: 0.6, gradientMap: toonRamp(), transparent: true, opacity: 0.88 });
+  const water = add(g, new THREE.CircleGeometry(2.95, 36), waterM, 0, 0.66, 0, { rx: -Math.PI / 2, shadow: false });
+  add(g, new THREE.CylinderGeometry(0.4, 0.6, 2.2, 14), stone2, 0, 1.4, 0);
+  add(g, new THREE.TorusGeometry(0.45, 0.1, 6, 18), stone, 0, 1.2, 0, { rx: Math.PI / 2 });
+  const bowl = [[0, 0], [0.5, 0], [1.3, 0.3], [1.4, 0.45], [1.25, 0.45], [0, 0.25]];
+  add(g, new THREE.LatheGeometry(bowl.map(([x, y]) => new THREE.Vector2(x, y)), 28), stone, 0, 2.35, 0);
+  add(g, new THREE.CircleGeometry(1.2, 24), waterM, 0, 2.77, 0, { rx: -Math.PI / 2, shadow: false });
+  const orb = dyn(add(g, new THREE.IcosahedronGeometry(0.55, 2), glowMat(0x7fe3ff, 2.2), 0, 3.5, 0));
+  const ring = dyn(add(g, new THREE.TorusGeometry(0.85, 0.05, 6, 24), glowMat(0xf2c14e, 1.8), 0, 3.5, 0, { rx: Math.PI / 2 }));
+  const drops = [];
+  for (let i = 0; i < 10; i++) drops.push(dyn(add(g, sph(0.07, 8, 6), basic(0xbff0ff), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t) => {
+    orb.position.y = 3.5 + Math.sin(t * 1.5) * 0.15;
+    ring.rotation.set(Math.PI / 2 + Math.sin(t) * 0.3, t * 0.7, 0);
+    ring.position.y = orb.position.y;
+    waterM.emissiveIntensity = 0.5 + Math.sin(t * 2) * 0.15;
+    drops.forEach((d, i) => {
+      const k = ((t * 0.8 + i / drops.length) % 1);
+      const a = (i / drops.length) * Math.PI * 2;
+      const rr = 1.3 + k * 1.2;
+      d.position.set(Math.cos(a) * rr, 2.75 + k * 0.4 - k * k * 2.3, Math.sin(a) * rr);
+    });
+  };
+  return finish(g, 0.045, 0.3);
+}
+
+export function makeGate() {
+  const g = new THREE.Group();
+  const stone = mat(0x8c8398), stone2 = mat(0x6c6478);
+  for (const s of [-1, 1]) {
+    add(g, new THREE.BoxGeometry(2, 0.6, 2), stone2, s * 9.5, 0.3, 0);
+    add(g, new THREE.BoxGeometry(1.6, 6.5, 1.6), stone, s * 9.5, 3.5, 0);
+    add(g, new THREE.BoxGeometry(2, 0.5, 2), stone2, s * 9.5, 6.9, 0);
+    add(g, new THREE.ConeGeometry(1.2, 1.4, 4), mat(0x3b2d7a), s * 9.5, 7.85, 0, { ry: Math.PI / 4 });
+    add(g, new THREE.OctahedronGeometry(0.45), glowMat(0xb46bff, 2), s * 9.5, 8.9, 0);
+  }
+  add(g, new THREE.TorusGeometry(9.5, 0.55, 6, 24, Math.PI), stone, 0, 5.5, 0, { s: [1, 0.36, 1] });
+  const sign = group(g, 0, 7.6, 0.4);
+  add(sign, new THREE.BoxGeometry(5.4, 1.2, 0.25), mat(0x3b2d7a));
+  add(sign, new THREE.BoxGeometry(5.8, 0.18, 0.3), mat(0xf2c14e), 0, 0.62, 0);
+  add(sign, new THREE.BoxGeometry(5.8, 0.18, 0.3), mat(0xf2c14e), 0, -0.62, 0);
+  add(sign, new THREE.OctahedronGeometry(0.3), glowMat(0xc59bff, 2), 0, 0, 0.18, { s: [1, 1, 0.4] });
+  return finish(g, 0.05, 0.4, true);
+}
+
+export function makeCrypt() {
+  const g = new THREE.Group();
+  const stone = mat(0x6e6882), stone2 = mat(0x575170);
+  for (let i = 0; i < 3; i++) add(g, new THREE.BoxGeometry(20 - i * 1.2, 0.4, 10 - i * 0.8), stone2, 0, 0.2 + i * 0.4, 0.8 - i * 0.2);
+  add(g, new THREE.BoxGeometry(16, 7, 7), stone, 0, 4.7, -0.5);
+  const tri = new THREE.Shape();
+  tri.moveTo(-9, 0); tri.lineTo(9, 0); tri.lineTo(0, 3.4); tri.closePath();
+  add(g, new THREE.ExtrudeGeometry(tri, { depth: 8.4, bevelEnabled: false }), stone2, 0, 8.2, -4.6);
+  add(g, new THREE.SphereGeometry(2.4, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x4a3e66), 0, 11.2, -0.5);
+  add(g, new THREE.OctahedronGeometry(0.5), glowMat(0xc542ff, 2.5), 0, 14, -0.5);
+  for (const x of [-6.5, -3.2, 3.2, 6.5]) {
+    add(g, new THREE.CylinderGeometry(0.55, 0.6, 7, 12), mat(0x5a5566), x, 4.7, 3.6);
+    add(g, new THREE.BoxGeometry(1.4, 0.4, 1.4), stone2, x, 8.3, 3.6);
+    add(g, new THREE.BoxGeometry(1.4, 0.4, 1.4), stone2, x, 1.35, 3.6);
+  }
+  add(g, archGeo(4.8, 6.6, 0.3), stone2, 0, 1.2, 2.95);
+  add(g, archGeo(3.9, 6.0, 0.3), glowMat(0x7a2ad0, 1.4), 0, 1.2, 3.05);
+  const skull = group(g, 0, 9.4, 3.95);
+  add(skull, sph(0.55, 16, 10), mat(0xd8cdb8), 0, 0, 0, { s: [1, 0.9, 0.6] });
+  for (const s of [-1, 1]) add(skull, sph(0.14, 10, 8), glowMat(0xc542ff, 2.5), s * 0.2, 0.02, 0.28, { shadow: false });
+  const candles = [];
+  for (const x of [-4.8, -1.6, 1.6, 4.8]) {
+    add(g, new THREE.CylinderGeometry(0.12, 0.12, 0.5, 8), mat(0xe8e0d0), x, 1.45, 4.3);
+    candles.push(flame(g, x, 1.7, 4.3, 0.4, [0x9a4dff, 0xc542ff, 0xf0c8ff]));
+  }
+  g.userData.anim = (t) => candles.forEach(c => c.userData.flicker(t));
+  return finish(g, 0.06, 0.5);
+}
+
+export function makeGrave() {
+  const g = new THREE.Group();
+  const stone = mat(0x7a7488);
+  add(g, sph(0.6, 12, 8), mat(0x3a3028), 0, 0, 0.6, { s: [0.9, 0.25, 1.4] });
+  if (Math.random() < 0.35) {
+    add(g, new THREE.BoxGeometry(0.22, 1.3, 0.2), stone, 0, 0.65, 0);
+    add(g, new THREE.BoxGeometry(0.8, 0.22, 0.2), stone, 0, 0.92, 0);
+  } else {
+    add(g, new THREE.BoxGeometry(0.8, 0.8, 0.22), stone, 0, 0.45, 0);
+    add(g, new THREE.CylinderGeometry(0.4, 0.4, 0.22, 16, 1, false, 0, Math.PI), stone, 0, 0.85, 0, { rx: Math.PI / 2, rz: Math.PI / 2 });
+    add(g, new THREE.BoxGeometry(0.4, 0.06, 0.03), basic(0x3a3448), 0, 0.7, 0.12, { shadow: false });
+    add(g, new THREE.BoxGeometry(0.3, 0.06, 0.03), basic(0x3a3448), 0, 0.55, 0.12, { shadow: false });
+  }
+  add(g, sph(0.14, 8, 6), mat(0x5a8a4a), 0.3, 0.08, 0.1, { s: [1.4, 0.6, 1] });
+  g.rotation.z = rnd(-0.12, 0.12);
+  return finish(g, 0.03, 0.2, true);
+}
+
+export function makeRock(scale = 1, color = 0x6c6776) {
+  const g = new THREE.Group();
+  add(g, new THREE.DodecahedronGeometry(1, 0), mat(color), 0, 0.3, 0, { s: [1.2, 0.8, 1] });
+  add(g, new THREE.DodecahedronGeometry(0.45, 0), mat(lighter(color, 0.1)), 0.9, 0.1, 0.3);
+  g.scale.setScalar(scale);
+  g.rotation.y = Math.random() * Math.PI;
+  return finish(g, 0.04, 0.2, true);
+}
+
+export function makeStall(color = 0xa0346a) {
+  const g = new THREE.Group();
+  const wood = mat(0x7a5236);
+  add(g, new THREE.BoxGeometry(3.2, 1.1, 1.3), wood, 0, 0.55, 0);
+  add(g, new THREE.BoxGeometry(3.4, 0.12, 1.5), mat(0x5a3a24), 0, 1.12, 0);
+  for (const x of [-1.5, 1.5]) for (const z of [-0.55, 0.55]) add(g, new THREE.CylinderGeometry(0.07, 0.07, 3, 6), mat(0x5a3d24), x, 1.5, z);
+  const stripes = [mat(color), mat(0xfff0f6)];
+  for (let i = 0; i < 6; i++) add(g, new THREE.BoxGeometry(0.62, 0.1, 2.0), stripes[i % 2], -1.55 + i * 0.62, 3.0, 0, { rx: 0.25 });
+  for (let i = 0; i < 6; i++) add(g, new THREE.ConeGeometry(0.31, 0.3, 3), stripes[i % 2], -1.55 + i * 0.62, 2.6, 1.0, { rx: Math.PI });
+  const colors = [0xff5fa2, 0x5fdc6a, 0x6fd3ff, 0xf2c14e, 0xb46bff];
+  colors.forEach((c, i) => {
+    const b = group(g, -1.2 + i * 0.6, 1.18, 0.2);
+    add(b, sph(0.17, 12, 10), glowMat(c, 1.2), 0, 0.17, 0);
+    add(b, new THREE.CylinderGeometry(0.05, 0.06, 0.16, 8), mat(0xe8f4ff), 0, 0.38, 0);
+    add(b, new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8), mat(0x7a5236), 0, 0.48, 0);
+  });
+  add(g, new THREE.CylinderGeometry(0.45, 0.35, 0.6, 14), mat(0x2a2a34), -1.9, 0.3, 0.9);
+  add(g, new THREE.CircleGeometry(0.38, 14), glowMat(0x5fdc6a, 1.6), -1.9, 0.61, 0.9, { rx: -Math.PI / 2, shadow: false });
+  return finish(g, 0.035, 0.25, true);
+}
+
+export function makeBookStand() {
+  const g = new THREE.Group();
+  const wood = mat(0x5a3d24);
+  add(g, new THREE.BoxGeometry(2.6, 3.3, 0.8), wood, 0, 1.65, -0.6);
+  add(g, new THREE.BoxGeometry(2.8, 0.15, 0.9), mat(0x4a2e1f), 0, 3.35, -0.6);
+  const bookColors = [0x7b3f5e, 0x2e7d6b, 0x3b2d7a, 0xc9a24a, 0x8a3a1c, 0x3a6ea5];
+  for (let shelf = 0; shelf < 3; shelf++) {
+    add(g, new THREE.BoxGeometry(2.4, 0.06, 0.6), mat(0x4a2e1f), 0, 0.22 + shelf * 0.98, -0.3);
+    let x = -1.05;
+    for (let i = 0; x < 1.0; i++) {
+      const bw = 0.18 + ((i * 7 + shelf * 3) % 4) * 0.04;
+      const bh = 0.55 + ((i * 5 + shelf) % 3) * 0.1;
+      add(g, new THREE.BoxGeometry(bw, bh, 0.5), mat(bookColors[(i + shelf * 2) % bookColors.length]), x + bw / 2, 0.25 + shelf * 0.98 + bh / 2, -0.28, { rz: i % 5 === 4 ? 0.2 : 0 });
+      x += bw + 0.02;
+    }
+  }
+  add(g, new THREE.CylinderGeometry(0.08, 0.3, 1.1, 8), wood, 0, 0.55, 1);
+  add(g, new THREE.BoxGeometry(0.8, 0.08, 0.6), wood, 0, 1.12, 1, { rx: -0.3 });
+  for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.36, 0.04, 0.5), mat(0xfff4dc), s * 0.19, 1.18, 1, { rx: -0.3, rz: -s * 0.08 });
+  const glow = dyn(add(g, sph(0.12, 12, 10), glowMat(0x9fe6ff, 2), 0, 1.5, 1.05, { shadow: false }));
+  const candle = group(g, -0.9, 3.45, -0.5);
+  add(candle, new THREE.CylinderGeometry(0.08, 0.08, 0.3, 8), mat(0xfff4dc), 0, 0.15, 0);
+  const fl = flame(candle, 0, 0.3, 0, 0.35);
+  g.userData.anim = (t) => {
+    glow.position.y = 1.5 + Math.sin(t * 2) * 0.08;
+    fl.userData.flicker(t);
+  };
+  return finish(g, 0.035, 0.25);
+}
+
+// ---------------------------------------------------------------- scenery: Emberfall
 
 export function makePortal(color = 0xb46bff) {
   const g = new THREE.Group();
-  const stone = mat(0x6c6280);
-  for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.9, 5, 0.9), stone, s * 2.4, 2.5, 0));
-  g.add(mesh(new THREE.BoxGeometry(5.8, 0.8, 1), stone, 0, 5.2, 0));
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.14, 8, 40), glowMat(color, 2.5));
-  ring.position.y = 2.6;
-  g.add(ring);
-  const swirl = new THREE.Mesh(new THREE.CircleGeometry(1.7, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
-  swirl.position.y = 2.6;
-  g.add(swirl);
-  const sparks = [];
-  for (let i = 0; i < 8; i++) {
-    const s = mesh(new THREE.OctahedronGeometry(0.1), glowMat(0xffffff, 2));
-    sparks.push(s);
-    g.add(s);
+  const stone = mat(0x6c6280), stone2 = mat(0x4e465e);
+  for (const s of [-1, 1]) {
+    add(g, new THREE.BoxGeometry(1.3, 0.5, 1.3), stone2, s * 2.4, 0.25, 0);
+    add(g, new THREE.BoxGeometry(0.9, 4.6, 0.9), stone, s * 2.4, 2.8, 0);
+    for (let k = 0; k < 3; k++) add(g, new THREE.BoxGeometry(0.3, 0.3, 0.05), glowMat(color, 2), s * 2.4, 1.4 + k * 1.1, 0.47, { rz: Math.PI / 4, shadow: false });
   }
+  add(g, new THREE.TorusGeometry(2.4, 0.45, 6, 24, Math.PI), stone, 0, 5.0, 0);
+  add(g, new THREE.OctahedronGeometry(0.4), glowMat(color, 2.4), 0, 7.4, 0);
+  const ring = dyn(add(g, new THREE.TorusGeometry(1.8, 0.14, 6, 24), glowMat(color, 2.5), 0, 2.9, 0));
+  const swirlM = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+  const swirl = dyn(add(g, new THREE.CircleGeometry(1.7, 32), swirlM, 0, 2.9, 0, { shadow: false }));
+  add(g, new THREE.CircleGeometry(1.0, 28), new THREE.MeshBasicMaterial({ color: lighter(color, 0.6), transparent: true, opacity: 0.6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }), 0, 2.9, 0.01, { shadow: false });
+  const inner = group(g, 0, 2.9, 0.03);
+  for (let k = 0; k < 3; k++) add(inner, new THREE.TorusGeometry(0.4 + k * 0.35, 0.05, 6, 24, Math.PI * 0.9), basic(0xffffff), 0, 0, 0, { rz: k * 2.1, shadow: false });
+  const sparks = [];
+  for (let i = 0; i < 10; i++) sparks.push(dyn(add(g, new THREE.OctahedronGeometry(0.1), basic(0xffffff), 0, 0, 0, { shadow: false })));
   g.userData.anim = (t) => {
     ring.rotation.z = t;
-    swirl.material.opacity = 0.45 + Math.sin(t * 3) * 0.15;
+    inner.rotation.z = -t * 2.2;
+    swirlM.opacity = 0.45 + Math.sin(t * 3) * 0.15;
     swirl.scale.setScalar(1 + Math.sin(t * 2) * 0.05);
     sparks.forEach((s, i) => {
-      const a = -t * 2 + (i / 8) * Math.PI * 2;
+      const a = -t * 2 + (i / sparks.length) * Math.PI * 2;
       const r = 1.2 + Math.sin(t * 3 + i) * 0.4;
-      s.position.set(Math.cos(a) * r, 2.6 + Math.sin(a) * r, 0.1);
+      s.position.set(Math.cos(a) * r, 2.9 + Math.sin(a) * r, 0.1);
     });
   };
-  return g;
+  return finish(g, 0.045, 0.4);
 }
 
 export function makeTent(color = 0x7a4a24) {
   const g = new THREE.Group();
-  const tent = mesh(new THREE.ConeGeometry(2.6, 3, 4), mat(color), 0, 1.5, 0);
-  tent.rotation.y = Math.PI / 4;
-  g.add(tent);
-  g.add(mesh(new THREE.BoxGeometry(1, 1.4, 0.1), mat(0x2a1a14), 0, 0.7, 1.35));
-  g.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 4), mat(0x5a3d24), 0, 3.3, 0));
-  return g;
+  const stripes = [mat(color), mat(lighter(color, 0.45))];
+  for (let i = 0; i < 8; i++) {
+    add(g, new THREE.ConeGeometry(2.6, 3.2, 8, 1, false, (i / 8) * Math.PI * 2, Math.PI / 4), stripes[i % 2], 0, 1.6, 0);
+  }
+  add(g, new THREE.BoxGeometry(1.1, 1.5, 0.1), mat(0x2a1a14), 0, 0.75, 2.2, { rx: -0.45 });
+  add(g, new THREE.CylinderGeometry(0.05, 0.05, 1.2, 6), mat(0x5a3d24), 0, 3.6, 0);
+  const flag = dyn(add(g, new THREE.PlaneGeometry(0.7, 0.4), mat(0xf2c14e, { side: THREE.DoubleSide }), 0.37, 4.0, 0));
+  g.userData.anim = (t) => { flag.rotation.y = Math.sin(t * 3 + color) * 0.3; };
+  return finish(g, 0.04, 0.4);
 }
 
 export function makeCampfire() {
   const g = new THREE.Group();
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    g.add(mesh(new THREE.DodecahedronGeometry(0.28, 0), mat(0x5a5560), Math.cos(a) * 0.8, 0.15, Math.sin(a) * 0.8));
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    add(g, new THREE.DodecahedronGeometry(0.28, 0), mat(0x5a5560), Math.cos(a) * 0.85, 0.15, Math.sin(a) * 0.85);
   }
-  for (let i = 0; i < 3; i++) {
-    const log = mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 5), mat(0x4a2e1f), 0, 0.2, 0);
-    log.rotation.z = Math.PI / 2;
-    log.rotation.y = (i / 3) * Math.PI;
-    g.add(log);
-  }
-  const flames = [];
-  for (let i = 0; i < 3; i++) {
-    const f = mesh(new THREE.ConeGeometry(0.3 - i * 0.07, 0.9 - i * 0.15, 6), glowMat([0xff5a10, 0xffa020, 0xffe14d][i], 3), 0, 0.6, 0);
-    flames.push(f);
-    g.add(f);
-  }
-  g.userData.anim = (t) => flames.forEach((f, i) => { f.scale.y = 1 + Math.sin(t * (9 + i * 3)) * 0.2; f.rotation.y = t * (1 + i); });
-  return g;
+  for (let i = 0; i < 3; i++) add(g, new THREE.CylinderGeometry(0.11, 0.11, 1.3, 7), mat(0x4a2e1f), 0, 0.2, 0, { rz: Math.PI / 2, ry: (i / 3) * Math.PI });
+  const fires = [flame(g, 0, 0.25, 0, 1.6), flame(g, 0.22, 0.2, 0.1, 1.0), flame(g, -0.2, 0.2, -0.1, 1.1)];
+  const embers = [];
+  for (let i = 0; i < 6; i++) embers.push(dyn(add(g, sph(0.04, 6, 4), basic(0xffc040), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t) => {
+    fires.forEach(f => f.userData.flicker(t));
+    embers.forEach((e, i) => {
+      const k = (t * 0.6 + i / embers.length) % 1;
+      e.position.set(Math.sin(i * 2.3 + t) * 0.3 * k, 0.5 + k * 2.2, Math.cos(i * 1.7 + t) * 0.3 * k);
+      e.scale.setScalar(1 - k);
+    });
+  };
+  return finish(g, 0.035, 0.2);
 }
 
 export function makeLavaPool(r = 3) {
   const g = new THREE.Group();
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(r, 20), new THREE.MeshStandardMaterial({ color: 0xff5a10, emissive: 0xff3a00, emissiveIntensity: 1.6 }));
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.y = 0.04;
-  g.add(pool);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.6, 20), mat(0x1e1614));
-  rim.rotation.x = -Math.PI / 2;
-  rim.position.y = 0.05;
-  g.add(rim);
-  g.userData.anim = (t) => { pool.material.emissiveIntensity = 1.4 + Math.sin(t * 2 + r) * 0.4; };
-  return g;
+  const lavaM = ownMat(0xff5a10, { emissive: 0xff3a00, emissiveIntensity: 1.6 });
+  add(g, new THREE.CircleGeometry(r, 24), lavaM, 0, 0.05, 0, { rx: -Math.PI / 2, shadow: false });
+  add(g, new THREE.CircleGeometry(r * 0.55, 20), glowMat(0xffc040, 2.2), 0, 0.06, 0, { rx: -Math.PI / 2, shadow: false });
+  const n = Math.round(r * 5);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    add(g, new THREE.DodecahedronGeometry(rnd(0.25, 0.45), 0), mat(0x241816), Math.cos(a) * (r + 0.1), 0.1, Math.sin(a) * (r + 0.1), { s: [1, 0.6, 1] });
+  }
+  const bubbles = [0, 1, 2].map(() => dyn(add(g, sph(0.18, 10, 8), glowMat(0xffa040, 2), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t) => {
+    lavaM.emissiveIntensity = 1.4 + Math.sin(t * 2 + r) * 0.4;
+    bubbles.forEach((b, i) => {
+      const k = (t * 0.5 + i / 3 + r) % 1;
+      b.position.set(Math.cos(i * 2.1 + r) * r * 0.5, 0.05 + k * 0.2, Math.sin(i * 2.1 + r) * r * 0.5);
+      b.scale.setScalar(k < 0.8 ? k : (1 - k) * 4);
+    });
+  };
+  return finish(g, 0.035, 0.3);
 }
 
 export function makeSpire(h = 5) {
   const g = new THREE.Group();
-  const s = mesh(new THREE.ConeGeometry(h * 0.25, h, 5), mat(0x1c1820, { roughness: 0.4, metalness: 0.2 }), 0, h / 2, 0);
-  s.rotation.z = (Math.random() - 0.5) * 0.2;
-  g.add(s);
-  if (Math.random() > 0.5) g.add(mesh(new THREE.BoxGeometry(0.06, h * 0.5, 0.06), glowMat(0xff5a10, 2), h * 0.1, h * 0.3, h * 0.12));
-  return g;
+  const obs = mat(0x3c3252), vein = glowMat(0xff5a10, 2);
+  add(g, new THREE.ConeGeometry(h * 0.24, h, 6), obs, 0, h / 2, 0, { rz: rnd(-0.1, 0.1) });
+  add(g, new THREE.ConeGeometry(h * 0.13, h * 0.55, 6), obs, h * 0.22, h * 0.27, 0.1, { rz: -0.35 });
+  add(g, new THREE.ConeGeometry(h * 0.1, h * 0.4, 6), obs, -h * 0.18, h * 0.2, -0.1, { rz: 0.4 });
+  add(g, new THREE.BoxGeometry(0.07, h * 0.45, 0.07), vein, h * 0.06, h * 0.3, h * 0.12, { rz: 0.1, shadow: false, noOutline: true });
+  return finish(g, 0.04, 0.3, true);
 }
 
 export function makeFireTree(scale = 1) {
-  const g = makeDeadTree(scale);
+  const g = makeDeadTree(scale, false);
   const leafs = [];
-  for (const [x, y, z] of [[0.9, 3.0, 0], [-1, 3.3, 0], [0.3, 3.8, -0.4], [-0.5, 2.6, 0.6]]) {
-    const f = mesh(new THREE.IcosahedronGeometry(0.4, 0), glowMat(0xff7a1a, 1.8), x, y, z);
-    leafs.push(f);
-    g.add(f);
+  for (const [x, y, z] of [[1.1, 3.0, 0.2], [-1.0, 3.3, -0.2], [0.4, 3.9, -0.4], [-0.8, 2.3, 0.5], [0.2, 3.2, 0.1]]) {
+    leafs.push(flame(g, x, y - 0.3, z, 2.0));
   }
-  g.userData.anim = (t) => leafs.forEach((l, i) => l.scale.setScalar(1 + Math.sin(t * 3 + i) * 0.15));
+  g.userData.anim = (t) => leafs.forEach(l => l.userData.flicker(t));
   return g;
 }
 
 export function makeCliff(w, h, d, color = 0x3a2420) {
   const g = new THREE.Group();
-  const c = mesh(new THREE.BoxGeometry(w, h, d), mat(color), 0, h / 2, 0);
-  g.add(c);
-  const cap = mesh(new THREE.DodecahedronGeometry(Math.min(w, d) * 0.6, 0), mat(0x2a1a18), 0, h, 0);
-  cap.scale.y = 0.4;
-  g.add(cap);
-  return g;
+  const c = mat(color), c2 = mat(lighter(color, 0.14)), c3 = mat(lighter(color, 0.3));
+  const rw = (w + d) / 4;
+  // stacked, slightly twisted rock prisms with a craggy cap
+  add(g, new THREE.CylinderGeometry(rw * 1.0, rw * 1.2, h * 0.45, 6), c, 0, h * 0.225, 0, { ry: rnd(0, 1) });
+  add(g, new THREE.CylinderGeometry(rw * 0.82, rw * 1.0, h * 0.32, 6), c2, rnd(-0.3, 0.3), h * 0.6, rnd(-0.3, 0.3), { ry: rnd(0, 1) });
+  add(g, new THREE.CylinderGeometry(rw * 0.55, rw * 0.8, h * 0.22, 5), c, rnd(-0.3, 0.3), h * 0.86, rnd(-0.3, 0.3), { ry: rnd(0, 1) });
+  add(g, new THREE.DodecahedronGeometry(rw * 0.6, 0), c3, 0, h * 0.98, 0, { s: [1, 0.45, 1] });
+  for (let i = 0; i < 4; i++) {
+    const a = rnd(0, Math.PI * 2);
+    add(g, new THREE.DodecahedronGeometry(rnd(0.5, 1.0), 0), i % 2 ? c2 : c3, Math.cos(a) * rw * 1.15, rnd(0.2, 0.8), Math.sin(a) * rw * 1.15, { s: [1, 0.7, 1] });
+  }
+  return finish(g, 0.05, 0.5, true);
 }
 
 export function makeThrone() {
   const g = new THREE.Group();
-  const rock = mat(0x241a1c);
-  g.add(mesh(new THREE.BoxGeometry(6, 1, 4), rock, 0, 0.5, 0));
-  g.add(mesh(new THREE.BoxGeometry(4.5, 7, 1), rock, 0, 4, -1.5));
+  const rock = mat(0x4e3434), rock2 = mat(0x684440), gold = mat(0xf2c14e);
+  const fires = [];
+  add(g, new THREE.BoxGeometry(7, 0.6, 5), rock2, 0, 0.3, 0);
+  add(g, new THREE.BoxGeometry(6, 1, 4), rock, 0, 1.1, -0.2);
+  add(g, new THREE.BoxGeometry(4.8, 7.5, 1.2), rock, 0, 5, -1.6);
+  add(g, new THREE.BoxGeometry(5.2, 0.4, 1.4), gold, 0, 8.8, -1.6);
   for (const s of [-1, 1]) {
-    g.add(mesh(new THREE.BoxGeometry(0.8, 2.5, 3), rock, s * 2.4, 2, 0));
-    g.add(mesh(new THREE.ConeGeometry(0.5, 2.5, 5), glowMat(0xff5a10, 2), s * 2.4, 4.5, 0));
+    add(g, new THREE.BoxGeometry(0.9, 2.6, 3.2), rock2, s * 2.5, 2.4, -0.2);
+    add(g, sph(0.5, 14, 10), gold, s * 2.5, 3.8, 1.1);
+    fires.push(flame(g, s * 2.5, 4.0, -0.2, 2.6));
   }
-  g.add(mesh(new THREE.ConeGeometry(1.2, 3, 5), glowMat(0xffa020, 2), 0, 8.8, -1.5));
-  return g;
-}
-
-// ---------------------------------------------------------------- Scenery
-
-export function makeTree(scale = 1, leaf = 0x3f8a4a) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.6, 6), mat(0x6b4a2b), 0, 0.8, 0));
-  g.add(mesh(new THREE.ConeGeometry(1.6, 2.4, 7), mat(leaf), 0, 2.5, 0));
-  g.add(mesh(new THREE.ConeGeometry(1.25, 2.0, 7), mat(leaf), 0, 3.5, 0));
-  g.add(mesh(new THREE.ConeGeometry(0.85, 1.6, 7), mat(leaf), 0, 4.4, 0));
-  g.scale.setScalar(scale);
-  return g;
-}
-
-export function makeRoundTree(scale = 1, leaf = 0xd36fae) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.3, 2.2, 6), mat(0x5a3d24), 0, 1.1, 0));
-  g.add(mesh(new THREE.IcosahedronGeometry(1.5, 0), mat(leaf), 0, 3.2, 0));
-  g.add(mesh(new THREE.IcosahedronGeometry(1.0, 0), mat(leaf), 0.9, 2.7, 0.3));
-  g.add(mesh(new THREE.IcosahedronGeometry(1.0, 0), mat(leaf), -0.8, 2.8, -0.2));
-  g.scale.setScalar(scale);
-  return g;
-}
-
-export function makeDeadTree(scale = 1) {
-  const g = new THREE.Group();
-  const wood = mat(0x3a2e2a);
-  g.add(mesh(new THREE.CylinderGeometry(0.18, 0.35, 3.2, 5), wood, 0, 1.6, 0));
-  const branches = [[0.6, 2.4, 0.7], [-0.7, 2.8, -0.6], [0.3, 3.2, -0.9], [-0.4, 2.0, 0.8]];
-  for (const [x, y, rz] of branches) {
-    const b = mesh(new THREE.CylinderGeometry(0.05, 0.12, 1.5, 4), wood, x, y, 0);
-    b.rotation.z = rz;
-    g.add(b);
-  }
-  g.scale.setScalar(scale);
-  return g;
-}
-
-export function makeLamp(color = 0xffd27a) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(0.08, 0.12, 3.2, 6), mat(0x2b2733), 0, 1.6, 0));
-  g.add(mesh(new THREE.CylinderGeometry(0.28, 0.2, 0.1, 6), mat(0x2b2733), 0, 3.2, 0));
-  g.add(mesh(new THREE.OctahedronGeometry(0.25), glowMat(color, 2.5), 0, 3.5, 0));
-  g.add(mesh(new THREE.ConeGeometry(0.3, 0.3, 6), mat(0x2b2733), 0, 3.85, 0));
-  return g;
-}
-
-export function makeHouse({ w = 6, d = 6, h = 4, wall = 0xd9c7a3, roof = 0x7b3f5e, lit = true, tilt = 0 } = {}) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.BoxGeometry(w, h, d), mat(wall), 0, h / 2, 0));
-  const roofMesh = mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, h * 0.9, 4), mat(roof), 0, h + h * 0.45, 0);
-  roofMesh.rotation.y = Math.PI / 4;
-  roofMesh.rotation.z = tilt;
-  g.add(roofMesh);
-  g.add(mesh(new THREE.BoxGeometry(1.1, 2, 0.1), mat(0x4a2e1f), 0, 1, d / 2 + 0.05));
-  const winMat = lit ? glowMat(0xffc86b, 1.4) : mat(0x1c1a24);
-  for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.9, 0.9, 0.1), winMat, s * w * 0.3, h * 0.62, d / 2 + 0.05));
-  // chimney
-  g.add(mesh(new THREE.BoxGeometry(0.6, 1.6, 0.6), mat(0x6b5f5a), w * 0.25, h + 1.0, -d * 0.15));
-  return g;
-}
-
-export function makeTower({ r = 4, h = 16, wall = 0xcfc3e8, roof = 0x3b2d7a } = {}) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(r, r * 1.08, h, 12), mat(wall), 0, h / 2, 0));
-  g.add(mesh(new THREE.CylinderGeometry(r * 1.15, r * 1.15, 0.6, 12), mat(0xf2c14e), 0, h, 0));
-  g.add(mesh(new THREE.ConeGeometry(r * 1.25, r * 2.4, 12), mat(roof), 0, h + r * 1.2, 0));
-  g.add(mesh(new THREE.OctahedronGeometry(r * 0.2), glowMat(0xf2c14e, 2), 0, h + r * 2.6, 0));
-  const win = glowMat(0xffd98a, 1.3);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    for (let lvl = 0; lvl < 2; lvl++) {
-      const m = mesh(new THREE.BoxGeometry(0.8, 1.4, 0.2), win, Math.sin(a) * r, h * (0.45 + lvl * 0.3), Math.cos(a) * r);
-      m.rotation.y = a;
-      g.add(m);
-    }
-  }
-  return g;
-}
-
-export function makeFountain() {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(3.2, 3.4, 0.7, 20), mat(0xb7ad9a), 0, 0.35, 0));
-  const water = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, 0.1, 20),
-    new THREE.MeshStandardMaterial({ color: 0x4fb3ff, emissive: 0x1a5fa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.85, roughness: 0.1 }));
-  water.position.y = 0.62;
-  g.add(water);
-  g.add(mesh(new THREE.CylinderGeometry(0.35, 0.5, 2.2, 10), mat(0xb7ad9a), 0, 1.4, 0));
-  g.add(mesh(new THREE.CylinderGeometry(1.2, 0.6, 0.3, 14), mat(0xb7ad9a), 0, 2.5, 0));
-  const orb = mesh(new THREE.IcosahedronGeometry(0.55, 1), glowMat(0x7fe3ff, 2.2), 0, 3.3, 0);
-  g.add(orb);
-  g.userData.anim = (t) => { orb.position.y = 3.3 + Math.sin(t * 1.5) * 0.15; orb.rotation.y = t; };
-  return g;
-}
-
-export function makeGate() {
-  const g = new THREE.Group();
-  const stone = mat(0x8c8398);
-  for (const s of [-1, 1]) {
-    g.add(mesh(new THREE.BoxGeometry(1.6, 7, 1.6), stone, s * 9.5, 3.5, 0));
-    g.add(mesh(new THREE.OctahedronGeometry(0.5), glowMat(0xb46bff, 2), s * 9.5, 7.7, 0));
-  }
-  g.add(mesh(new THREE.BoxGeometry(20.6, 1.1, 1.4), stone, 0, 7.2, 0));
-  g.add(mesh(new THREE.BoxGeometry(6, 1.3, 0.3), mat(0x3b2d7a), 0, 6.1, 0.75));
-  return g;
-}
-
-export function makeCrypt() {
-  const g = new THREE.Group();
-  const stone = mat(0x3d3947);
-  g.add(mesh(new THREE.BoxGeometry(18, 8, 8), stone, 0, 4, 0));
-  const roof = mesh(new THREE.ConeGeometry(12.5, 5, 4), mat(0x2a2633), 0, 10.5, 0);
-  roof.rotation.y = Math.PI / 4;
-  roof.scale.z = 0.5;
-  g.add(roof);
-  g.add(mesh(new THREE.BoxGeometry(4, 5.5, 0.4), glowMat(0x6a1fa8, 1.2), 0, 2.75, 4.05));
-  for (const s of [-1, 1]) {
-    g.add(mesh(new THREE.CylinderGeometry(0.5, 0.6, 7, 8), mat(0x544f60), s * 3, 3.5, 4.4));
-    g.add(mesh(new THREE.OctahedronGeometry(0.4), glowMat(0xc542ff, 2.5), s * 3, 7.4, 4.4));
-  }
-  return g;
-}
-
-export function makeGrave() {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.BoxGeometry(0.8, 1.1, 0.25), mat(0x6f6a78), 0, 0.55, 0));
-  g.add(mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.25, 10, 1, false, 0, Math.PI), mat(0x6f6a78), 0, 1.1, 0));
-  g.children[1].rotation.x = Math.PI / 2;
-  g.children[1].rotation.z = Math.PI / 2;
-  g.rotation.z = (Math.random() - 0.5) * 0.2;
-  return g;
-}
-
-export function makeRock(scale = 1, color = 0x6c6776) {
-  const r = mesh(new THREE.DodecahedronGeometry(1, 0), mat(color));
-  r.scale.set(scale * 1.2, scale * 0.8, scale);
-  r.rotation.y = Math.random() * Math.PI;
-  return r;
-}
-
-export function makeStall(color = 0xa0346a) {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.BoxGeometry(3.2, 1.1, 1.3), mat(0x7a5236), 0, 0.55, 0));
-  for (const x of [-1.5, 1.5]) g.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 3, 5), mat(0x5a3d24), x, 1.5, -0.5));
-  const awning = mesh(new THREE.BoxGeometry(3.6, 0.12, 1.9), mat(color), 0, 3.0, -0.1);
-  awning.rotation.x = 0.2;
-  g.add(awning);
-  const colors = [0xff5fa2, 0x5fdc6a, 0x6fd3ff, 0xf2c14e, 0xb46bff];
-  colors.forEach((c, i) => g.add(mesh(new THREE.SphereGeometry(0.16, 8, 6), glowMat(c, 1.5), -1.2 + i * 0.6, 1.3, 0.2)));
-  return g;
-}
-
-export function makeBookStand() {
-  const g = new THREE.Group();
-  g.add(mesh(new THREE.BoxGeometry(2.6, 3.2, 0.8), mat(0x5a3d24), 0, 1.6, -0.6));
-  const bookColors = [0x7b3f5e, 0x2e7d6b, 0x3b2d7a, 0xc9a24a, 0x8a3a1c];
-  for (let shelf = 0; shelf < 3; shelf++) {
-    for (let i = 0; i < 7; i++) {
-      g.add(mesh(new THREE.BoxGeometry(0.28, 0.7, 0.5), mat(bookColors[(i + shelf) % 5]), -1.0 + i * 0.33, 0.55 + shelf * 0.95, -0.25));
-    }
-  }
-  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.3, 1.1, 6), mat(0x5a3d24), 0, 0.55, 1));
-  const book = mesh(new THREE.BoxGeometry(0.8, 0.1, 0.6), glowMat(0x9fe6ff, 0.8), 0, 1.15, 1);
-  book.rotation.x = -0.3;
-  g.add(book);
-  return g;
+  fires.push(flame(g, 0, 9.0, -1.6, 4.2));
+  add(g, new THREE.CircleGeometry(1.2, 20), basic(0xff7a1a), 0, 5.2, -0.98, { shadow: false });
+  add(g, new THREE.CircleGeometry(0.7, 20), basic(0xffd040), 0, 5.2, -0.96, { shadow: false });
+  g.userData.anim = (t) => fires.forEach(f => f.userData.flicker(t));
+  return finish(g, 0.06, 0.4);
 }

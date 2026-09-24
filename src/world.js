@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
-  makePet, makePortal,
+  makePet, makePortal, mergeGeometries,
 } from './models.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
 import { buildEmberfall } from './maps.js';
@@ -44,6 +44,7 @@ export class World {
     this.npcs = [];
     this.enemies = [];
     this.colliders = [];      // {x, z, r}
+    this.staticObjs = [];     // scenery merged into batches after the map is built
     this.animated = [];       // objects with userData.anim
     this.player = null;
     this.heading = Math.PI;   // facing -Z (toward the academy)
@@ -68,6 +69,7 @@ export class World {
 
     this.buildEnvironment();
     this.buildMap();
+    this.batchStatic();
     this.spawnNPCs();
     this.spawnEnemies();
     this.bindInput();
@@ -141,7 +143,33 @@ export class World {
     this.scene.add(obj);
     if (collideR) this.colliders.push({ x, z, r: collideR });
     if (obj.userData.anim) this.animated.push(obj);
+    else if (obj.userData.static) this.staticObjs.push(obj);
     return obj;
+  }
+
+  // Merges all static scenery into one mesh per material per map area,
+  // turning thousands of draw calls into a few dozen.
+  batchStatic(cell = 40) {
+    const buckets = new Map();
+    for (const obj of this.staticObjs) {
+      obj.updateMatrixWorld(true);
+      const key0 = Math.floor(obj.position.x / cell) + ',' + Math.floor(obj.position.z / cell);
+      obj.traverse((m) => {
+        if (!m.isMesh) return;
+        const key = key0 + '|' + m.material.uuid + '|' + m.castShadow + '|' + m.receiveShadow;
+        if (!buckets.has(key)) buckets.set(key, { material: m.material, cast: m.castShadow, receive: m.receiveShadow, items: [] });
+        buckets.get(key).items.push({ geo: m.geometry, matrix: m.matrixWorld.clone() });
+      });
+      this.scene.remove(obj);
+    }
+    for (const b of buckets.values()) {
+      const mesh = new THREE.Mesh(mergeGeometries(b.items), b.material);
+      mesh.castShadow = b.cast;
+      mesh.receiveShadow = b.receive;
+      mesh.matrixAutoUpdate = false;
+      this.scene.add(mesh);
+    }
+    this.staticObjs = [];
   }
 
   buildMap() {
@@ -253,9 +281,10 @@ export class World {
 
   spawnNPCs() {
     for (const [id, def] of Object.entries(NPCS)) {
-      const model = makeWizard({ robe: def.robe, hat: def.hat, trim: def.trim, beard: def.beard });
+      const model = makeWizard(def);
+      model.userData.height = measure(model);
       this.add(model, def.x, def.z, Math.atan2(-def.x, -def.z), 0.8);
-      const label = this.addLabel(model, `<div class="marker"></div><div class="name">${def.name}</div><div class="sub">${def.title}</div>`, 'npc', 2.9);
+      const label = this.addLabel(model, `<div class="marker"></div><div class="name">${def.name}</div><div class="sub">${def.title}</div>`, 'npc', model.userData.height + 0.2);
       this.npcs.push({ id, def, model, label });
     }
     for (const f of FOUNTAINS) {
@@ -277,6 +306,8 @@ export class World {
       const def = ENEMIES[sp.enemy];
       const model = makeEnemy(def.model);
       model.userData.height = measure(model);
+      const box = new THREE.Box3().setFromObject(model);
+      model.userData.width = box.max.x - box.min.x;
       model.position.set(sp.x, 0, sp.z);
       model.rotation.y = Math.PI;
       this.scene.add(model);
@@ -300,7 +331,7 @@ export class World {
     const hat = GEAR[p.equipped?.hat]?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
     const robe = GEAR[p.equipped?.robe]?.color ?? c;
     this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
-    this.player.userData.height = 2.9;
+    this.player.userData.height = measure(this.player);
     this.scene.add(this.player);
     this.setPet(p.activePet);
     if (keep) {
@@ -404,7 +435,8 @@ export class World {
     const def = PETS[petId];
     if (!def || !this.player) return;
     this.pet = makePet(def.kind, def.color);
-    this.pet.userData.height = 1.2;
+    this.pet.userData.anim(0, false);
+    this.pet.userData.height = measure(this.pet);
     this.pet.position.copy(this.player.position).add(V(1, 0, -1));
     this.scene.add(this.pet);
   }
@@ -493,10 +525,24 @@ export class World {
     this.player.userData.anim(this.time, moving);
   }
 
+  // Pulls a camera position toward `from` until it is over open ground, so the
+  // camera never ends up inside a house, cliff or tree.
+  safeCam(from, to) {
+    let best = from.clone();
+    const p = V();
+    for (let i = 1; i <= 14; i++) {
+      p.lerpVectors(from, to, i / 14);
+      if (!this.walkable(p.x, p.z)) break;
+      best.copy(p);
+    }
+    best.y = to.y;
+    return best;
+  }
+
   snapCamera() {
     if (!this.player) return;
     const { pos, look } = this.followCam();
-    this.camera.position.copy(pos);
+    this.camera.position.copy(this.safeCam(look, pos));
     this.camera.lookAt(look);
   }
 
@@ -519,6 +565,8 @@ export class World {
         if (this.time > e.respawnAt) this.respawnEnemy(e);
         continue;
       }
+      // bystanders never block the view of a duel
+      if (e.state === 'idle') e.model.visible = !this.battleView || e.model.position.distanceTo(this.camera.position) > 9;
       if (e.state !== 'idle' || this.mode !== 'explore' || !pp) continue;
 
       const dPlayer = Math.hypot(pp.x - e.model.position.x, pp.z - e.model.position.z);
@@ -632,17 +680,28 @@ export class World {
     // bosses stand in the middle of their side
     enemyEntities.sort((a, b) => (a.def.boss ? 1 : 0) - (b.def.boss ? 1 : 0));
     if (enemyEntities.length === 3 && enemyEntities[2].def.boss) enemyEntities.splice(1, 0, enemyEntities.pop());
-    const spread = big ? 1.25 : 1;
-    const offsets = (enemyEntities.length === 1 ? [0] : enemyEntities.length === 2 ? [-1.6, 1.6] : [-2.6, 0, 2.6]).map(o => o * spread);
+    // line enemies up side by side using their real widths so big models never overlap
+    const widths = enemyEntities.map(e => Math.max(1.4, (e.model.userData.width || 1.6) * 0.8));
+    const total = widths.reduce((a, b) => a + b, 0) + (widths.length - 1) * 0.4;
+    let cursor = -total / 2;
+    const offsets = widths.map(w => { const o = cursor + w / 2; cursor += w + 0.4; return o; });
     enemyEntities.forEach((e, i) => {
-      e.model.position.copy(center.clone().addScaledVector(dir, R).addScaledVector(perp, offsets[i]));
+      const back = e.def.boss && enemyEntities.length > 1 ? 1.2 : 0;
+      e.model.position.copy(center.clone().addScaledVector(dir, R + back).addScaledVector(perp, offsets[i]));
       e.model.rotation.y = Math.atan2(-dir.x, -dir.z);
     });
 
-    this.battleView = {
-      pos: center.clone().addScaledVector(dir, -R - 7.5 * k).addScaledVector(perp, 4.5 * k).setY(7 * k),
-      look: center.clone().addScaledVector(dir, 1.2).setY(big ? 1.8 : 0.8),
-    };
+    // try the usual over-the-shoulder spot, then its mirror, and keep whichever
+    // gets furthest back without entering scenery
+    const look = center.clone().addScaledVector(dir, 1.2).setY(big ? 1.8 : 0.8);
+    let bestPos = null, bestDist = -1;
+    for (const side of [1, -1]) {
+      const want = center.clone().addScaledVector(dir, -R - 7.5 * k).addScaledVector(perp, 4.5 * k * side).setY(7 * k);
+      const got = this.safeCam(center.clone().setY(want.y), want);
+      const d = got.distanceTo(center);
+      if (d > bestDist + 0.5) { bestDist = d; bestPos = got; }
+    }
+    this.battleView = { pos: bestPos, look };
     for (const l of this.labels) l.hiddenForBattle = true;
   }
 
@@ -948,6 +1007,7 @@ export class World {
         look = this.battleView.look;
       } else {
         ({ pos, look } = this.followCam());
+        pos = this.safeCam(look, pos);
       }
       this.camera.position.lerp(pos, 1 - Math.exp(-(this.battleView ? 3 : 7) * dt));
       this.camera.lookAt(look);

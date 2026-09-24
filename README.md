@@ -52,7 +52,7 @@ css/style.css     all styling
 src/data.js       ⭐ game content: schools, spells, enemies, NPCs, quests (start here to tweak!)
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects
-src/models.js     low-poly models built from code
+src/models.js     toon-shaded models built from code (outlines, faces, merging)
 src/battle.js     the card battle system (pets, boss phases, enemy AI)
 src/maps.js       the Emberfall Wilds zone
 src/minimap.js    corner minimap
@@ -60,6 +60,7 @@ src/audio.js      synthesized sound effects and music
 src/ui.js         dialogue, menus, cards
 src/main.js       ties everything together
 lib/              vendored Three.js (MIT licence)
+gallery.html      model gallery: preview every model (?group=foes1, ?model=knight)
 ```
 
 ## Roadmap

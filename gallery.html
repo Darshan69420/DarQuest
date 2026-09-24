@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DarQuest Model Gallery</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #2a1f4a; font-family: 'Trebuchet MS', system-ui, sans-serif; }
+    canvas { display: block; }
+    #labels { position: fixed; inset: 0; pointer-events: none; }
+    .tag { position: absolute; left: 0; top: 0; color: #f5efff; font-weight: 800; font-size: 14px; white-space: nowrap; text-shadow: 0 2px 3px #000; }
+  </style>
+  <script type="importmap">{ "imports": { "three": "./lib/three.module.js" } }</script>
+</head>
+<body>
+  <div id="labels"></div>
+  <script type="module" src="src/gallery.js"></script>
+</body>
+</html>

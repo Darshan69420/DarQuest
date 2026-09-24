@@ -282,29 +282,29 @@ export const SPAWNS = [
 
 export const NPCS = {
   orvyn: {
-    name: 'Headmaster Orvyn', title: 'Headmaster', x: 0, z: -22, robe: 0x3b2d7a, hat: 0x2a1f5c, trim: 0xf2c14e, beard: true,
+    name: 'Headmaster Orvyn', title: 'Headmaster', x: 0, z: -22, robe: 0x3b2d7a, hat: 0x2a1f5c, trim: 0xf2c14e, beard: true, hair: 0xe8e8f0, skin: 0xf0c8a8, eyeColor: 0x6a4aa0,
     lines: ['Starfall Academy has stood for a thousand years. It will stand for a thousand more, if its students are brave.',
             'Magic is like a deck of cards, young one. What matters is how you play the hand you are dealt.'],
   },
   mirabel: {
-    name: 'Mirabel Quill', title: 'Spell Tutor', x: -15, z: -6, robe: 0x2e7d6b, hat: 0x1f5c4f, trim: 0xe0f2e9, service: 'tutor',
+    name: 'Mirabel Quill', title: 'Spell Tutor', x: -15, z: -6, robe: 0x2e7d6b, hat: 0x1f5c4f, trim: 0xe0f2e9, service: 'tutor', hair: 0xa0432a, glasses: true, eyeColor: 0x2e7d6b,
     lines: ['Every level you gain earns you a Training Point. Bring them to me and I will teach you new spells.'],
   },
   fizz: {
-    name: 'Madame Fizz', title: 'Potions & Pets', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop',
+    name: 'Madame Fizz', title: 'Potions & Pets', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop', hair: 0xff7ab8, goggles: true, skin: 0xe8b894, eyeColor: 0xa0346a,
     lines: ['Bubble, bubble! A potion in your pack is worth two in the cauldron.', 'My pet eggs hatch into loyal little friends. They even cast spells for you!'],
   },
   brannoc: {
-    name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x383c45, trim: 0xc9a24a,
+    name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x9aa0b0, trim: 0xc9a24a, hatStyle: 'helmet', hair: 0x2a1a14, skin: 0xc68a5e, eyeColor: 0x3a2a20,
     lines: ['Hollow Lane was a cheerful street once. Now the shadows have moved in.'],
   },
   kestra: {
-    name: 'Ranger Kestra', title: 'Emberfall Scout', x: X - 7, z: 6, robe: 0x7a4a24, hat: 0x3d5a2a, trim: 0xe0c080,
+    name: 'Ranger Kestra', title: 'Emberfall Scout', x: X - 7, z: 6, robe: 0x7a4a24, hat: 0x3d5a2a, trim: 0xe0c080, hatStyle: 'hood', hair: 0xe0702a, eyeColor: 0x2e7d3b, quiver: true,
     lines: ['The canyon runs north to the Molten Throne. Everything between here and there wants to cook you.',
             'Frost magic works wonders on these fire beasts. Just saying.'],
   },
   tumblewick: {
-    name: 'Old Tumblewick', title: 'Wandering Outfitter', x: X + 8, z: 3, robe: 0x4a3a6b, hat: 0x2a2040, trim: 0xff9a3d, beard: true, service: 'gear',
+    name: 'Old Tumblewick', title: 'Wandering Outfitter', x: X + 8, z: 3, robe: 0x4a3a6b, hat: 0x2a2040, trim: 0xff9a3d, beard: true, service: 'gear', backpack: true, hair: 0xb0b0b8, skin: 0xd8a888,
     lines: ['Robes, hats, wands! Good gear keeps a wizard alive out here.', 'Found something shiny out there? I buy everything. Mostly.'],
   },
 };

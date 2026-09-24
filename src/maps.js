@@ -60,6 +60,7 @@ export function buildEmberfall(world) {
   }
   for (let i = 0; i < 18; i++) {
     const a = (i / 18) * Math.PI * 2;
+    if (Math.cos(a) < -0.6) continue;  // leave the canyon entrance open
     world.add(makeCliff(9, 14 + Math.random() * 8, 9, 0x2a1a18), X + Math.sin(a) * 25, 165 + Math.cos(a) * 25, Math.random());
   }
   for (let k = 0; k < 18; k++) {

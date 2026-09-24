@@ -101,6 +101,22 @@ export const SPELLS = {
   peck_bolt:      { name: 'Peck Bolt',       school: 'tempest', pips: 1, type: 'damage', min: 85,  max: 125, target: 'one', enemy: true },
   hollow_strike:  { name: 'Hollow Strike',   school: 'umbral',  pips: 2, type: 'damage', min: 150, max: 190, target: 'one', enemy: true },
   grave_mend:     { name: 'Grave Mend',      school: 'umbral',  pips: 2, type: 'heal', amount: 250, enemy: true },
+  imp_flare:      { name: 'Imp Flare',       school: 'blaze',   pips: 1, type: 'damage', min: 95,  max: 135, target: 'one', enemy: true },
+  ash_bite:       { name: 'Ash Bite',        school: 'blaze',   pips: 1, type: 'damage', min: 110, max: 150, target: 'one', enemy: true },
+  howl:           { name: 'Howl',            school: 'blaze',   pips: 0, type: 'blade', pct: 0.30, enemy: true },
+  rock_slam:      { name: 'Rock Slam',       school: 'arcane',  pips: 2, type: 'damage', min: 200, max: 250, target: 'one', enemy: true },
+  stone_skin:     { name: 'Stone Skin',      school: 'arcane',  pips: 0, type: 'shield', pct: 0.40, enemy: true },
+  molten_wave:    { name: 'Molten Wave',     school: 'blaze',   pips: 3, type: 'damage', min: 230, max: 290, target: 'all', enemy: true },
+  magma_mend:     { name: 'Magma Mend',      school: 'blaze',   pips: 3, type: 'heal', amount: 600, enemy: true },
+  eruption:       { name: 'Eruption',        school: 'blaze',   pips: 5, type: 'damage', min: 420, max: 500, target: 'one', dot: { total: 180, rounds: 3 }, enemy: true },
+
+  // ---------- Pet spells (cast for free when a pet "may-casts") ----------
+  pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
+  pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
+  pet_zap:        { name: 'Pet: Beetle Zap', school: 'tempest', pips: 0, type: 'damage', min: 110, max: 170, target: 'one', pet: true },
+  pet_ward:       { name: 'Pet: Frost Ward', school: 'frost',   pips: 0, type: 'shield', pct: 0.35, pet: true },
+  pet_edge:       { name: 'Pet: Owl Edge',   school: 'arcane',  pips: 0, type: 'blade', pct: 0.25, pet: true },
+  pet_leech:      { name: 'Pet: Bat Leech',  school: 'umbral',  pips: 0, type: 'drain', min: 80, max: 120, heal: 0.6, target: 'one', pet: true },
 };
 
 for (const [id, s] of Object.entries(SPELLS)) s.id = id;
@@ -126,41 +142,106 @@ export function describe(s) {
 // Which spell types need an enemy target.
 export const OFFENSIVE = new Set(['damage', 'drain', 'dot', 'trap', 'weakness']);
 
+
+// Chapter 2 lives far to the east of the academy in the same 3D scene.
+export const EMBER_X = 700;
+
+// `drops`: chance of each gear item (or pet) dropping after a victory.
+// `phases`: one-time boss events when its health falls below `at`.
+// `reactions`: the boss answers when it is hit by a spell of that school.
 export const ENEMIES = {
+  // ---------------- Chapter 1: Hollow Lane ----------------
   gloomsprig: {
     name: 'Gloomsprig', school: 'umbral', level: 1, hp: 170, xp: 30, gold: [3, 8], model: 'sprig',
     spells: ['twig_lash', 'twig_lash', 'shade_bite'], resist: { umbral: 0.25 }, boost: { blaze: 0.15 },
     speed: 2.2, aggro: 6,
+    drops: [{ item: 'twig_wand', chance: 0.15 }, { item: 'soft_boots', chance: 0.12 }, { item: 'apprentice_hat', chance: 0.12 }],
   },
   cinder_rat: {
     name: 'Cinder Rat', school: 'blaze', level: 2, hp: 230, xp: 40, gold: [5, 10], model: 'rat',
     spells: ['gnaw', 'gnaw', 'ember_imp', 'kindle'], resist: { blaze: 0.3 }, boost: { frost: 0.2 },
     speed: 3.0, aggro: 7,
+    drops: [{ item: 'woven_robe', chance: 0.12 }, { item: 'sprigwood_wand', chance: 0.08 }],
   },
   frost_wisp: {
     name: 'Frostbitten Wisp', school: 'frost', level: 3, hp: 290, xp: 55, gold: [6, 12], model: 'wisp',
     spells: ['chill_touch', 'chill_touch', 'frost_sprite', 'glacial_ward'], resist: { frost: 0.3 }, boost: { blaze: 0.2 },
     speed: 2.4, aggro: 6,
+    drops: [{ item: 'wisp_charm', chance: 0.12 }, { item: 'woven_robe', chance: 0.08 }],
   },
   hollow_knight: {
     name: 'Hollow Knight', school: 'umbral', level: 5, hp: 470, xp: 90, gold: [10, 20], model: 'knight',
     spells: ['rusted_slash', 'rusted_slash', 'hollow_strike', 'wither'], resist: { umbral: 0.3 }, boost: { verdant: 0.15 },
     speed: 2.0, aggro: 6,
+    drops: [{ item: 'lanternweave_robe', chance: 0.12 }, { item: 'crowfeather_boots', chance: 0.08 }],
   },
   storm_crow: {
     name: 'Storm Crow', school: 'tempest', level: 6, hp: 380, xp: 100, gold: [12, 22], model: 'crow',
     spells: ['peck_bolt', 'peck_bolt', 'thunder_sprite', 'lightning_bats', 'static_trap'], resist: { tempest: 0.3 }, boost: { frost: 0.15 },
     speed: 3.2, aggro: 8,
+    drops: [{ item: 'crowfeather_boots', chance: 0.12 }, { item: 'ember_cowl', chance: 0.06 }, { pet: 'storm_beetle', chance: 0.03 }],
   },
   lord_hollowmere: {
     name: 'Lord Hollowmere', school: 'umbral', level: 8, hp: 1500, xp: 600, gold: [120, 160], model: 'boss', boss: true,
     spells: ['hollow_strike', 'hollow_strike', 'ghoul_claw', 'wither', 'banshee_wail', 'dread_hex', 'grave_mend'],
     resist: { umbral: 0.35 }, boost: {}, speed: 0, aggro: 6, powerPipChance: 0.5,
+    phases: [{ at: 0.5, say: 'The Hollow cannot be defeated!', blade: 0.35, pips: 2 }],
+    drops: [{ item: 'hollowmere_locket', chance: 1 }, { item: 'hollow_blade', chance: 0.6 }, { item: 'knightsilk_robe', chance: 0.4 }, { pet: 'bat_familiar', chance: 0.25 }],
+  },
+
+  // ---------------- Chapter 2: Emberfall Wilds ----------------
+  lava_imp: {
+    name: 'Lava Imp', school: 'blaze', level: 8, hp: 560, xp: 130, gold: [14, 24], model: 'imp',
+    spells: ['imp_flare', 'imp_flare', 'kindle', 'ember_imp', 'searing_blade'], resist: { blaze: 0.4 }, boost: { frost: 0.25 },
+    speed: 3.4, aggro: 7,
+    drops: [{ item: 'ember_cowl', chance: 0.1 }, { item: 'ashwalkers', chance: 0.05 }, { pet: 'ember_drake', chance: 0.02 }],
+  },
+  cinderhound: {
+    name: 'Cinderhound', school: 'blaze', level: 9, hp: 650, xp: 150, gold: [15, 26], model: 'hound',
+    spells: ['ash_bite', 'ash_bite', 'howl', 'fire_serpent'], resist: { blaze: 0.4 }, boost: { frost: 0.2 },
+    speed: 4.2, aggro: 9,
+    drops: [{ item: 'ashwalkers', chance: 0.1 }, { item: 'knightsilk_robe', chance: 0.08 }, { pet: 'frost_pup', chance: 0.02 }],
+  },
+  ashen_shaman: {
+    name: 'Ashen Shaman', school: 'umbral', level: 9, hp: 600, xp: 160, gold: [16, 28], model: 'shaman',
+    spells: ['shade_bite', 'ghoul_claw', 'wither', 'grave_mend', 'dread_hex'], resist: { umbral: 0.35 }, boost: { verdant: 0.15 },
+    speed: 2.0, aggro: 6,
+    drops: [{ item: 'stormcaller_hood', chance: 0.1 }, { item: 'ember_heart', chance: 0.05 }, { pet: 'moss_sprite', chance: 0.02 }],
+  },
+  obsidian_golem: {
+    name: 'Obsidian Golem', school: 'arcane', level: 10, hp: 1000, xp: 190, gold: [18, 32], model: 'golem',
+    spells: ['rock_slam', 'rock_slam', 'stone_skin', 'hex_trap', 'sphinx_sands'], resist: { arcane: 0.35, blaze: 0.25 }, boost: { tempest: 0.2 },
+    speed: 1.6, aggro: 5,
+    drops: [{ item: 'obsidian_rod', chance: 0.08 }, { item: 'cinderguard_robe', chance: 0.08 }],
+  },
+  magma_serpent: {
+    name: 'Magma Serpent', school: 'blaze', level: 11, hp: 800, xp: 210, gold: [20, 35], model: 'serpent',
+    spells: ['fire_serpent', 'kindle', 'phoenix_rush', 'imp_flare'], resist: { blaze: 0.45 }, boost: { frost: 0.25 },
+    speed: 2.6, aggro: 7,
+    drops: [{ item: 'cinderguard_robe', chance: 0.1 }, { item: 'ember_heart', chance: 0.07 }],
+  },
+  magma_guard: {
+    name: 'Magma Guard', school: 'blaze', level: 11, hp: 800, xp: 220, gold: [25, 40], model: 'guard',
+    spells: ['ash_bite', 'rock_slam', 'stone_skin', 'kindle'], resist: { blaze: 0.45 }, boost: { frost: 0.2 },
+    speed: 0, aggro: 5,
+    drops: [{ item: 'obsidian_rod', chance: 0.1 }],
+  },
+  pyrrhon: {
+    name: 'Pyrrhon, the Molten King', school: 'blaze', level: 13, hp: 3600, xp: 1500, gold: [300, 400], model: 'pyrrhon', boss: true,
+    spells: ['fire_serpent', 'phoenix_rush', 'eruption', 'molten_wave', 'kindle', 'searing_blade', 'magma_mend'],
+    resist: { blaze: 0.5 }, boost: { frost: 0.2 }, speed: 0, aggro: 7, powerPipChance: 0.6,
+    phases: [
+      { at: 0.66, say: 'You think fire can be put out? I AM the fire!', shield: 0.5, cast: 'molten_wave' },
+      { at: 0.33, say: 'Then we burn TOGETHER!', blade: 0.5, pips: 3, heal: 800 },
+    ],
+    reactions: [{ school: 'frost', say: 'Ice?! You DARE bring ice before the Molten King?', cast: 'kindle' }],
+    drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { pet: 'ember_drake', chance: 1 }],
   },
 };
 for (const [id, e] of Object.entries(ENEMIES)) e.id = id;
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
+const X = EMBER_X;
 export const SPAWNS = [
   { enemy: 'gloomsprig', x: -4, z: 52, r: 4 },
   { enemy: 'gloomsprig', x: 4,  z: 58, r: 4 },
@@ -178,6 +259,25 @@ export const SPAWNS = [
   { enemy: 'storm_crow', x: 4,  z: 130, r: 4 },
   { enemy: 'storm_crow', x: 0,  z: 134, r: 3 },
   { enemy: 'lord_hollowmere', x: 0, z: 144, r: 0 },
+
+  { enemy: 'lava_imp', x: X - 4, z: 28, r: 4 },
+  { enemy: 'lava_imp', x: X + 4, z: 34, r: 4 },
+  { enemy: 'lava_imp', x: X - 2, z: 42, r: 4 },
+  { enemy: 'cinderhound', x: X + 4, z: 52, r: 4 },
+  { enemy: 'cinderhound', x: X - 4, z: 58, r: 4 },
+  { enemy: 'cinderhound', x: X + 2, z: 66, r: 4 },
+  { enemy: 'ashen_shaman', x: X - 4, z: 76, r: 3 },
+  { enemy: 'ashen_shaman', x: X + 4, z: 84, r: 3 },
+  { enemy: 'ashen_shaman', x: X - 1, z: 92, r: 3 },
+  { enemy: 'obsidian_golem', x: X + 4, z: 102, r: 2 },
+  { enemy: 'obsidian_golem', x: X - 4, z: 110, r: 2 },
+  { enemy: 'obsidian_golem', x: X + 1, z: 118, r: 2 },
+  { enemy: 'magma_serpent', x: X - 4, z: 127, r: 3 },
+  { enemy: 'magma_serpent', x: X + 4, z: 135, r: 3 },
+  { enemy: 'magma_serpent', x: X, z: 143, r: 3 },
+  { enemy: 'magma_guard', x: X - 4.5, z: 167, r: 0 },
+  { enemy: 'magma_guard', x: X + 4.5, z: 167, r: 0 },
+  { enemy: 'pyrrhon', x: X, z: 171, r: 0 },
 ];
 
 export const NPCS = {
@@ -191,12 +291,21 @@ export const NPCS = {
     lines: ['Every level you gain earns you a Training Point. Bring them to me and I will teach you new spells.'],
   },
   fizz: {
-    name: 'Madame Fizz', title: 'Potion Maker', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop',
-    lines: ['Bubble, bubble! A potion in your pack is worth two in the cauldron.'],
+    name: 'Madame Fizz', title: 'Potions & Pets', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop',
+    lines: ['Bubble, bubble! A potion in your pack is worth two in the cauldron.', 'My pet eggs hatch into loyal little friends. They even cast spells for you!'],
   },
   brannoc: {
     name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x383c45, trim: 0xc9a24a,
     lines: ['Hollow Lane was a cheerful street once. Now the shadows have moved in.'],
+  },
+  kestra: {
+    name: 'Ranger Kestra', title: 'Emberfall Scout', x: X - 7, z: 6, robe: 0x7a4a24, hat: 0x3d5a2a, trim: 0xe0c080,
+    lines: ['The canyon runs north to the Molten Throne. Everything between here and there wants to cook you.',
+            'Frost magic works wonders on these fire beasts. Just saying.'],
+  },
+  tumblewick: {
+    name: 'Old Tumblewick', title: 'Wandering Outfitter', x: X + 8, z: 3, robe: 0x4a3a6b, hat: 0x2a2040, trim: 0xff9a3d, beard: true, service: 'gear',
+    lines: ['Robes, hats, wands! Good gear keeps a wizard alive out here.', 'Found something shiny out there? I buy everything. Mostly.'],
   },
 };
 
@@ -248,13 +357,64 @@ export const QUESTS = [
     id: 'q7', name: 'Lord of the Hollow', giver: 'orvyn', turnIn: 'orvyn',
     objective: { type: 'defeat', enemy: 'lord_hollowmere', count: 1 },
     offer: 'Lord Hollowmere was a student here long ago, until he chose the shadows. Go to the crypt at the end of Hollow Lane and end his reign. Stock up on potions first!',
-    done: 'You did it! Hollow Lane is free, and Starfall Academy has a true hero. This is only the beginning of your story, wizard…',
-    reward: { xp: 800, gold: 200, tp: 1 },
+    done: 'You did it! Hollow Lane is free, and Starfall Academy has a true hero. Please, take this little owl. It hatched the night you arrived, and it seems to have chosen you.',
+    reward: { xp: 800, gold: 200, tp: 1, pet: 'spark_owl' },
+  },
+  // ---------------- Chapter 2 ----------------
+  {
+    id: 'q8', name: 'The Spiral Door', giver: 'orvyn', turnIn: 'kestra',
+    objective: { type: 'talk', npc: 'kestra' },
+    offer: 'Hollowmere\'s fall woke something older. Our scouts in the Emberfall Wilds have gone silent. I have opened the Spiral Door on the west side of the courtyard. Step through and find Ranger Kestra.',
+    done: 'A wizard from Starfall! Finally. The wilds are burning, and it isn\'t natural. Something at the end of this canyon is stoking the flames.',
+    reward: { xp: 200, gold: 30 },
+  },
+  {
+    id: 'q9', name: 'Imp Trouble', giver: 'kestra', turnIn: 'kestra',
+    objective: { type: 'defeat', enemy: 'lava_imp', count: 4 },
+    offer: 'First things first: Lava Imps are swarming the canyon mouth, just north of camp. Knock out 4 of them. They hit harder than they look!',
+    done: 'Not bad at all. Most apprentices come back singed. You came back smiling.',
+    reward: { xp: 500, gold: 60 },
+  },
+  {
+    id: 'q10', name: 'Hounds of Ash', giver: 'kestra', turnIn: 'kestra',
+    objective: { type: 'defeat', enemy: 'cinderhound', count: 4 },
+    offer: 'Cinderhounds hunt in packs further up. They howl to power each other up, so strike fast. Defeat 4.',
+    done: 'The howling has stopped. I can finally hear myself think.',
+    reward: { xp: 600, gold: 70, potions: 1 },
+  },
+  {
+    id: 'q11', name: 'The Ashen Circle', giver: 'tumblewick', turnIn: 'tumblewick',
+    objective: { type: 'defeat', enemy: 'ashen_shaman', count: 3 },
+    offer: 'Eh? Ah, a Starfall wizard. The Ashen Shamans are chanting in the canyon, feeding the flames with shadow magic. They heal each other, so take them down quickly. Stop 3 of them.',
+    done: 'Ha! The chanting has stopped. Here, a Training Point\'s worth of old wisdom for you.',
+    reward: { xp: 700, gold: 80, tp: 1 },
+  },
+  {
+    id: 'q12', name: 'Hearts of Stone', giver: 'tumblewick', turnIn: 'tumblewick',
+    objective: { type: 'defeat', enemy: 'obsidian_golem', count: 3 },
+    offer: 'Obsidian Golems guard the middle of the canyon. Tough as anvils, and they shrug off fire. Crack 3 of them open. Lightning works well.',
+    done: 'Obsidian shards! I\'ll make some fine wands from these.',
+    reward: { xp: 800, gold: 90 },
+  },
+  {
+    id: 'q13', name: 'Serpents Rising', giver: 'kestra', turnIn: 'kestra',
+    objective: { type: 'defeat', enemy: 'magma_serpent', count: 3 },
+    offer: 'Magma Serpents rise out of the lava near the throne. They are the last thing between us and whatever rules this place. Defeat 3.',
+    done: 'The path to the Molten Throne is open. I think you know who is waiting there.',
+    reward: { xp: 900, gold: 100, potions: 1 },
+  },
+  {
+    id: 'q14', name: 'The Molten King', giver: 'kestra', turnIn: 'orvyn',
+    objective: { type: 'defeat', enemy: 'pyrrhon', count: 1 },
+    offer: 'Pyrrhon, the Molten King, sits on his throne at the end of the canyon with two Magma Guards. He is weak to Frost, but he hates it. Expect him to fight back. Heal up, stock up, and end this. Then tell Orvyn the news.',
+    done: 'Pyrrhon defeated?! The Emberfall Wilds are saved, and word of your deeds will spread across every world. Chapter 2 is complete, archmage. And yet… I sense your story has only just begun.',
+    reward: { xp: 2000, gold: 400, tp: 2 },
   },
 ];
 
 export const SHOP = {
   potion: { name: 'Healing Potion', price: 25, desc: 'Restores 50% of your health. Use it in battle or with the H key.' },
+  egg: { name: 'Mystery Pet Egg', price: 150, desc: 'Hatches a random pet that follows you and sometimes casts spells in battle.' },
 };
 
 export const RULES = {
@@ -264,4 +424,110 @@ export const RULES = {
   maxCopies: 6,
   maxPotions: 5,
   hpPerLevel: 50,
+  inventoryMax: 30,
 };
+
+// ---------------------------------------------------------------- difficulty
+
+export const DIFFICULTIES = {
+  normal: {
+    name: 'Normal', icon: '🙂', hp: 1, dmg: 0, acc: 0.05, reward: 1, drop: 1, smart: false, startPips: 0,
+    desc: 'The intended adventure. Fair fights and forgiving enemies.',
+  },
+  heroic: {
+    name: 'Heroic', icon: '😤', hp: 1.5, dmg: 0.3, acc: 0.1, reward: 1.3, drop: 1.5, smart: true, startPips: 1,
+    desc: 'Enemies have +50% health, hit 30% harder, and play smarter. Better loot.',
+  },
+  legendary: {
+    name: 'Legendary', icon: '💀', hp: 2.2, dmg: 0.6, acc: 0.15, reward: 1.7, drop: 2, smart: true, startPips: 2, noFlee: true,
+    desc: 'For true archmages. Enemies have over double health, hit 60% harder, start with pips, and you can never flee.',
+  },
+};
+
+// ---------------------------------------------------------------- gear
+
+export const SLOTS = { hat: '🎩 Hat', robe: '👘 Robe', boots: '👢 Boots', wand: '🪄 Wand', amulet: '📿 Amulet' };
+export const STAT_NAMES = { hp: 'Health', dmg: 'Damage', acc: 'Accuracy', resist: 'Resist', pip: 'Power Pip', heal: 'Healing' };
+
+// Stats: hp (flat), dmg / acc / resist / pip / heal (percent).
+// `color` recolours your wizard's hat or robe.
+export const GEAR = {
+  apprentice_hat:    { name: 'Apprentice Hat',      slot: 'hat',    level: 1,  stats: { hp: 25 }, color: 0x3a4a8c },
+  ember_cowl:        { name: 'Ember Cowl',          slot: 'hat',    level: 6,  stats: { hp: 70, dmg: 4 }, color: 0x8c2a1a, price: 180 },
+  stormcaller_hood:  { name: 'Stormcaller Hood',    slot: 'hat',    level: 9,  stats: { hp: 110, dmg: 6, pip: 3 }, color: 0x4a2a7a },
+  molten_crown:      { name: 'Molten Crown',        slot: 'hat',    level: 13, stats: { hp: 180, dmg: 9, pip: 6 }, color: 0xffa020 },
+
+  woven_robe:        { name: 'Woven Robe',          slot: 'robe',   level: 2,  stats: { hp: 45, resist: 2 }, color: 0x6b5a8a },
+  lanternweave_robe: { name: 'Lanternweave Robe',   slot: 'robe',   level: 5,  stats: { hp: 90, resist: 4 }, color: 0xc9a24a, price: 110 },
+  knightsilk_robe:   { name: 'Knightsilk Robe',     slot: 'robe',   level: 8,  stats: { hp: 150, resist: 6, heal: 5 }, color: 0x2a2f45 },
+  cinderguard_robe:  { name: 'Cinderguard Robe',    slot: 'robe',   level: 10, stats: { hp: 230, resist: 8, dmg: 4 }, color: 0x7a2a1a },
+  robe_of_pyrrhon:   { name: 'Robe of Pyrrhon',     slot: 'robe',   level: 13, stats: { hp: 320, resist: 11, dmg: 6 }, color: 0xd9481a },
+
+  soft_boots:        { name: 'Soft Boots',          slot: 'boots',  level: 1,  stats: { hp: 15, acc: 1 } },
+  crowfeather_boots: { name: 'Crowfeather Boots',   slot: 'boots',  level: 6,  stats: { hp: 55, acc: 3, resist: 2 }, price: 140 },
+  ashwalkers:        { name: 'Ashwalkers',          slot: 'boots',  level: 9,  stats: { hp: 95, acc: 4, resist: 4 }, price: 260 },
+
+  twig_wand:         { name: 'Twig Wand',           slot: 'wand',   level: 1,  stats: { dmg: 2 } },
+  sprigwood_wand:    { name: 'Sprigwood Wand',      slot: 'wand',   level: 3,  stats: { dmg: 4, acc: 2 }, price: 70 },
+  hollow_blade:      { name: 'Hollow Blade',        slot: 'wand',   level: 7,  stats: { dmg: 7, pip: 3 } },
+  obsidian_rod:      { name: 'Obsidian Rod',        slot: 'wand',   level: 10, stats: { dmg: 9, acc: 3, pip: 4 }, price: 380 },
+  kings_scepter:     { name: 'King\'s Scepter',     slot: 'wand',   level: 13, stats: { dmg: 13, pip: 6, acc: 2 } },
+
+  wisp_charm:        { name: 'Wisp Charm',          slot: 'amulet', level: 3,  stats: { hp: 35, heal: 8 } },
+  hollowmere_locket: { name: 'Hollowmere\'s Locket', slot: 'amulet', level: 8, stats: { hp: 90, dmg: 5, resist: 5 } },
+  ember_heart:       { name: 'Ember Heart',         slot: 'amulet', level: 11, stats: { hp: 160, heal: 12, pip: 3 } },
+};
+for (const [id, g] of Object.entries(GEAR)) {
+  g.id = id;
+  g.sell = 8 + g.level * 7;
+}
+export const GEAR_SHOP = ['sprigwood_wand', 'lanternweave_robe', 'crowfeather_boots', 'ember_cowl', 'ashwalkers', 'obsidian_rod'];
+
+// ---------------------------------------------------------------- pets
+
+export const PETS = {
+  spark_owl:    { name: 'Spark Owl',    school: 'arcane',  kind: 'owl',    color: 0xf2c14e, spell: 'pet_edge',  chance: 0.22, stats: { hp: 40 } },
+  moss_sprite:  { name: 'Moss Sprite',  school: 'verdant', kind: 'sprite', color: 0x5fdc6a, spell: 'pet_mend',  chance: 0.22, stats: { heal: 5 } },
+  ember_drake:  { name: 'Ember Drake',  school: 'blaze',   kind: 'drake',  color: 0xff6a2b, spell: 'pet_flame', chance: 0.22, stats: { dmg: 3 } },
+  frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
+  bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
+  storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+};
+for (const [id, p] of Object.entries(PETS)) p.id = id;
+
+// ---------------------------------------------------------------- zones
+
+// Walkable regions for each zone (also drawn on the minimap).
+export const ZONES = {
+  academy: {
+    name: 'Starfall Academy',
+    regions: [{ type: 'circle', x: 0, z: 0, r: 31 }, { type: 'rect', x0: -8.5, x1: 8.5, z0: 24, z1: 146 }],
+    spawn: { x: 0, z: -14, heading: Math.PI },
+    atmosphere: { fog: 0x4a3468, top: 0x140f38, mid: 0x5b3a8c, bottom: 0xf29a6b, hemi: 0xc4b5ff },
+    music: 'academy',
+  },
+  emberfall: {
+    name: 'Emberfall Wilds',
+    regions: [
+      { type: 'circle', x: X, z: 0, r: 20 },
+      { type: 'rect', x0: X - 9, x1: X + 9, z0: 12, z1: 156 },
+      { type: 'circle', x: X, z: 165, r: 15 },
+    ],
+    spawn: { x: X, z: -3, heading: 0 },
+    atmosphere: { fog: 0x6a2a18, top: 0x240a10, mid: 0x8c3a2a, bottom: 0xffa050, hemi: 0xffb080 },
+    music: 'ember',
+  },
+};
+export function zoneAt(x) { return x > 350 ? 'emberfall' : 'academy'; }
+
+// Portals between zones. `unlock` = quest index needed to use it.
+export const PORTALS = [
+  { id: 'portal_academy', x: -26, z: 10, to: { x: X, z: -3, heading: 0 }, dest: 'Emberfall Wilds', unlock: 7 },
+  { id: 'portal_ember', x: X, z: -17, to: { x: -13, z: 10, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0 },
+];
+
+// Healing fountains.
+export const FOUNTAINS = [
+  { id: 'fountain', name: 'Wellspring', x: 0, z: 0, r: 5.2 },
+  { id: 'spring_ember', name: 'Cooling Spring', x: X - 9, z: -7, r: 4.5 },
+];

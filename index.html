@@ -31,9 +31,13 @@
       <div id="quest-title" class="quest-title"></div>
       <div id="quest-goal" class="quest-goal"></div>
     </div>
+    <canvas id="minimap" title="Minimap"></canvas>
+    <div id="zone-name" class="zone-name"></div>
     <div class="hud-buttons">
+      <button class="btn round" id="btn-char" title="Character, gear &amp; pets (C)">🎒</button>
       <button class="btn round" id="btn-book" title="Spellbook (B)">📖</button>
       <button class="btn round" id="btn-potion" title="Drink potion (H)">🧪</button>
+      <button class="btn round" id="btn-mute" title="Sound on/off (M)">🔊</button>
       <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
       <button class="btn round" id="btn-reset" title="Start over">↺</button>
     </div>
@@ -45,6 +49,7 @@
   <div id="modal" class="hidden"></div>
   <div id="result" class="hidden"></div>
   <div id="toasts"></div>
+  <div id="fade"></div>
 
   <!-- Title screen -->
   <div id="title">
@@ -57,6 +62,8 @@
         <input id="hero-name" maxlength="24" autocomplete="off">
         <div class="pick-label">Choose your school of magic</div>
         <div id="school-grid"></div>
+        <div class="pick-label">Difficulty</div>
+        <div id="difficulty-grid"></div>
         <button id="begin" class="btn primary big" disabled>Begin your adventure</button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
-import { SCHOOLS, SPELLS, describe, RULES, SHOP } from './data.js';
-import { xpToNext } from './state.js';
+import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES } from './data.js';
+import { xpToNext, equip, unequip, sellItem, givePet, setActivePet } from './state.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -125,7 +125,7 @@ export function closeModal() {
 export function openTutor(p, onChange) {
   const render = (body) => {
     const list = Object.values(SPELLS)
-      .filter(s => !s.enemy && (s.school === p.school || s.school === 'astral'))
+      .filter(s => !s.enemy && !s.pet && (s.school === p.school || s.school === 'astral'))
       .sort((a, b) => a.level - b.level || a.pips - b.pips);
     body.innerHTML = `<p class="modal-note">Training Points: <b>${p.tp}</b> · Earn 1 every level. New spells go straight into your deck.</p>
       <div class="card-grid">${list.map(s => {
@@ -173,21 +173,111 @@ export function openSpellbook(p, onChange) {
 
 export function openShop(p, onChange) {
   const render = (body) => {
-    const item = SHOP.potion;
+    const item = SHOP.potion, egg = SHOP.egg;
     const full = p.potions >= RULES.maxPotions;
+    const unowned = Object.keys(PETS).filter(id => !p.pets.includes(id));
     body.innerHTML = `<p class="modal-note">Gold: <b>🪙 ${p.gold}</b></p>
       <div class="shop-item"><div class="shop-icon">🧪</div>
         <div><b>${item.name}</b><br><span>${item.desc}</span><br><span>You have ${p.potions}/${RULES.maxPotions}</span></div>
-        <button class="btn primary" id="buy" ${full || p.gold < item.price ? 'disabled' : ''}>Buy · 🪙 ${item.price}</button></div>`;
+        <button class="btn primary" id="buy" ${full || p.gold < item.price ? 'disabled' : ''}>Buy · 🪙 ${item.price}</button></div>
+      <div class="shop-item"><div class="shop-icon">🥚</div>
+        <div><b>${egg.name}</b><br><span>${egg.desc}</span><br><span>${unowned.length ? `${unowned.length} pets left to discover` : 'You have every pet!'}</span></div>
+        <button class="btn primary" id="egg" ${!unowned.length || p.gold < egg.price ? 'disabled' : ''}>Buy · 🪙 ${egg.price}</button></div>`;
     body.querySelector('#buy').addEventListener('click', () => {
       if (p.gold < item.price || p.potions >= RULES.maxPotions) return;
       p.gold -= item.price;
       p.potions++;
-      onChange();
+      onChange('drink');
+      render(body);
+    });
+    body.querySelector('#egg').addEventListener('click', () => {
+      if (p.gold < egg.price || !unowned.length) return;
+      p.gold -= egg.price;
+      const id = unowned[Math.floor(Math.random() * unowned.length)];
+      givePet(p, id);
+      toast(`🥚 The egg hatched into a <b>${PETS[id].name}</b>! ${SCHOOLS[PETS[id].school].icon}`, 'good');
+      onChange('pet');
       render(body);
     });
   };
-  openModal('🧪 Madame Fizz\'s Potions', '', render);
+  openModal('🧪 Madame Fizz\'s Potions & Pets', '', render);
+}
+
+// ------------------------------------------------------------ gear
+
+export function statsText(stats) {
+  return Object.entries(stats || {}).filter(([, v]) => v).map(([k, v]) => k === 'hp' ? `+${v} ${STAT_NAMES[k]}` : `+${v}% ${STAT_NAMES[k]}`).join(' · ');
+}
+
+function gearRow(g, right) {
+  return `<div class="gear-row"><div class="gear-icon">${SLOTS[g.slot].split(' ')[0]}</div>
+    <div class="gear-info"><b>${esc(g.name)}</b> <small>Lv ${g.level} ${SLOTS[g.slot].split(' ')[1]}</small><br><span>${statsText(g.stats)}</span></div>${right}</div>`;
+}
+
+export function openCharacter(p, onChange, tab = 'gear') {
+  const render = (body) => {
+    const s = p.stats || {};
+    const petList = p.pets.map(id => {
+      const pet = PETS[id], sp = SPELLS[pet.spell];
+      const active = p.activePet === id;
+      return `<div class="gear-row ${active ? 'active' : ''}"><div class="gear-icon">${SCHOOLS[pet.school].icon}</div>
+        <div class="gear-info"><b>${pet.name}</b><br><span>${Math.round(pet.chance * 100)}% chance each round: ${esc(describe(sp))}</span><br><span>${statsText(pet.stats)}</span></div>
+        <button class="btn small ${active ? '' : 'primary'}" data-pet="${id}">${active ? 'Dismiss' : 'Summon'}</button></div>`;
+    }).join('') || '<p class="modal-note">No pets yet. Buy a Mystery Pet Egg from Madame Fizz, or find one on powerful foes.</p>';
+    body.innerHTML = `
+      <div class="tabs"><button class="btn small ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🎒 Gear</button><button class="btn small ${tab === 'pets' ? 'primary' : ''}" data-tab="pets">🐾 Pets (${p.pets.length}/${Object.keys(PETS).length})</button></div>
+      <div class="stat-grid">
+        <div>❤️ Health <b>${p.maxHp}</b></div><div>⚔️ Damage <b>+${Math.round((p.level - 1) * 2 + (s.dmg || 0))}%</b></div>
+        <div>🎯 Accuracy <b>+${p.level + (s.acc || 0)}%</b></div><div>🛡️ Resist <b>${s.resist || 0}%</b></div>
+        <div>◆ Power Pip <b>${Math.round((0.1 + p.level * 0.02) * 100 + (s.pip || 0))}%</b></div><div>💚 Healing <b>+${s.heal || 0}%</b></div>
+        <div>🏅 Difficulty <b>${DIFFICULTIES[p.difficulty].icon} ${DIFFICULTIES[p.difficulty].name}</b></div>
+      </div>
+      ${tab === 'gear' ? `
+      <h3 class="sub-h">Equipped</h3>
+      ${Object.keys(SLOTS).map(slot => {
+        const g = GEAR[p.equipped[slot]];
+        return g ? gearRow(g, `<button class="btn small" data-unequip="${slot}">Remove</button>`)
+          : `<div class="gear-row empty"><div class="gear-icon">${SLOTS[slot].split(' ')[0]}</div><div class="gear-info"><span>No ${SLOTS[slot].split(' ')[1].toLowerCase()} equipped</span></div></div>`;
+      }).join('')}
+      <h3 class="sub-h">Backpack (${p.inventory.length}/${RULES.inventoryMax})</h3>
+      ${p.inventory.map((id, i) => {
+        const g = GEAR[id];
+        const low = p.level < g.level;
+        return gearRow(g, `<div class="gear-btns"><button class="btn small primary" data-equip="${i}" ${low ? 'disabled title="Level too low"' : ''}>${low ? `Lv ${g.level}` : 'Equip'}</button><button class="btn small" data-sell="${i}">Sell 🪙${g.sell}</button></div>`);
+      }).join('') || '<p class="modal-note">Your backpack is empty. Defeat enemies to find gear!</p>'}` : petList}`;
+    body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; render(body); }));
+    body.querySelectorAll('[data-equip]').forEach(b => b.addEventListener('click', () => { if (equip(p, +b.dataset.equip)) { onChange('gear'); render(body); } }));
+    body.querySelectorAll('[data-unequip]').forEach(b => b.addEventListener('click', () => {
+      if (!unequip(p, b.dataset.unequip)) return toast('Your backpack is full!');
+      onChange('gear'); render(body);
+    }));
+    body.querySelectorAll('[data-sell]').forEach(b => b.addEventListener('click', () => { sellItem(p, +b.dataset.sell); onChange('sell'); render(body); }));
+    body.querySelectorAll('[data-pet]').forEach(b => b.addEventListener('click', () => {
+      setActivePet(p, p.activePet === b.dataset.pet ? null : b.dataset.pet);
+      onChange('pet'); render(body);
+    }));
+  };
+  openModal(`🧙 ${esc(p.name)}`, '', render);
+}
+
+export function openGearShop(p, onChange) {
+  const render = (body) => {
+    body.innerHTML = `<p class="modal-note">Gold: <b>🪙 ${p.gold}</b> · Anything you buy goes into your backpack. Open your character screen (C) to equip it.</p>
+      ${GEAR_SHOP.map(id => {
+        const g = GEAR[id];
+        return gearRow(g, `<button class="btn small primary" data-buy="${id}" ${p.gold < g.price || p.inventory.length >= RULES.inventoryMax ? 'disabled' : ''}>Buy 🪙${g.price}</button>`);
+      }).join('')}`;
+    body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
+      const g = GEAR[b.dataset.buy];
+      if (p.gold < g.price || p.inventory.length >= RULES.inventoryMax) return;
+      p.gold -= g.price;
+      p.inventory.push(g.id);
+      toast(`Bought <b>${esc(g.name)}</b>!`, 'good');
+      onChange('loot');
+      render(body);
+    }));
+  };
+  openModal('🎩 Tumblewick\'s Outfitters', '', render);
 }
 
 export function openHelp() {
@@ -195,13 +285,18 @@ export function openHelp() {
     <h3>Exploring</h3>
     <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
-    <p><b>B</b> spellbook · <b>H</b> drink a potion · <b>?</b> this help. Visit the Wellspring fountain to restore your health.</p>
+    <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> drink a potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
+    <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
+    <h3>Gear &amp; pets</h3>
+    <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around, and at the start of each battle round they may cast a free spell to help.</p>
     <h3>Battles</h3>
     <p>Walk into an enemy to start a duel. Nearby enemies will join in (up to 3).</p>
     <p>Each round you gain a <b>pip</b> (●). Sometimes it is a <b>power pip</b> (◆), which counts as 2 for spells of your own school. Spells cost pips, shown in the card's corner.</p>
     <p>Click a card to cast it. If it targets one enemy, click that enemy next. Click the ✕ on a card to discard it so you draw a new one next round. You can also <b>Pass</b> to save up pips.</p>
     <p>Spells can <b>fizzle</b>. Every school has an accuracy rating shown on its cards. Blades ⚔️ boost your next hit, shields 🛡️ soften the next hit on you, traps 🎯 make an enemy take more, and weaknesses 🔻 make their next hit weaker.</p>
-    <p>Enemies resist their own school, so pick your spells wisely!</p></div>`);
+    <p>Enemies resist their own school, so pick your spells wisely! Bosses have phases, and some fight back when hit by the wrong kind of magic.</p>
+    <h3>Difficulty</h3>
+    <p>${Object.values(DIFFICULTIES).map(d => `<b>${d.icon} ${d.name}:</b> ${d.desc}`).join('<br>')}</p></div>`);
 }
 
 // Victory / defeat summary. Returns a promise that resolves when closed.

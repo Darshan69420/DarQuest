@@ -24,7 +24,9 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | Look around | Drag with the mouse or your finger; scroll to zoom |
 | Talk / interact | `E` (or tap a character) |
 | Spellbook (edit deck) | `B` |
+| Character, gear & pets | `C` |
 | Drink potion | `H` |
+| Sound on/off | `M` |
 | Help | `?` |
 | In battle | Click a card (or press `1`–`7`), then click a target. Press `P` to pass and `Esc` to cancel |
 
@@ -35,7 +37,12 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 - **Cards:** you draw a hand of 7 from your deck. Damage, drains, burns over time, heals, blades, shields, traps and weaknesses.
 - **Accuracy:** spells can fizzle! Enemies also resist their own school.
 - **Progress:** earn XP and gold, level up, spend Training Points with Mirabel to learn spells, and buy potions from Madame Fizz. Your game saves automatically in the browser.
-- **Chapter 1:** a 7-quest storyline that ends with a boss fight against Lord Hollowmere in the crypt.
+- **Gear:** 20 hats, robes, boots, wands and amulets drop from enemies or can be bought. They add health, damage, accuracy, resist, power-pip chance and healing, and change your wizard's look.
+- **Pets:** 6 pets follow you around and may cast a free spell at the start of each battle round. Hatch them from eggs or find them on tough enemies.
+- **Difficulty:** Normal, Heroic (+50% enemy health, +30% damage, smarter AI) or Legendary (over double health, +60% damage, enemies start with pips, no fleeing). Harder modes give more XP, gold and loot.
+- **Chapter 1, Hollow Lane:** 7 quests ending with a boss fight against Lord Hollowmere.
+- **Chapter 2, Emberfall Wilds:** reached through the Spiral Door portal. 7 more quests, 6 new enemies, and Pyrrhon, the Molten King, a boss with two phases, two Magma Guards, and a nasty reaction to Frost magic.
+- **Sound and music**, generated in code, and a **minimap** that points to your quest.
 
 ## Code layout
 
@@ -46,17 +53,21 @@ src/data.js       ⭐ game content: schools, spells, enemies, NPCs, quests (star
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects
 src/models.js     low-poly models built from code
-src/battle.js     the card battle system
+src/battle.js     the card battle system (pets, boss phases, enemy AI)
+src/maps.js       the Emberfall Wilds zone
+src/minimap.js    corner minimap
+src/audio.js      synthesized sound effects and music
 src/ui.js         dialogue, menus, cards
 src/main.js       ties everything together
 lib/              vendored Three.js (MIT licence)
 ```
 
-### Ideas for what to add next
+## Roadmap
 
-- More worlds past Hollow Lane (new map zones plus new enemies in `data.js`)
-- Pets, gear and equipment drops
-- Companions who fight beside you
-- Real 3D art: swap the models in `models.js` for glTF files
-- Sound effects and music
-- Online multiplayer
+1. **Chapter 3:** a new world (a frozen sky-city or a sunken ruin), plus dungeons: short instanced areas with a boss at the end.
+2. **Crafting and treasure cards:** one-use spell cards found as loot, and recipes that turn materials into gear.
+3. **Companions:** hire an NPC wizard of another school to fight beside you (true 2v3 battles).
+4. **Arena (PvP-style):** duel AI "rival wizards" with their own decks for ranked rewards.
+5. **Real art:** replace the code-built models in `models.js` with glTF models and animations.
+6. **Online multiplayer:** a small Node.js server so friends can explore and battle together.
+7. **Publish:** host on GitHub Pages or itch.io so anyone can play from a link.

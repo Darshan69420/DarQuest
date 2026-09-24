@@ -3,14 +3,22 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
+  makePet, makePortal,
 } from './models.js';
-import { NPCS, SPAWNS, ENEMIES, SCHOOLS } from './data.js';
+import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
+import { buildEmberfall } from './maps.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const COURTYARD_R = 31;
 const LANE = { halfWidth: 8.5, zMin: 24, zMax: 146 };
 const PLAYER_SPEED = 6.5;
-const SPAWN_POINT = V(0, 0, -14);
+
+// Height of a model's bounding box, used to place labels and spell effects.
+function measure(obj) {
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  return box.max.y - obj.position.y;
+}
 
 export class World {
   constructor(canvas, labelRoot) {
@@ -51,6 +59,9 @@ export class World {
     this.onEncounter = null;  // (enemyEntities) => void
     this.onInteract = null;   // (npcId) => void
     this.onTick = null;       // (dt) => void
+    this.pet = null;
+    this.zone = 'academy';
+    this.atmo = null;
 
     this.sphereGeo = new THREE.SphereGeometry(1, 10, 8);
     this.ringGeo = new THREE.RingGeometry(0.8, 1, 40);
@@ -112,7 +123,8 @@ export class World {
     moon.position.set(-150, 170, -260);
     sky.add(moon);
 
-    scene.add(new THREE.HemisphereLight(0xc4b5ff, 0x3a2f2a, 1.3));
+    this.hemi = new THREE.HemisphereLight(0xc4b5ff, 0x3a2f2a, 1.3);
+    scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(0xffd9b0, 2.2);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -224,6 +236,19 @@ export class World {
       motes.push(m);
     }
     this.motes = motes;
+
+    // Chapter 2 zone + the portals that connect the zones
+    const ember = buildEmberfall(this);
+    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring };
+    this.portalModels = {};
+    for (const pt of PORTALS) {
+      const color = pt.id === 'portal_academy' ? 0xff7a3d : 0xb46bff;
+      this.portalModels[pt.id] = this.add(makePortal(color), pt.x, pt.z, pt.id === 'portal_academy' ? Math.PI / 2 : 0);
+      for (const s of [-1, 1]) {
+        const off = pt.id === 'portal_academy' ? [0, s * 2.4] : [s * 2.4, 0];
+        this.colliders.push({ x: pt.x + off[0], z: pt.z + off[1], r: 0.7 });
+      }
+    }
   }
 
   spawnNPCs() {
@@ -233,36 +258,61 @@ export class World {
       const label = this.addLabel(model, `<div class="marker"></div><div class="name">${def.name}</div><div class="sub">${def.title}</div>`, 'npc', 2.9);
       this.npcs.push({ id, def, model, label });
     }
-    this.fountainLabel = this.addLabel(this.fountain, '<div class="name">Wellspring</div><div class="sub">Restores health</div>', 'npc', 4.5);
+    for (const f of FOUNTAINS) {
+      this.addLabel(this.fountainModels[f.id], `<div class="name">${f.name}</div><div class="sub">Restores health</div>`, 'npc', 4.5);
+    }
+    for (const pt of PORTALS) {
+      const l = this.addLabel(this.portalModels[pt.id], `<div class="name">🌀 Spiral Door</div><div class="sub">to ${pt.dest}</div>`, 'npc portal', 6.4);
+      pt.label = l;
+    }
+  }
+
+  setPortalLocked(id, locked) {
+    const pt = PORTALS.find(p => p.id === id);
+    if (pt?.label) pt.label.el.classList.toggle('locked', locked);
   }
 
   spawnEnemies() {
     SPAWNS.forEach((sp, idx) => {
       const def = ENEMIES[sp.enemy];
       const model = makeEnemy(def.model);
+      model.userData.height = measure(model);
       model.position.set(sp.x, 0, sp.z);
       model.rotation.y = Math.PI;
       this.scene.add(model);
       const color = SCHOOLS[def.school].css;
       const label = this.addLabel(model,
         `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div>`,
-        'enemy', def.boss ? 4.8 : 2.8);
+        'enemy', model.userData.height + 0.5);
       this.enemies.push({
-        uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r,
+        uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
         state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0,
       });
     });
   }
 
-  spawnPlayer(school, pos) {
-    if (this.player) this.scene.remove(this.player);
-    const c = SCHOOLS[school].color;
-    const hat = new THREE.Color(c).multiplyScalar(0.55).getHex();
-    this.player = makeWizard({ robe: c, hat, trim: 0xf2e6c9, gem: c });
-    const p = pos || SPAWN_POINT;
-    this.player.position.set(p.x, 0, p.z);
-    this.heading = Math.PI;
+  // Rebuilds the player model (e.g. after changing gear) and keeps its place.
+  spawnPlayer(p, pos) {
+    const old = this.player;
+    const keep = old ? old.position.clone() : null;
+    if (old) this.scene.remove(old);
+    const c = SCHOOLS[p.school].color;
+    const hat = GEAR[p.equipped?.hat]?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
+    const robe = GEAR[p.equipped?.robe]?.color ?? c;
+    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    this.player.userData.height = 2.9;
     this.scene.add(this.player);
+    this.setPet(p.activePet);
+    if (keep) {
+      this.player.position.copy(keep);
+      this.player.rotation.y = this.heading;
+      return;
+    }
+    const zone = ZONES[zoneAt(pos?.x ?? 0)];
+    const at = pos && this.walkable(pos.x, pos.z) ? pos : zone.spawn;
+    this.player.position.set(at.x, 0, at.z);
+    this.heading = at.heading ?? Math.PI;
+    if (this.pet) this.pet.position.set(at.x + 1, 0, at.z - 1);
     this.snapCamera();
   }
 
@@ -329,8 +379,53 @@ export class World {
 
   interactables() {
     const list = this.npcs.map(n => ({ id: n.id, x: n.model.position.x, z: n.model.position.z, r: 3.2 }));
-    list.push({ id: 'fountain', x: 0, z: 0, r: 5.2 });
+    for (const f of FOUNTAINS) list.push({ id: f.id, x: f.x, z: f.z, r: f.r });
+    for (const pt of PORTALS) list.push({ id: pt.id, x: pt.x, z: pt.z, r: 4 });
     return list;
+  }
+
+  // Instantly moves the player (used by portals), with a flash of light.
+  teleport(to) {
+    this.player.position.set(to.x, 0, to.z);
+    this.heading = to.heading ?? this.heading;
+    this.camYawOffset = 0;
+    this.moveTarget = null;
+    if (this.pet) this.pet.position.set(to.x + 1, 0, to.z - 1);
+    this.snapCamera();
+    this.aura(this.player, 0xb46bff);
+    this.invulnUntil = this.time + 3;
+  }
+
+  // ------------------------------------------------------------ pets
+
+  setPet(petId) {
+    if (this.pet) this.scene.remove(this.pet);
+    this.pet = null;
+    const def = PETS[petId];
+    if (!def || !this.player) return;
+    this.pet = makePet(def.kind, def.color);
+    this.pet.userData.height = 1.2;
+    this.pet.position.copy(this.player.position).add(V(1, 0, -1));
+    this.scene.add(this.pet);
+  }
+
+  updatePet(dt) {
+    const pet = this.pet;
+    if (!pet) return;
+    let moving = false;
+    if (this.mode !== 'battle') {
+      // trot along just behind and to the side of the player
+      const h = this.heading;
+      const want = this.player.position.clone().add(V(-Math.sin(h) * 1.4 + Math.cos(h) * 1.1, 0, -Math.cos(h) * 1.4 - Math.sin(h) * 1.1));
+      const d = want.distanceTo(pet.position);
+      if (d > 12) pet.position.copy(want);
+      else if (d > 0.3) {
+        pet.position.lerp(want, Math.min(1, dt * 4));
+        pet.rotation.y = Math.atan2(want.x - pet.position.x, want.z - pet.position.z);
+        moving = true;
+      }
+    }
+    pet.userData.anim(this.time, moving);
   }
 
   nearestInteractable() {
@@ -347,9 +442,11 @@ export class World {
   // ------------------------------------------------------------ movement
 
   walkable(x, z) {
-    const inCourt = x * x + z * z < COURTYARD_R * COURTYARD_R;
-    const inLane = Math.abs(x) < LANE.halfWidth && z > LANE.zMin && z < LANE.zMax;
-    if (!inCourt && !inLane) return false;
+    const regions = ZONES[zoneAt(x)].regions;
+    const inside = regions.some(r => r.type === 'circle'
+      ? (x - r.x) ** 2 + (z - r.z) ** 2 < r.r * r.r
+      : x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
+    if (!inside) return false;
     for (const c of this.colliders) if ((x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return false;
     return true;
   }
@@ -473,7 +570,7 @@ export class World {
     e.state = 'idle';
     e.model.position.copy(e.home);
     e.model.visible = true;
-    e.model.scale.setScalar(e.def.model === 'boss' ? 1.7 : 1);
+    e.model.scale.setScalar(e.baseScale);
     e.model.rotation.set(0, Math.PI, 0);
     e.target = null;
   }
@@ -488,7 +585,9 @@ export class World {
     dir.normalize();
     const center = pp.clone().add(ep).multiplyScalar(0.5);
     const perp = V(dir.z, 0, -dir.x);
-    const R = 3.6;
+    const big = enemyEntities.some(e => e.def.boss);
+    const R = big ? 4.6 : 3.6;
+    const k = R / 3.6;
 
     const circle = new THREE.Group();
     circle.position.set(center.x, 0.06, center.z);
@@ -507,7 +606,7 @@ export class World {
       const a = (i / 8) * Math.PI * 2;
       const s = new THREE.Mesh(new THREE.CircleGeometry(0.7, 6), new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.35 }));
       s.rotation.x = -Math.PI / 2;
-      s.position.set(Math.cos(a) * R, 0.01, Math.sin(a) * R);
+      s.position.set(Math.cos(a) * 3.6, 0.01, Math.sin(a) * 3.6);
       circle.add(s);
       sigils.push(s);
     }
@@ -516,7 +615,7 @@ export class World {
     let t = 0;
     this.effects.push((dt) => {
       t += dt;
-      circle.scale.setScalar(Math.min(1, t * 2.5));
+      circle.scale.setScalar(Math.min(1, t * 2.5) * k);
       inner.rotation.z += dt * 0.5;
       return !!circle.parent;
     });
@@ -526,15 +625,23 @@ export class World {
     this.player.position.copy(center.clone().addScaledVector(dir, -R));
     this.player.rotation.y = Math.atan2(dir.x, dir.z);
     this.heading = this.player.rotation.y;
-    const offsets = enemyEntities.length === 1 ? [0] : enemyEntities.length === 2 ? [-1.6, 1.6] : [-2.6, 0, 2.6];
+    if (this.pet) {
+      this.pet.position.copy(this.player.position).addScaledVector(perp, -1.6).addScaledVector(dir, 0.6);
+      this.pet.rotation.y = this.heading;
+    }
+    // bosses stand in the middle of their side
+    enemyEntities.sort((a, b) => (a.def.boss ? 1 : 0) - (b.def.boss ? 1 : 0));
+    if (enemyEntities.length === 3 && enemyEntities[2].def.boss) enemyEntities.splice(1, 0, enemyEntities.pop());
+    const spread = big ? 1.25 : 1;
+    const offsets = (enemyEntities.length === 1 ? [0] : enemyEntities.length === 2 ? [-1.6, 1.6] : [-2.6, 0, 2.6]).map(o => o * spread);
     enemyEntities.forEach((e, i) => {
       e.model.position.copy(center.clone().addScaledVector(dir, R).addScaledVector(perp, offsets[i]));
       e.model.rotation.y = Math.atan2(-dir.x, -dir.z);
     });
 
     this.battleView = {
-      pos: center.clone().addScaledVector(dir, -R - 7.5).addScaledVector(perp, 4.5).setY(7),
-      look: center.clone().addScaledVector(dir, 1.2).setY(0.8),
+      pos: center.clone().addScaledVector(dir, -R - 7.5 * k).addScaledVector(perp, 4.5 * k).setY(7 * k),
+      look: center.clone().addScaledVector(dir, 1.2).setY(big ? 1.8 : 0.8),
     };
     for (const l of this.labels) l.hiddenForBattle = true;
   }
@@ -555,8 +662,10 @@ export class World {
       }
     }
     if (outcome === 'lose') {
-      this.player.position.copy(SPAWN_POINT);
-      this.heading = Math.PI;
+      const sp = ZONES[zoneAt(this.player.position.x)].spawn;
+      this.player.position.set(sp.x, 0, sp.z);
+      if (this.pet) this.pet.position.set(sp.x + 1, 0, sp.z);
+      this.heading = sp.heading;
       this.camYawOffset = 0;
       this.snapCamera();
     }
@@ -622,7 +731,7 @@ export class World {
     el.textContent = text;
     this.labelRoot.appendChild(el);
     const pos = obj.position.clone();
-    pos.y += obj.scale.y > 1 ? 4.5 : 2.8;
+    pos.y += (obj.userData.height || 2.4) + 0.4;
     pos.x += (Math.random() - 0.5) * 0.6;
     this.floaters.push({ el, pos, t: 0 });
   }
@@ -666,7 +775,7 @@ export class World {
   }
 
   chest(obj) {
-    return obj.position.clone().add(V(0, obj.scale.y > 1 ? 2.6 : 1.3, 0));
+    return obj.position.clone().add(V(0, (obj.userData.height || 2.4) * 0.5, 0));
   }
 
   projectile(fromObj, toObj, color, size = 0.3) {
@@ -782,6 +891,24 @@ export class World {
 
   // ------------------------------------------------------------ main loop
 
+  // Blend fog, sky and light colours toward the current zone's mood.
+  updateAtmosphere(dt) {
+    const zone = this.player ? zoneAt(this.player.position.x) : 'academy';
+    if (zone !== this.zone) {
+      this.zone = zone;
+      this.onZoneChange?.(zone);
+    }
+    const a = ZONES[zone].atmosphere;
+    const u = this.sky.material.uniforms;
+    const k = this.atmo ? 1 - Math.exp(-dt * 2) : 1;
+    this.atmo = true;
+    this.scene.fog.color.lerp(new THREE.Color(a.fog), k);
+    u.top.value.lerp(new THREE.Color(a.top), k);
+    u.mid.value.lerp(new THREE.Color(a.mid), k);
+    u.bottom.value.lerp(new THREE.Color(a.bottom), k);
+    this.hemi.color.lerp(new THREE.Color(a.hemi), k);
+  }
+
   frame() {
     const dt = Math.min(0.05, this.clock.getDelta());
     this.dt = dt;
@@ -835,6 +962,9 @@ export class World {
     this.sun.position.set(focus.x + 30, 50, focus.z + 20);
     this.sun.target.position.copy(focus);
     this.sky.position.copy(this.camera.position);
+
+    if (this.player) this.updatePet(dt);
+    this.updateAtmosphere(dt);
 
     this.onTick?.(dt);
     this.updateLabels();

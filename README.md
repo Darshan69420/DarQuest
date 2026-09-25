@@ -51,12 +51,13 @@ Every key can be changed in **Settings → Keys**.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear, pets and side quests:** 55+ gear pieces (drops, shops and crafting), 9 pets, the Gatherers' Guild quest chain, and a quest journal.
-- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 48 achievements, and titles like "the Dragonborn" or "the Rift Walker".
+- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 53 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
 - **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
 - **Mounts and fast travel:** six mounts (Starfall Steed, Dire Wolf, Emberback, Frost Elk, Void Stalker, Sky Drake), waystones across the world, and a World Atlas to fast-travel between them.
 - **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
+- **Endgame:** a level cap of 50, then up to 100 Archmage ranks; optional **world scaling** (Skyrim style) so every land keeps up with you; **New Game+** that restarts the story with everything you own against tougher, better-paying foes; and three **weekly challenges** every Monday.
 - **Difficulty:** Normal, Heroic or Legendary.
 - **Quality of life:** three save slots with export and import, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, generated music, and a touch joystick on phones.
 
@@ -80,6 +81,7 @@ src/achievements.js  the bestiary lore and achievements
 src/slayer.js     Slayer tasks
 src/companions.js hireable companions
 src/arena.js      the Arena of Stars and rival wizards
+src/challenges.js weekly challenges
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects

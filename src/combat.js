@@ -54,7 +54,15 @@ export class Combat {
   get now() { return this.world.time; }
 
   initEnemy(e) {
-    e.maxHp = Math.round(e.def.hp * this.diff.hp);
+    // World scaling and New Game+ (set by the game) grow ordinary foes with you.
+    // The Rift, the Undercroft and arena rivals scale themselves.
+    const d = e.def;
+    e.power = d.rift || d.dungeon || d.rival ? null : this.scaling?.(d) || null;
+    if (e.label) {
+      const sub = e.label.el.querySelector('.sub');
+      if (sub) sub.textContent = `Level ${e.power?.level ?? d.level}${d.boss ? ' · Boss' : d.elite ? ' · Elite' : ''}`;
+    }
+    e.maxHp = Math.round(e.def.hp * this.diff.hp * (e.power?.hp || 1));
     e.hp = e.maxHp;
     e.mods = mods();
     e.cd = {};
@@ -393,7 +401,7 @@ export class Combat {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
     if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
-    let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (1 + this.rm('taken'));
+    let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * (1 + this.rm('taken'));
     if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
@@ -476,7 +484,7 @@ export class Combat {
       this.world.aura(e.model, SCHOOLS[e.def.school].color);
       if (ph.blade) e.mods.blades.push(ph.blade);
       if (ph.shield) e.mods.shields.push(ph.shield);
-      if (ph.heal) { e.hp = Math.min(e.maxHp, e.hp + ph.heal); this.world.float(e.model, `+${ph.heal}`, 'heal'); }
+      if (ph.heal) { const h = Math.round(ph.heal * (e.power?.hp || 1)); e.hp = Math.min(e.maxHp, e.hp + h); this.world.float(e.model, `+${h}`, 'heal'); }
       if (ph.pips) e.nextAttack = this.now + 0.5;
       if (ph.cast) setTimeout(() => { if (e.state === 'aggro') this.enemySpell(e, SPELLS[ph.cast]); }, 900);
       if (ph.fly) this.startFlight(e, ph.fly);
@@ -655,7 +663,7 @@ export class Combat {
     if (spell.type === 'heal' || spell.type === 'hot') {
       const friends = this.world.enemies.filter(o => o.state === 'aggro' && flat(o.model.position, e.model.position) < 12);
       const hurt = friends.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || e;
-      const amount = spell.type === 'heal' ? spell.amount : spell.total;
+      const amount = Math.round((spell.type === 'heal' ? spell.amount : spell.total) * (e.power?.hp || 1));
       hurt.hp = Math.min(hurt.maxHp, hurt.hp + amount);
       w.aura(hurt.model, 0x7dff9a);
       w.float(hurt.model, `+${amount}`, 'heal');

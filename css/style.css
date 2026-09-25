@@ -484,3 +484,5 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
   .slot-btns { width: 100%; justify-content: flex-end; }
   #joystick { bottom: 160px; left: 14px; width: 110px; height: 110px; }
 }
+.bar.small { height: 10px; margin: 5px 0 2px; }
+.bar.small .fill { background: linear-gradient(#ffe08a, #f2c14e); }

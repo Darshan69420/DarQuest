@@ -24,7 +24,7 @@ Built so far (see the README for the full feature list):
 | 3. World and story | 🟡 4 of 6 worlds (Stormspire, Thornwood and the Hollow Deep remain) |
 | 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
 | 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
-| 6. Endgame | 🟡 Arena and Slayer done. Still to do: level cap 50, weekly challenges, New Game+ |
+| 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |
 | 7. Presentation | 🟡 Per-zone music, weather and aurora. Still to do: accessibility options |
 | 8. Ship it | 🟡 Pages workflow and manifest ready. Turn on Pages in the repo settings |
 | 9. Multiplayer | ⬜ Not started |

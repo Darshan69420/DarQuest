@@ -19,7 +19,9 @@ import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
   setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem, setRunHp, givePet, recordShout,
+  storyIndex, atCap, ARCH_MAX,
 } from './state.js';
+import { weekly, isDone as challengeDone, weeklyReward, CHALLENGES } from './challenges.js';
 import { Rift, UPGRADES } from './rift.js';
 import { Undercroft, clock } from './dungeon.js';
 import * as RU from './ui_rift.js';
@@ -209,7 +211,7 @@ function refresh() {
     }
     world.setNpcMarker(id, marker, side);
   }
-  for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
+  for (const pt of PORTALS) world.setPortalLocked(pt.id, storyIndex(player) < pt.unlock);
   for (const ws of WAYSTONES) world.waystoneModels[ws.id]?.userData.setActive(player.waystones.includes(ws.id));
   for (const w of WORD_WALLS) {
     const known = shoutWords(player, w.shout) > 0;
@@ -302,7 +304,7 @@ function talk(id) {
 
   const portal = PORTALS.find(pt => pt.id === id);
   if (portal) {
-    if (player.quest.index < portal.unlock) {
+    if (storyIndex(player) < portal.unlock) {
       return UI.dialog('Spiral Door', 'Ancient Portal', 'The portal hums, but its light is sealed. Perhaps Headmaster Orvyn knows how to open it once you have proven yourself.');
     }
     return UI.dialog('Spiral Door', 'Ancient Portal', `The portal swirls with light. Travel to ${portal.dest}?`, [
@@ -318,7 +320,7 @@ function talk(id) {
   if (npc.service === 'shop') extra.push({ label: '🧪 Potions & Pets', action: () => UI.openShop(player, onChange) });
   if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange, npc.stock, `🎩 ${npc.name}`) });
   if (npc.service === 'guild') extra.push({ label: '🌾 Tools & Trading', action: () => SK.openGuildShop(player, onChange) });
-  for (const svc of extraServices) if (svc.npc === id) extra.push({ label: svc.label, action: svc.action });
+  for (const svc of extraServices) if (svc.npc === id && (!svc.when || svc.when())) extra.push({ label: svc.label, action: svc.action });
   const side = npcSideQuests(player, id);
 
   if (q) {
@@ -391,7 +393,11 @@ function completeQuest(q) {
   if (player.quest.index === 23) setTimeout(() => UI.toast('❄️ <b>Chapter 4: The Frozen Crown.</b> A Spiral Door in the courtyard has frozen over: Glacierreach awaits.', 'good'), 1800);
   if (player.quest.index === 14) setTimeout(() => UI.toast('🐉 <b>Chapter 3: Wings of Ruin.</b> A new Spiral Door has opened in the courtyard: the Dragonspire Peaks await.', 'good'), 1800);
   if (q.reward.voice) setTimeout(() => UI.toast('🗣️ You have the <b>Voice</b>. Read Word Walls to learn dragon shouts!', 'good'), 1200);
-  if (!QUESTS[player.quest.index]) setTimeout(() => UI.toast('🏆 <b>Main story complete!</b> You are a legend of Starfall, and dragonborn besides!', 'good'), 1200);
+  if (!QUESTS[player.quest.index]) {
+    player.storyMax = Math.max(player.storyMax || 0, QUESTS.length);
+    setTimeout(() => UI.toast(`🏆 <b>Main story complete${player.ngplus ? ` (New Game+ ${player.ngplus})` : ''}!</b> You are a legend of Starfall. Talk to Headmaster Orvyn about <b>New Game+</b> when you are ready.`, 'good'), 1200);
+  }
+  player.storyMax = Math.max(player.storyMax || 0, player.quest.index);
   refresh();
   save(player);
 }
@@ -506,10 +512,16 @@ function useItem(id) {
 }
 
 function announceLevels(levels) {
-  if (!levels) return;
+  const arch = player.archPending || 0;
+  player.archPending = 0;
+  if (!levels && !arch) return;
+  if (levels && (settings.worldScaling || player.ngplus)) rescaleFoes();
   world.aura(world.player, 0xf2c14e);
   Audio.sfx('levelup');
-  UI.toast(`⭐ <b>Level up!</b> You are now level ${player.level}. +1 Training Point (Mirabel) and +1 Talent Point (C → Talents)!`, 'good');
+  if (levels) UI.toast(atCap(player)
+    ? `🌟 <b>Level ${player.level}: the level cap!</b> From now on, experience earns <b>Archmage ranks</b> (+1% damage and health each).`
+    : `⭐ <b>Level up!</b> You are now level ${player.level}. +1 Training Point (Mirabel) and +1 Talent Point (C → Talents)!`, 'good');
+  if (arch) UI.toast(`✦ <b>Archmage rank ${player.arch}</b>${player.arch >= ARCH_MAX ? ' (the highest!)' : ''}: +${player.arch}% damage and health.`, 'good legendary');
 }
 
 // Called whenever a menu changes the player. `kind` picks a sound and whether to rebuild the model.
@@ -649,7 +661,7 @@ const undercroft = new Undercroft({
   },
 });
 
-function undercroftUnlocked() { return player.quest.index >= 7 || player.level >= 10; }
+function undercroftUnlocked() { return storyIndex(player) >= 7 || player.level >= 10; }
 
 function openUndercroftDoor() {
   if (!undercroftUnlocked()) { UI.combatMessage('The crypt door is sealed with Hollowmere\'s mark. Defeat Lord Hollowmere first.'); Audio.sfx('fail'); return; }
@@ -669,6 +681,95 @@ function openUndercroftDoor() {
   });
 }
 
+// ------------------------------------------------------------ world scaling & New Game+
+
+// Ordinary foes grow with you when World Scaling is on (Settings → Gameplay), and always in New Game+.
+combat.scaling = (def) => {
+  if (!player) return null;
+  const ng = player.ngplus || 0;
+  if (!settings.worldScaling && !ng) return null;
+  const eff = Math.max(def.level, player.level - 1) + ng * 2;
+  const k = Math.max(0, eff - def.level);
+  if (!k && !ng) return null;
+  return {
+    level: eff,
+    hp: (1 + k * 0.12) * (1 + ng * 0.25),
+    dmg: (1 + k * 0.075) * (1 + ng * 0.15),
+    xp: (1 + k * 0.09) * (1 + ng * 0.25),
+    gold: 1 + k * 0.06 + ng * 0.25,
+  };
+};
+
+// Re-scales foes that are not fighting (after a level up or a settings change).
+function rescaleFoes() {
+  for (const e of world.enemies) if (e.hp !== undefined && e.state === 'idle' && e.hp === e.maxHp) combat.initEnemy(e);
+}
+onSettings((k) => { if (k === 'worldScaling' && player) rescaleFoes(); });
+
+function storyDone() { return player.quest.index >= QUESTS.length; }
+
+function openNewGamePlus() {
+  const next = (player.ngplus || 0) + 1;
+  UI.openModal(`⭐ New Game+ ${next}`, `<p class="modal-note">You have finished the whole story. Headmaster Orvyn can turn back the pages of the <b>Starfall Chronicle</b> so you can live it again, stronger.</p>
+    <div class="journal-q main"><b>You keep everything:</b> level, gear, skills, spells, talents, pets, mounts, shouts, your Homestead, every door you opened.
+      <br><b>The story restarts</b> from Chapter 1.
+      <br><b>Every foe grows with you</b>: level ${player.level}+${next * 2}, +${next * 25}% health and +${next * 15}% damage on top.
+      <br><b>Better rewards</b>: +${next * 25}% XP, gold and drop chance, and rarer gear.</div>
+    <p><button class="btn primary big" id="ngp-go">⭐ Begin New Game+ ${next}</button></p>`, (body) => {
+    body.querySelector('#ngp-go').addEventListener('click', () => {
+      UI.closeModal();
+      player.storyMax = Math.max(player.storyMax || 0, QUESTS.length);
+      player.ngplus = next;
+      player.quest = { index: 0, state: 'available', progress: 0 };
+      world.aura(world.player, 0xf2c14e);
+      world.shake(0.4);
+      Audio.sfx('levelup');
+      for (const e of world.enemies) if (e.hp !== undefined && e.state !== 'dead' && !e.def.rift && !e.def.dungeon) combat.initEnemy(e);
+      UI.toast(`⭐ <b>New Game+ ${next}</b> begins! The Chronicle starts over, and the world has grown stronger.`, 'good legendary');
+      refresh();
+      save(player);
+    });
+  });
+}
+extraServices.push({ npc: 'orvyn', label: '⭐ New Game+', when: () => storyDone(), action: openNewGamePlus });
+
+// Weekly challenges: a toast when one is finished (claim it in the Journal).
+function checkWeekly() {
+  const w = weekly(player);
+  for (const ch of w.list) {
+    if (ch.claimed || ch.told || !challengeDone(player, ch)) continue;
+    ch.told = true;
+    UI.toast(`📅 <b>Weekly challenge complete: ${UI.esc(CHALLENGES[ch.id].name)}</b><br>Claim your reward in the Journal (J → Weekly).`, 'quest');
+    Audio.sfx('quest');
+  }
+}
+
+function claimWeekly(i) {
+  const w = weekly(player);
+  const ch = w.list[i];
+  if (!ch || ch.claimed || !challengeDone(player, ch)) return;
+  ch.claimed = true;
+  const r = weeklyReward(player);
+  player.gold += r.gold;
+  const levels = gainXp(player, r.xp);
+  const pool = Object.values(GEAR).filter(g => g.level <= player.level + 1 && g.level >= player.level - 8);
+  const g = pool[Math.floor(Math.random() * pool.length)] || GEAR.sprigwood_wand;
+  const got = giveItem(player, g.id, Math.random() < 0.3 ? 'legendary' : 'epic');
+  const lines = [`+${r.gold} gold`, `+${r.xp} XP`, `🎁 <span style="color:${itemColor(got.inst)}">${UI.esc(itemName(got.inst))}</span>`];
+  if (!w.bonus && w.list.every(c => c.claimed)) {
+    w.bonus = true;
+    player.stats_log.weeklyAll = (player.stats_log.weeklyAll || 0) + 1;
+    const bonus = giveItem(player, (pool[Math.floor(Math.random() * pool.length)] || g).id, 'legendary');
+    player.gold += r.gold * 2;
+    lines.push(`<br>🌟 <b>All three done!</b> Bonus: +${r.gold * 2} gold and <span style="color:${itemColor(bonus.inst)}">${UI.esc(itemName(bonus.inst))}</span>`);
+  }
+  UI.toast(`📅 <b>${UI.esc(CHALLENGES[ch.id].name)}</b> claimed!<br>${lines.join(' · ')}`, 'good legendary');
+  Audio.sfx('chest');
+  announceLevels(levels);
+  refresh();
+  save(player);
+}
+
 combat.onRevive = () => {
   if (!rift.active) return null;
   const m = rift.mods();
@@ -677,7 +778,7 @@ combat.onRevive = () => {
   return null;
 };
 
-function riftUnlocked() { return player.quest.index >= 2 || player.level >= 3; }
+function riftUnlocked() { return storyIndex(player) >= 2 || player.level >= 3; }
 
 function openRiftKeeper() {
   RU.openRiftKeeper(player, {
@@ -753,7 +854,7 @@ function toggleMount() {
   Audio.sfx('pet');
 }
 
-const mountUnlocked = (id) => (id === 'stalker' ? player.rift.best >= 20 : id === 'drake' ? player.quest.index > 22 : true);
+const mountUnlocked = (id) => (id === 'stalker' ? player.rift.best >= 20 : id === 'drake' ? storyIndex(player) > 22 : true);
 
 function openStableUI() {
   openStable(player, {
@@ -1026,8 +1127,8 @@ function rewardKill(e) {
   const diff = DIFFICULTIES[player.difficulty];
   const def = e.def;
   const moonlit = world.skyCycle.isNight && !def.rift;
-  const xp = Math.round(def.xp * diff.reward * (moonlit ? 1.15 : 1));
-  const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')));
+  const xp = Math.round(def.xp * diff.reward * (moonlit ? 1.15 : 1) * (e.power?.xp || 1));
+  const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')) * (e.power?.gold || 1));
   if (def.rival) setTimeout(arenaWin, 800);
   if (def.rift) {
     rift.onKill(e);
@@ -1200,7 +1301,7 @@ world.onTick = (dt) => {
     $('#clock').title = `${sky.isNight ? 'Night: spirits roam and foes give +15% XP' : 'Day'}${wi.icon ? ' · ' + wi.name : ''}`;
     if (sky.isNight !== nightActive) setNight(sky.isNight);
     achTimer += 0.25;
-    if (achTimer > 2) { achTimer = 0; checkAch(); }
+    if (achTimer > 2) { achTimer = 0; checkAch(); checkWeekly(); }
     const pp = world.player.position;
     for (const ws of WAYSTONES) if (Math.abs(ws.x - pp.x) + Math.abs(ws.z - pp.z) < 9 && !player.waystones.includes(ws.id)) discoverWaystone(ws);
     const fps = $('#fps');
@@ -1280,7 +1381,7 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'skills': SK.openSkills(player); break;
     case 'bag': SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }); break;
-    case 'journal': openJournal(player, { onTitle: () => { refresh(); save(player); } }); break;
+    case 'journal': openJournal(player, { onTitle: () => { refresh(); save(player); }, onClaim: claimWeekly }); break;
     case 'eat': eat(); break;
     case 'shout': doShout(); break;
     default: onAction?.(act, e);
@@ -1302,7 +1403,7 @@ $('#btn-char').addEventListener('click', () => inExplore() && UI.openCharacter(p
 $('#btn-book').addEventListener('click', () => inExplore() && UI.openSpellbook(player, onChange));
 $('#btn-skills').addEventListener('click', () => inExplore() && SK.openSkills(player));
 $('#btn-bag').addEventListener('click', () => inExplore() && SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }));
-$('#btn-journal').addEventListener('click', () => inExplore() && openJournal(player, { onTitle: () => { refresh(); save(player); } }));
+$('#btn-journal').addEventListener('click', () => inExplore() && openJournal(player, { onTitle: () => { refresh(); save(player); }, onClaim: claimWeekly }));
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
 onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });

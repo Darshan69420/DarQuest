@@ -74,7 +74,7 @@ export function isAvailable(p, q) {
   if (entry(p, q.id)) return false;
   if (q.after && !isDone(p, q.after)) return false;
   if (q.minLevel && p.level < q.minLevel) return false;
-  if (q.mainQuest != null && p.quest.index < q.mainQuest) return false;
+  if (q.mainQuest != null && Math.max(p.quest.index, p.storyMax || 0) < q.mainQuest) return false;
   return true;
 }
 

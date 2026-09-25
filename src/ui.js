@@ -1,6 +1,6 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
 import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
-import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell } from './state.js';
+import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, ARCH_XP } from './state.js';
 import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
 import { RARITIES, RARITY_ORDER, LEGENDARY, itemName, itemColor, itemStats, itemValue, compareText, makeItem } from './gear.js';
 import { TALENTS, freePoints, talentPoints, spentPoints, branchSpent, canLearn, respecCost } from './talents.js';
@@ -44,9 +44,11 @@ export function updateHUD(p) {
   $('#hud-hp-text').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
   $('#hud-mp-fill').style.width = `${(p.mana / p.maxMana) * 100}%`;
   $('#hud-mp-text').textContent = `${Math.floor(p.mana)} / ${p.maxMana}`;
-  const need = xpToNext(p.level);
-  $('#hud-xp-fill').style.width = `${(p.xp / need) * 100}%`;
-  $('#hud-xp-text').textContent = `XP ${p.xp} / ${need}`;
+  const cap = p.level >= RULES.maxLevel;
+  const need = cap ? ARCH_XP : xpToNext(p.level);
+  $('#hud-xp-fill').style.width = `${Math.min(1, p.xp / need) * 100}%`;
+  $('#hud-xp-text').textContent = cap ? `✦ Archmage ${p.arch || 0} · ${p.xp} / ${need}` : `XP ${p.xp} / ${need}`;
+  if (p.ngplus) $('#hud-school').innerHTML += ` · <b style="color:#f2c14e">NG+${p.ngplus}</b>`;
   $('#hud-gold').textContent = p.gold;
   $('#hud-potions').textContent = `${p.potions}/${RULES.maxPotions}`;
   $('#hud-tp').textContent = p.tp;
@@ -477,6 +479,8 @@ export function openHelp() {
     <p>The swirling <b>Rift Gate</b> in the courtyard leads to a dungeon that is different every time. Clear rooms, open chests, pray at shrines for <b>boons</b> that last the whole run, and find the Rift Portal to go deeper. A guardian boss waits every 5 floors. If you fall you keep half your <b>Rift Shards</b>; escape through a Rift Exit to keep them all. Warden Nyx trades shards for permanent upgrades.</p>
     <h3>The Hollow Undercroft</h3>
     <p>After you defeat Lord Hollowmere, a stairwell beside Hollow Lane leads down into a <b>hand-built dungeon</b>. Each iron gate opens when you solve its room: pull the lever, <b>read the rune tablet</b> and step on the plates in the order it flashes, <b>turn the mirrors</b> until the beam of light reaches the crystal socket, survive the locked guard hall, time your run through the swinging blades, then face <b>Morvain, the Pale Warden</b>. At half health he raises a ward: shatter both <b>Soul Pylons</b> (E) to break it. Foes match your level. Clear it once to unlock <b>Heroic</b> mode.</p>
+    <h3>Endgame</h3>
+    <p>The level cap is <b>50</b>. After that, experience earns <b>Archmage ranks</b> (+1% damage and health each, up to 100). Turn on <b>World scaling</b> (Settings → Gameplay) and foes in every land grow with you, giving more XP and gold. Finish the whole story and Headmaster Orvyn offers <b>New Game+</b>: the quests start over, you keep everything, and the world gets tougher and more rewarding each time. Every Monday brings three <b>weekly challenges</b> (J → Weekly).</p>
     <h3>Dragons &amp; shouts</h3>
     <p>In Chapter 3 a new Spiral Door opens to the <b>Dragonspire Peaks</b>. Sage Vaelith awakens your <b>Voice</b>: read <b>Word Walls</b> (Hollow Lane, Emberfall and the Peaks) to learn dragon shouts, and press <b>R</b> to shout. Slaying dragons grants <b>dragon souls</b>, which teach each shout's second and third words (spellbook → Shouts). Unrelenting Force hurls foes back, Fire and Frost Breath scorch or slow, Whirlwind Sprint dashes, Become Ethereal makes you untouchable, and <b>Dragonrend</b> drags a flying dragon out of the sky.</p>
     <h3>Gear, talents &amp; pets</h3>
@@ -518,7 +522,7 @@ export function openSettings(tab = 'audio', onClose) {
   const choice = (key, label, opts) =>
     `<div class="set-row"><span>${label}</span><div class="set-choice">${opts.map(([v, l]) => `<button class="btn small ${settings[key] === v ? 'primary' : ''}" data-choice="${key}" data-v="${v}">${l}</button>`).join('')}</div></div>`;
   const render = (body) => {
-    const tabs = [['audio', '🔊 Sound'], ['graphics', '🖥️ Graphics'], ['controls', '🎮 Controls'], ['keys', '⌨️ Keys']];
+    const tabs = [['audio', '🔊 Sound'], ['graphics', '🖥️ Graphics'], ['controls', '🎮 Controls'], ['gameplay', '🧭 Gameplay'], ['keys', '⌨️ Keys']];
     let inner = '';
     if (tab === 'audio') inner = slider('master', 'Master volume') + slider('music', 'Music') + slider('sfx', 'Sound effects');
     if (tab === 'graphics') inner = choice('quality', 'Quality', Object.entries(QUALITY).map(([k, q]) => [k, q.label]))
@@ -527,6 +531,8 @@ export function openSettings(tab = 'audio', onClose) {
     if (tab === 'controls') inner = choice('controls', 'Movement', [['modern', 'Modern'], ['classic', 'Classic']])
       + '<p class="modal-note"><b>Modern:</b> W A S D move relative to the camera, drag to look around. <b>Classic:</b> W / S walk, A / D turn.</p>'
       + slider('camSens', 'Camera sensitivity', 0.3, 2, 0.1) + toggle('autoCam', 'Auto camera', 'Camera swings behind you when you tap to walk');
+    if (tab === 'gameplay') inner = toggle('worldScaling', 'World scaling', 'Foes in every land grow with your level, so old zones stay a challenge and give more XP and gold')
+      + '<p class="modal-note">New Game+ always scales the world, whatever this setting says. The Rift, the Undercroft and the Arena always match your level.</p>';
     if (tab === 'keys') inner = `<p class="modal-note">Click an action, then press the key you want. Arrow keys always move too.</p>
       <div class="keys-grid">${Object.entries(ACTIONS).map(([a, d]) => `<button class="key-row ${listening === a ? 'listening' : ''}" data-bind="${a}"><span>${d.label}</span><kbd>${listening === a ? 'Press a key…' : keyLabel(keyFor(a))}</kbd></button>`).join('')}</div>
       <p><button class="btn small" id="reset-keys">Reset keys</button></p>`;

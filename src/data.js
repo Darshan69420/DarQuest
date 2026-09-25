@@ -827,6 +827,7 @@ export const RULES = {
   maxPotions: 5,
   hpPerLevel: 50,
   inventoryMax: 40,
+  maxLevel: 50,
 };
 
 // ---------------------------------------------------------------- difficulty

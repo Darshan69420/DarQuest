@@ -44,6 +44,7 @@ const DEFAULTS = {
   showFps: false,
   autoCam: true,          // camera drifts behind you while walking forward (modern controls)
   damageNumbers: true,
+  worldScaling: false,    // foes everywhere grow with your level (always on in New Game+)
   keys: {},
 };
 

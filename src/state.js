@@ -24,6 +24,14 @@ export function xpToNext(level) {
   return 50 + 30 * level + 8 * level * level;
 }
 
+// Past the level cap, experience earns Archmage ranks: +1% damage and health each (up to 100).
+export const ARCH_XP = xpToNext(RULES.maxLevel);
+export const ARCH_MAX = 100;
+export const atCap = (p) => p.level >= RULES.maxLevel;
+
+// How far the story has ever got (New Game+ restarts the quests but keeps every door open).
+export function storyIndex(p) { return Math.max(p.quest.index, p.storyMax || 0); }
+
 // The school's first spell is the free, always-ready basic attack on key 1.
 export function basicSpell(school) {
   return Object.values(SPELLS).find(s => s.school === school && s.level === 1 && !s.enemy && !s.pet);
@@ -71,6 +79,12 @@ function upgrade(p) {
   p.companionMode ??= 'fight';
   p.arena ??= { rank: 0, duel: 0, tokens: 0, wins: 0, champion: false };
   p.undercroft ??= { clears: 0, heroicClears: 0, best: null, bestHeroic: null };
+  // endgame: Archmage ranks, New Game+ and weekly challenges
+  p.arch ??= 0;
+  p.ngplus ??= 0;
+  p.storyMax ??= p.quest.index;
+  p.weekly ??= null;
+  if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
 }
 
@@ -107,7 +121,9 @@ export function recalc(p) {
   const mods = { ...tal.mods };
   for (const [k, v] of Object.entries(gear.mods)) mods[k] = (mods[k] || 0) + v;
   p.tmods = mods;
-  p.maxHp = Math.round((baseHpFor(p.school, p.level) + s.hp) * (1 + runHp + tal.hpPct + (mods.hpPct || 0)));
+  const arch = Math.min(ARCH_MAX, p.arch || 0) * 0.01;
+  if (arch) mods.dmg = (mods.dmg || 0) + arch;
+  p.maxHp = Math.round((baseHpFor(p.school, p.level) + s.hp) * (1 + runHp + tal.hpPct + (mods.hpPct || 0) + arch));
   p.maxMana = Math.round((100 + (p.level - 1) * 6) * (1 + tal.manaPct));
   p.mana = Math.min(p.mana ?? p.maxMana, p.maxMana);
   if (p.hp != null) p.hp = Math.min(p.hp, p.maxHp);
@@ -164,13 +180,18 @@ export function importSave(text) {
 export function gainXp(p, amount) {
   p.xp += amount;
   let gained = 0;
-  while (p.xp >= xpToNext(p.level)) {
+  while (!atCap(p) && p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);
     p.level++;
     p.tp++;
     gained++;
   }
-  if (gained) {
+  while (atCap(p) && p.xp >= ARCH_XP) {
+    p.xp -= ARCH_XP;
+    if (p.arch < ARCH_MAX) { p.arch++; p.archPending = (p.archPending || 0) + 1; }
+  }
+  if (atCap(p) && p.arch >= ARCH_MAX) p.xp = Math.min(p.xp, ARCH_XP - 1);
+  if (gained || p.archPending) {
     recalc(p);
     p.hp = p.maxHp;
     p.mana = p.maxMana;
@@ -237,10 +258,11 @@ export function setActivePet(p, id) {
 // bosses, elites, deep rift floors and harder difficulties roll better.
 export function rollLoot(p, defs) {
   const diff = DIFFICULTIES[p.difficulty];
-  const mult = diff.drop;
+  const ng = p.ngplus || 0;
+  const mult = diff.drop * (1 + ng * 0.25);
   const loot = { items: [], pets: [], mats: [] };
   for (const def of defs) {
-    const luck = (diff.drop - 1) * 0.4 + (def.boss ? 1 : 0) + (def.elite ? 0.5 : 0) + (def.rift ? def.level * 0.01 : 0);
+    const luck = (diff.drop - 1) * 0.4 + (def.boss ? 1 : 0) + (def.elite ? 0.5 : 0) + (def.rift ? def.level * 0.01 : 0) + ng * 0.3;
     for (const d of def.drops || []) {
       if (Math.random() >= Math.min(1, d.chance * mult)) continue;
       if (d.mat) { addItem(p, d.mat, d.n || 1); loot.mats.push({ id: d.mat, n: d.n || 1 }); }

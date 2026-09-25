@@ -483,7 +483,7 @@ export function buildGlacier(world) {
   world.addNode('starmetal_rock', G + 21, -18);
   world.addNode('elder', G - 21, -16);
 
-  // the north road, lined with pines and icy cliffs
+  // the south road, lined with pines and icy cliffs
   for (let z = 22; z <= 82; z += 8) {
     for (const s of [-1, 1]) {
       world.add(makeCliff(5 + Math.random() * 3, 6 + Math.random() * 6, 6, [0x9ab0c8, 0xb8cce0, 0x8aa0b8][Math.floor(Math.random() * 3)]), G + s * (11 + Math.random() * 3), z, Math.random());

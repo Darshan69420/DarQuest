@@ -847,7 +847,7 @@ export const NPCS = {
   },
   kestra: {
     name: 'Ranger Kestra', title: 'Emberfall Scout', x: X - 7, z: 6, robe: 0x7a4a24, hat: 0x3d5a2a, trim: 0xe0c080, hatStyle: 'hood', hair: 0xe0702a, eyeColor: 0x2e7d3b, quiver: true,
-    lines: ['The canyon runs north to the Molten Throne. Everything between here and there wants to cook you.',
+    lines: ['The canyon runs south to the Molten Throne. Everything between here and there wants to cook you.',
             'Frost magic works wonders on these fire beasts. Just saying.',
             'I have slept under worse skies than this one. Not many, mind.'],
   },
@@ -1032,7 +1032,7 @@ export const QUESTS = [
   {
     id: 'q9', name: 'Imp Trouble', giver: 'kestra', turnIn: 'kestra',
     objective: { type: 'defeat', enemy: 'lava_imp', count: 4 },
-    offer: 'First things first: Lava Imps are swarming the canyon mouth, just north of camp, throwing sparks at anything with eyebrows. Knock out 4 of them. They hit harder than they look!',
+    offer: 'First things first: Lava Imps are swarming the canyon mouth, just south of camp, throwing sparks at anything with eyebrows. Knock out 4 of them. They hit harder than they look!',
     done: 'Not bad at all. Most apprentices come back singed. You came back smiling.',
     reward: { xp: 500, gold: 60 },
   },
@@ -1096,7 +1096,7 @@ export const QUESTS = [
   {
     id: 'q18', name: 'The Hatchery', giver: 'kael', turnIn: 'kael',
     objective: { type: 'defeat', enemy: 'wyrmling', count: 5 },
-    offer: 'Wyrmlings have hatched all along the mountain path north of camp. They are small, fast and they bite. Clear 5 of them so our scouts can move.',
+    offer: 'Wyrmlings have hatched all along the mountain path south of camp. They are small, fast and they bite. Clear 5 of them so our scouts can move.',
     done: 'Five fewer teeth on the mountain. Well done. But the big ones are next.',
     reward: { xp: 2200, gold: 180, potions: 1 },
   },
@@ -1145,8 +1145,8 @@ export const QUESTS = [
   },
   {
     id: 'q25', name: 'Wolves at the Gate', giver: 'halvard', turnIn: 'halvard',
-    objective: { type: 'defend', goal: 'Hold the north road', place: 'the north road', x: 2300, z: 46, r: 7, time: 40, waves: ['snow_wolf'], every: 8, per: 2, max: 4 },
-    offer: 'The whole Snowfang pack is coming down the north road. They are fast, and they hit harder after they howl. Stand in the old ward circle on the road and hold it until they give up. Do not let them past!',
+    objective: { type: 'defend', goal: 'Hold the south road', place: 'the south road', x: 2300, z: 46, r: 7, time: 40, waves: ['snow_wolf'], every: 8, per: 2, max: 4 },
+    offer: 'The whole Snowfang pack is coming up the south road. They are fast, and they hit harder after they howl. Stand in the old ward circle on the road and hold it until they give up. Do not let them past!',
     done: 'The pack has scattered into the hills. The road is safe, for now. Seer Ingrid wants to speak with you about the lake.',
     reward: { xp: 5000, gold: 350, potions: 1 },
   },
@@ -1174,7 +1174,7 @@ export const QUESTS = [
   {
     id: 'q29', name: 'Wings of Winter', giver: 'halvard', turnIn: 'halvard',
     objective: { type: 'defeat', enemy: 'frost_drake', count: 3 },
-    offer: 'Frost Dragons circle the castle stair, north of the caverns. Their breath freezes a wizard mid-spell. Bring down 3 and the path to the Queen is clear.',
+    offer: 'Frost Dragons circle the castle stair, south of the caverns. Their breath freezes a wizard mid-spell. Bring down 3 and the path to the Queen is clear.',
     done: 'Dragons of ice... you really are dragonborn. The stair is open. Seer Ingrid has one more thing to tell you before you go.',
     reward: { xp: 7000, gold: 550, potions: 1 },
   },
@@ -1189,14 +1189,14 @@ export const QUESTS = [
   {
     id: 'q31', name: 'A Letter from the Sky', giver: 'orvyn', turnIn: 'aeris',
     objective: { type: 'talk', npc: 'aeris' },
-    offer: 'An airship dropped a letter in the courtyard this morning, sealed with a lightning bolt. Captain Aeris of Skyport begs for help: a storm-creature has trapped her city in the clouds. A Spiral Door has opened in the north-west of the courtyard. Go to Stormspire.',
+    offer: 'An airship dropped a letter in the courtyard this morning, sealed with a lightning bolt. Captain Aeris of Skyport begs for help: a storm-creature has trapped her city in the clouds. A Spiral Door has opened in the south-west of the courtyard. Go to Stormspire.',
     done: 'You came through the Door? Then Starfall answered! Voltaris, the Storm Herald, has wrapped our islands in a storm that never ends. Nothing can fly in or out.',
     reward: { xp: 6000, gold: 400 },
   },
   {
     id: 'q32', name: 'Winds Unbound', giver: 'aeris', turnIn: 'aeris',
     objective: { type: 'defeat', enemy: 'gale_sprite', count: 5 },
-    offer: 'Cross the bridge north to the Isle of Winds. Gale Sprites have taken over the windmills and blow travellers off the bridges. Calm 5 of them.',
+    offer: 'Cross the bridge south to the Isle of Winds. Gale Sprites have taken over the windmills and blow travellers off the bridges. Calm 5 of them.',
     done: 'The windmills are turning again! Stormcaller Tavi has been waiting to meet you.',
     reward: { xp: 7000, gold: 450, potions: 1 },
   },
@@ -1224,7 +1224,7 @@ export const QUESTS = [
   {
     id: 'q36', name: 'Wings of Thunder', giver: 'aeris', turnIn: 'aeris',
     objective: { type: 'defeat', enemy: 'thunder_roc', count: 3 },
-    offer: 'The last bridge leads north to the Eye of the Storm, and Thunder Rocs guard it. They dive like falling lightning. Bring down 3 of them.',
+    offer: 'The last bridge leads south to the Eye of the Storm, and Thunder Rocs guard it. They dive like falling lightning. Bring down 3 of them.',
     done: 'The way to the Eye is open. Tavi says there is one last thing you should know before you go.',
     reward: { xp: 9000, gold: 750, tp: 1 },
   },
@@ -1246,7 +1246,7 @@ export const QUESTS = [
   {
     id: 'q39', name: 'Briar Patch', giver: 'rowan', turnIn: 'rowan',
     objective: { type: 'defeat', enemy: 'briar_stalker', count: 5 },
-    offer: 'Briar Stalkers prowl the path north to the Mossy Glade. They were gentle forest cats once; the blight turned their fur to thorns. Stop 5 of them.',
+    offer: 'Briar Stalkers prowl the path south to the Mossy Glade. They were gentle forest cats once; the blight turned their fur to thorns. Stop 5 of them.',
     done: 'The path is safe. Wren has been tracking something stranger in the glade.',
     reward: { xp: 10000, gold: 650, potions: 1 },
   },

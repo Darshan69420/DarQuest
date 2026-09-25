@@ -67,7 +67,7 @@ export const SIDE_QUESTS = [
   {
     id: 'frost1', mainQuest: 24, name: 'Warm Hands', giver: 'frida', turnIn: 'frida',
     objective: { type: 'bring', item: 'frostbloom', count: 6 },
-    offer: 'Frostbloom only grows in the coldest places, and it makes the warmest mittens. Pick 6 for me around Frostholm and the north road.',
+    offer: 'Frostbloom only grows in the coldest places, and it makes the warmest mittens. Pick 6 for me around Frostholm and the south road.',
     done: 'Perfect petals! Here: a cloak lined with the first batch. It will keep the blizzard out.',
     reward: { xp: 3500, gold: 400, skillXp: { foraging: 600 }, gear: ['frostfur_cloak'] },
   },
@@ -150,7 +150,7 @@ export const SIDE_QUESTS = [
   {
     id: 'deep3', mainQuest: 48, name: 'Colossal Problem', giver: 'aldric', turnIn: 'aldric',
     objective: { type: 'defeat', enemy: 'bone_colossus', count: 2 },
-    offer: 'Two Bone Colossi guard the path north of the Ossuary. They stomp the ground around them, so hit them and step back. Bring them both down.',
+    offer: 'Two Bone Colossi guard the path south of the Ossuary. They stomp the ground around them, so hit them and step back. Bring them both down.',
     done: 'The path is clear. Take this sigil. It was mine, before the Hollow took me.',
     reward: { xp: 18000, gold: 1800, gear: ['deep_sigil'] },
   },

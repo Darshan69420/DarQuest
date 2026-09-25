@@ -62,6 +62,10 @@ function upgrade(p) {
   p.mounts ??= [];
   p.activeMount ??= null;
   p.waystones ??= [];
+  p.bestiary ??= {};
+  p.achievements ??= {};
+  p.title ??= null;
+  p.slayer ??= { task: null, points: 0, streak: 0, tasks: 0 };
   return p;
 }
 

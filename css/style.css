@@ -435,6 +435,19 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 .waystones { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 8px; }
 .label.waystone .name { color: #bfe8ff; }
 
+/* ---------------------------------------------------------------- journal: bestiary & achievements */
+.bestiary, .achievements { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
+.beast, .ach { display: flex; gap: 12px; align-items: flex-start; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 8px 12px; }
+.beast.unknown, .ach:not(.got) { opacity: .5; }
+.beast.boss { border-color: rgba(197,66,255,.5); }
+.ach.got { border-color: rgba(242,193,78,.6); }
+.b-icon, .a-icon { font-size: 28px; width: 34px; text-align: center; }
+.beast small, .ach small { color: var(--muted); }
+.beast .lore { font-size: 12.5px; color: #d8d0f0; font-style: italic; }
+.ach span { font-size: 13px; color: #d8d0f0; }
+.titles { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.titles small { color: var(--muted); }
+
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {
   .hud-player { width: 200px; left: 10px; top: 10px; padding: 8px 10px; }

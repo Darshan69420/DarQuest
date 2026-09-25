@@ -1,7 +1,8 @@
 // Skill, bag, crafting, guild shop and journal windows.
 import { SKILLS, XP_TABLE, levelFromXp, skillXp, skillLevel, totalLevel, NODE_TYPES, RECIPES, STATION_TYPES, recipesFor, canCraft, maxCrafts, burnChance } from './skills.js';
 import { ITEMS, BUFFS, bagCount } from './items.js';
-import { GEAR, SLOTS, QUESTS, NPCS, RULES } from './data.js';
+import { GEAR, SLOTS, QUESTS, NPCS, RULES, ENEMIES } from './data.js';
+import { SLAYER_TIERS } from './slayer.js';
 import { SIDE_QUESTS, isActive, isDone, isAvailable, goalText, rewardText } from './sidequests.js';
 import { currentQuest, questTrackerText } from './state.js';
 import { openModal, esc, toast, statsText } from './ui.js';
@@ -34,6 +35,7 @@ function skillGuide(p, skill) {
   const rows = [];
   for (const n of Object.values(NODE_TYPES)) if (n.skill === skill) rows.push({ level: n.level, html: `${chip(n.item)} ${esc(n.name)} <small>${n.xp} XP</small>` });
   for (const r of Object.values(RECIPES)) if (STATION_TYPES[r.station].skill === skill) rows.push({ level: r.level, html: `${outChip(r)} ${esc(outName(r))} <small>${STATION_TYPES[r.station].name} · ${r.xp} XP</small>` });
+  if (skill === 'slayer') for (const t of SLAYER_TIERS) rows.push({ level: t.level, html: `💀 Tasks: ${t.ids.map(id => esc(ENEMIES[id].name)).join(', ')}` });
   rows.sort((a, b) => a.level - b.level);
   return `<h3 class="sub-h">${SKILLS[skill].icon} ${SKILLS[skill].name} guide</h3><p class="modal-note">${SKILLS[skill].desc}</p>
     <div class="guide">${rows.map(r => `<div class="guide-row ${lvl >= r.level ? 'ok' : ''}"><span class="g-lvl">${r.level}</span>${r.html}${lvl >= r.level ? '<span class="g-ok">✔</span>' : ''}</div>`).join('')}</div>`;

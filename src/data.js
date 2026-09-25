@@ -439,6 +439,11 @@ export const NPCS = {
             'Fall in there and you keep half your shards. Leave through a Rift Exit and you keep them all.',
             'Shrines in the Rift grant boons. They fade when your run ends, but the shards do not.'],
   },
+  grimm: {
+    name: 'Slayer Master Grimm', title: 'Monster Hunter', x: -9.5, z: 22.5, robe: 0x2a2a34, hat: 0x3a3a48, trim: 0xc0392b, service: 'slayer', hatStyle: 'helmet', beard: true, hair: 0x3a3a3a, skin: 0xb88a6a, eyeColor: 0x8a1a1a,
+    lines: ['Every monster has a weakness. Mine is that I cannot stop hunting them.',
+            'Take a task, kill what I tell you, come back for points. Simple as that.'],
+  },
   juno: {
     name: 'Stablemaster Juno', title: 'Millbrook Stables', x: 69, z: -8, robe: 0x8a5a3a, hat: 0x5a3a20, trim: 0xf0d8a0, service: 'stable', hatStyle: 'hood', hair: 0xd8a040, skin: 0xe0b890, eyeColor: 0x5a8a3a,
     lines: ['A good mount is worth ten pairs of boots. Press X to ride, and it will carry you twice as fast.',
@@ -729,6 +734,10 @@ export const GEAR = {
   storm_orb:         { name: 'Storm Orb',           slot: 'offhand', level: 16, stats: { dmg: 9, acc: 4 }, color: 0xb46bff },
   elder_codex:       { name: 'Elder Codex',         slot: 'offhand', level: 20, stats: { dmg: 11, heal: 8, pip: 4 }, color: 0x6a4aa0 },
   eye_of_vorathrax:  { name: 'Eye of Vorathrax',    slot: 'offhand', level: 22, stats: { dmg: 14, acc: 6 }, color: 0xffd23d },
+  slayer_helm:       { name: 'Slayer Helm',         slot: 'hat',     level: 8,  stats: { hp: 110, dmg: 6, acc: 3 }, color: 0x3a3a48 },
+  slayer_band:       { name: 'Slayer\'s Band',      slot: 'ring',    level: 12, stats: { dmg: 7, acc: 5 } },
+  reaper_cloak:      { name: 'Reaper Cloak',        slot: 'cloak',   level: 16, stats: { hp: 190, dmg: 7, pip: 4 }, color: 0x1a1020 },
+  hunters_codex:     { name: 'Hunter\'s Codex',     slot: 'offhand', level: 18, stats: { dmg: 10, acc: 6, pip: 3 }, color: 0x6a3a1a },
   copper_ring:       { name: 'Copper Ring',         slot: 'ring',    level: 2,  stats: { acc: 2, hp: 15 }, crafted: true },
   silver_ring:       { name: 'Silver Ring',         slot: 'ring',    level: 9,  stats: { acc: 4, heal: 5 }, crafted: true },
   gold_ring:         { name: 'Gold Ring',           slot: 'ring',    level: 13, stats: { dmg: 5, acc: 3 }, crafted: true },

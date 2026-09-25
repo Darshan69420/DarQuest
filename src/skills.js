@@ -12,6 +12,7 @@ export const SKILLS = {
   smithing:    { name: 'Smithing',    icon: '🔨', color: '#8f98a8', desc: 'Smelt bars at a furnace and forge tools and jewellery at an anvil.' },
   alchemy:     { name: 'Alchemy',     icon: '⚗️', color: '#b46bff', desc: 'Brew potions and elixirs from herbs.' },
   woodworking: { name: 'Woodworking', icon: '🪚', color: '#c9a24a', desc: 'Carve planks, rods, wands and staffs at a workbench.' },
+  slayer:      { name: 'Slayer',      icon: '💀', color: '#c0392b', desc: 'Hunt the monsters Slayer Master Grimm assigns you (south of the courtyard). Higher levels unlock tougher tasks.' },
 };
 export const MAX_SKILL = 99;
 

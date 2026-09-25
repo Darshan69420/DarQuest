@@ -9,6 +9,9 @@ import {
   ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS,
 } from './data.js';
 import { openAtlas, openStable } from './ui_world.js';
+import { checkAchievements, hunterBonus, displayName } from './achievements.js';
+import { assignTask, slayerKill, slayerBonus } from './slayer.js';
+import { openJournal, openSlayer } from './ui_journal.js';
 import { WEATHER_INFO } from './sky.js';
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
@@ -34,6 +37,7 @@ const world = new World($('#game'), $('#labels'));
 const minimap = new Minimap($('#minimap'), world);
 let player = null;
 let hudTimer = 0;
+let achTimer = 0;
 let saveTimer = 0;
 let eatReady = 0;
 let area = null;
@@ -191,7 +195,8 @@ function refresh() {
   if (!player) return;
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
-  $('#side-tracker').innerHTML = SK.sideTrackerHTML(player);
+  const task = player.slayer.task;
+  $('#side-tracker').innerHTML = SK.sideTrackerHTML(player) + (task ? `<div class="side-track"><b>💀 Slayer</b> · ${UI.esc(ENEMIES[task.enemy].name)} ${task.done}/${task.count}</div>` : '');
   for (const id of Object.keys(NPCS)) {
     let marker = npcMarker(player, id), side = false;
     if (!marker) {
@@ -734,6 +739,37 @@ function openWorldAtlas() {
 }
 $('#minimap').addEventListener('click', () => inExplore() && openWorldAtlas());
 
+// ------------------------------------------------------------ achievements, bestiary & slayer
+
+combat.bonusFor = (e) => hunterBonus(player?.bestiary[e.def.id] || 0) + slayerBonus(player, e.def);
+UI.uiHooks.displayName = (p) => displayName(p);
+
+function checkAch() {
+  for (const a of checkAchievements(player)) {
+    if (a.reward.gold) player.gold += a.reward.gold;
+    UI.toast(`🏆 <b>Achievement: ${UI.esc(a.name)}</b><br>${UI.esc(a.desc)}${a.reward.gold ? ` · +${a.reward.gold} gold` : ''}${a.reward.title ? `<br>New title: “${UI.esc(a.reward.title)}” (J → Achievements)` : ''}`, 'good legendary');
+    Audio.sfx('levelup');
+    save(player);
+  }
+}
+
+extraServices.push({
+  npc: 'grimm', label: '💀 Slayer tasks',
+  action: () => openSlayer(player, {
+    onAssign: () => {
+      const t = assignTask(player);
+      UI.toast(`💀 New Slayer task: defeat <b>${t.count} ${UI.esc(ENEMIES[t.enemy].name)}s</b>.`, 'quest');
+      refresh();
+      save(player);
+    },
+    onBuy: (id) => {
+      const r = giveItem(player, id, 'rare');
+      UI.toast(`🎁 <b style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</b> · press C to equip`, 'good');
+      save(player);
+    },
+  }),
+});
+
 // ------------------------------------------------------------ night
 
 let nightActive = false;
@@ -855,6 +891,17 @@ function rewardKill(e) {
   world.float(e.model, `+${xp} XP${moonlit ? ' 🌙' : ''}`, 'xp');
   const quest = recordKill(player, def.id);
   player.stats_log.kills++;
+  player.bestiary[def.id] = (player.bestiary[def.id] || 0) + 1;
+  if (def.night) player.stats_log.nightKills = (player.stats_log.nightKills || 0) + 1;
+  const sl = slayerKill(player, def);
+  if (sl) {
+    world.float(e.model, `+${sl.xp} 💀`, 'xp');
+    if (sl.levels) announceSkill('slayer');
+    if (sl.finished) {
+      UI.toast(`💀 <b>Slayer task complete!</b> +${sl.finished.points} Slayer Points · +${sl.finished.gold} gold · streak ${player.slayer.streak}. Return to Grimm for a new task.`, 'quest');
+      Audio.sfx('quest');
+    }
+  }
   sideProgress('defeat', def.id);
   const loot = rollLoot(player, [def]);
   const levels = gainXp(player, xp);
@@ -872,6 +919,7 @@ function rewardKill(e) {
     const n = def.souls || (Math.random() < (def.soul || 0) ? 1 : 0);
     if (n) {
       player.dragon.souls += n;
+      player.stats_log.souls = (player.stats_log.souls || 0) + n;
       world.soulFx(e.model);
       Audio.sfx('shrine');
       setTimeout(() => UI.toast(`🐉 You absorbed ${n > 1 ? `<b>${n} dragon souls</b>` : 'a <b>dragon soul</b>'}! Spend souls on deeper shout words (B → Shouts).`, 'good'), 1600);
@@ -977,6 +1025,8 @@ world.onTick = (dt) => {
     $('#clock').textContent = `${sky.clockText()}${wi.icon ? ' · ' + wi.icon : ''}`;
     $('#clock').title = `${sky.isNight ? 'Night: spirits roam and foes give +15% XP' : 'Day'}${wi.icon ? ' · ' + wi.name : ''}`;
     if (sky.isNight !== nightActive) setNight(sky.isNight);
+    achTimer += 0.25;
+    if (achTimer > 2) { achTimer = 0; checkAch(); }
     const pp = world.player.position;
     for (const ws of WAYSTONES) if (Math.abs(ws.x - pp.x) + Math.abs(ws.z - pp.z) < 9 && !player.waystones.includes(ws.id)) discoverWaystone(ws);
     const fps = $('#fps');
@@ -1054,7 +1104,7 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'skills': SK.openSkills(player); break;
     case 'bag': SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }); break;
-    case 'journal': SK.openJournal(player); break;
+    case 'journal': openJournal(player, { onTitle: () => { refresh(); save(player); } }); break;
     case 'eat': eat(); break;
     case 'shout': doShout(); break;
     default: onAction?.(act, e);
@@ -1076,7 +1126,7 @@ $('#btn-char').addEventListener('click', () => inExplore() && UI.openCharacter(p
 $('#btn-book').addEventListener('click', () => inExplore() && UI.openSpellbook(player, onChange));
 $('#btn-skills').addEventListener('click', () => inExplore() && SK.openSkills(player));
 $('#btn-bag').addEventListener('click', () => inExplore() && SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }));
-$('#btn-journal').addEventListener('click', () => inExplore() && SK.openJournal(player));
+$('#btn-journal').addEventListener('click', () => inExplore() && openJournal(player, { onTitle: () => { refresh(); save(player); } }));
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
 onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });

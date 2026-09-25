@@ -37,7 +37,7 @@ export function showHUD(show) { $('#hud').classList.toggle('hidden', !show); }
 
 export function updateHUD(p) {
   const school = SCHOOLS[p.school];
-  $('#hud-name').textContent = p.name;
+  $('#hud-name').textContent = uiHooks.displayName?.(p) || p.name;
   $('#hud-school').innerHTML = `${school.icon} ${school.name} · Level ${p.level}`;
   $('#hud-school').style.color = school.css;
   $('#hud-hp-fill').style.width = `${(p.hp / p.maxHp) * 100}%`;
@@ -460,6 +460,8 @@ export function openHelp() {
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
+    <h3>Journal, Bestiary, Achievements &amp; Slayer</h3>
+    <p><b>J</b> opens your Journal: quests, the <b>Bestiary</b> (every foe you defeat, with lore; the more of one kind you defeat, the harder you hit them) and 40 <b>Achievements</b> that pay gold and unlock <b>titles</b> to show after your name. <b>Slayer Master Grimm</b>, south of the courtyard, hands out kill tasks: they level the <b>Slayer</b> skill and earn points for slayer gear.</p>
     <h3>Mounts &amp; travel</h3>
     <p>Stablemaster Juno in Millbrook Meadow sells mounts; press <b>X</b> to ride (you hop off when a battle starts). Some mounts are earned: a Void Stalker from the deep Rift and a Sky Drake from Vorathrax. Touch <b>waystones</b> to remember them, then open the <b>World Atlas</b> (<b>N</b>, or click the minimap) to fast-travel.</p>
     <h3>Day, night &amp; weather</h3>

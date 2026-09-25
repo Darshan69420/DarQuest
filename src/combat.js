@@ -138,6 +138,7 @@ export class Combat {
       this.lastBasic = t;
       if (this.combo >= 3) {
         power = 1.8 + this.rm('comboPower');
+        this.p.stats_log.combos = (this.p.stats_log.combos || 0) + 1;
         this.combo = 0;
         sfx('combo', spell.school);
         this.world.float(this.world.player, '✦ Combo!', 'status');
@@ -241,6 +242,7 @@ export class Combat {
               if (e.hp < e.maxHp * 0.3) tm += this.rm('execute');
               if (e.def.boss || e.def.elite) tm += this.rm('big');
               if (e.hp >= e.maxHp) tm += this.rm('firstStrike');
+              tm += this.bonusFor?.(e) || 0;
             }
             const amount = rand(spell.min, spell.max) * cm * tm * (crit ? critMult : 1);
             total += this.damageEnemy(e, amount, spell.school, color, crit, !isPet && (crit || big || power > 1));

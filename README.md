@@ -46,10 +46,12 @@ Every key can be changed in **Settings → Keys**.
 - **Real-time combat:** key `1` is your school's free basic attack (every third hit in a row is a combo strike), and keys `2`–`5` hold the spells you pick. Enemies wind up big attacks: **red shapes on the ground** show where they will land, so step out or dodge through them.
 - **Three chapters of story:** Hollow Lane (Lord Hollowmere), the Emberfall Wilds (Pyrrhon, the Molten King) and the **Dragonspire Peaks**, where Vorathrax the Sky Tyrant flies above the battlefield and rains fire until you shout her down.
 - **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
-- **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy and Woodworking, each from level 1 to 99. Gather in Millbrook Meadow and beyond, then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations.
+- **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking and Slayer, each from level 1 to 99. Gather in Millbrook Meadow and beyond, then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear, pets and side quests:** 45+ gear pieces (drops, shops and crafting), 8 pets, the Gatherers' Guild quest chain, and a quest journal.
+- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 40 achievements, and titles like "the Dragonborn" or "the Rift Walker".
+- **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Mounts and fast travel:** six mounts (Starfall Steed, Dire Wolf, Emberback, Frost Elk, Void Stalker, Sky Drake), waystones across the world, and a World Atlas to fast-travel between them.
 - **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
 - **Difficulty:** Normal, Heroic or Legendary.
@@ -70,6 +72,8 @@ src/homestead.js  building with blocks on your floating island
 src/gear.js       item rarities, bonus stats and legendary powers
 src/talents.js    talent trees for every school
 src/sky.js        day/night cycle and weather
+src/achievements.js  the bestiary lore and achievements
+src/slayer.js     Slayer tasks
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects

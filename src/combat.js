@@ -1,5 +1,5 @@
 // Real-time combat: enemy AI, player spells on a hotbar, dodging, damage and rewards.
-import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, ENEMIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, ENEMIES, spellCost, spellCooldown, BASIC_COOLDOWN, toughness, ferocity, resistCut } from './data.js';
 import { basicSpell } from './state.js';
 import { petLevel, petPower, petFast, petTwin } from './pets.js';
 import { sfx } from './audio.js';
@@ -63,7 +63,7 @@ export class Combat {
       const sub = e.label.el.querySelector('.sub');
       if (sub) sub.textContent = `Level ${e.power?.level ?? d.level}${d.boss ? ' · Boss' : d.elite ? ' · Elite' : ''}`;
     }
-    e.maxHp = Math.round(e.def.hp * this.diff.hp * (e.power?.hp || 1));
+    e.maxHp = Math.round(e.def.hp * toughness(e.def) * this.diff.hp * (e.power?.hp || 1));
     e.takenMult = 1;   // per-foe damage taken (boss wards)
     e.hp = e.maxHp;
     e.mods = mods();
@@ -403,7 +403,7 @@ export class Combat {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
     if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
-    let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * (1 + this.rm('taken'));
+    let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * ferocity(from.def) * (1 + this.rm('taken'));
     if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
@@ -413,7 +413,7 @@ export class Combat {
     for (const tr of this.hero.traps) m *= 1 + tr;
     this.hero.shields = [];
     this.hero.traps = [];
-    m *= 1 - (p.stats?.resist || 0) / 100;
+    m *= 1 - resistCut(p.stats?.resist || 0);
     const dealt = Math.max(1, Math.round(amount * m));
     p.hp = Math.max(0, p.hp - dealt);
     w.float(w.player, `-${dealt}`, 'dmg hurt');

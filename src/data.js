@@ -698,6 +698,17 @@ ENEMIES.malvoren.attackRate = 1.5;
 ENEMIES.soul_anchor.attackRate = 3.2;
 ENEMIES.magma_serpent.speed = 0;
 
+// Health multiplier for every foe: higher-level foes are tougher, and bosses and elites more so.
+// (Wizards gain damage from levels, gear and a full spell bar far faster than raw enemy health grows.)
+export function toughness(def) {
+  const L = def.level || 1;
+  return (1 + L * 0.06) * (def.boss ? 2 : def.elite ? 1.3 : 1);
+}
+// Foes past level 20 also hit harder, 2% per level.
+export const ferocity = (def) => 1 + Math.max(0, (def.level || 1) - 20) * 0.02;
+// Resist has diminishing returns: 50 resist blocks a third of the damage, 100 blocks half.
+export const resistCut = (r) => Math.max(0, r) / (Math.max(0, r) + 100);
+
 // Quest objectives can name a group of foes instead of one kind (foes carry questAs: group id).
 export const FOE_GROUPS = { magister_echo: { name: 'Magister\'s Echo', plural: 'Magister\'s Echoes' } };
 export const matchesFoe = (enemyId, target) => enemyId === target || ENEMIES[enemyId]?.questAs === target;
@@ -713,7 +724,7 @@ export function foeName(id, count = 1) {
 for (const [id, base, name] of [['echo_hollowmere', 'lord_hollowmere', 'Echo of Hollowmere'], ['echo_pyrrhon', 'pyrrhon', 'Echo of Pyrrhon'], ['echo_sylvara', 'sylvara', 'Echo of Sylvara']]) {
   const b = ENEMIES[base], L = 46, k = L - b.level;
   ENEMIES[id] = {
-    ...b, id, name, level: L, questAs: 'magister_echo', hp: 11000, xp: 4200, gold: [260, 340], aggro: 8, dmgMult: 1 + k * 0.075,
+    ...b, id, name, level: L, questAs: 'magister_echo', hp: 7000, xp: 4200, gold: [260, 340], aggro: 8, dmgMult: 1 + k * 0.075,
     phases: [{ at: 0.5, say: 'The Magister... remembers... me...', blade: 0.4 }], drops: [{ mat: 'diamond', chance: 0.5 }], reactions: [],
   };
 }

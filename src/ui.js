@@ -41,7 +41,7 @@ export function updateHUD(p) {
   $('#hud-name').textContent = uiHooks.displayName?.(p) || p.name;
   $('#hud-school').innerHTML = `${school.icon} ${school.name} · Level ${p.level}`;
   $('#hud-school').style.color = school.css;
-  $('#hud-hp-fill').style.width = `${(p.hp / p.maxHp) * 100}%`;
+  setHp(p.hp / p.maxHp);
   $('#hud-hp-text').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
   $('#hud-mp-fill').style.width = `${(p.mana / p.maxMana) * 100}%`;
   $('#hud-mp-text').textContent = `${Math.floor(p.mana)} / ${p.maxMana}`;
@@ -50,10 +50,53 @@ export function updateHUD(p) {
   $('#hud-xp-fill').style.width = `${Math.min(1, p.xp / need) * 100}%`;
   $('#hud-xp-text').textContent = cap ? `✦ Archmage ${p.arch || 0} · ${p.xp} / ${need}` : `XP ${p.xp} / ${need}`;
   if (p.ngplus) $('#hud-school').innerHTML += ` · <b style="color:#f2c14e">NG+${p.ngplus}</b>`;
-  $('#hud-gold').textContent = p.gold;
+  pulse('#hud-gold', p.gold);
   $('#hud-potions').textContent = `${p.potions}/${RULES.maxPotions}`;
   $('#hud-tp').textContent = p.tp;
   $('#hud-tp-wrap').classList.toggle('glow', p.tp > 0);
+}
+
+// Health drops at once, and a pale trail of what you just lost catches up a moment later.
+let hpShown = 1;
+function setHp(k) {
+  const fill = $('#hud-hp-fill');
+  let trail = $('#hud-hp-trail');
+  if (!trail) {
+    trail = document.createElement('div');
+    trail.id = 'hud-hp-trail';
+    trail.className = 'trail';
+    fill.before(trail);
+  }
+  const pct = `${Math.max(0, Math.min(1, k)) * 100}%`;
+  fill.style.width = pct;
+  if (k < hpShown - 0.002) {
+    trail.classList.remove('snap');
+    fill.parentElement.classList.remove('hit');
+    void fill.offsetWidth;
+    fill.parentElement.classList.add('hit');
+    trail.style.width = pct;
+  } else if (k > hpShown + 0.002) {
+    // healing: the trail simply follows the bar
+    trail.classList.add('snap');
+    trail.style.width = pct;
+  } else if (!trail.style.width) {
+    trail.classList.add('snap');
+    trail.style.width = pct;
+  }
+  hpShown = k;
+}
+
+// A number that goes up gets a little bounce.
+const lastShown = {};
+function pulse(sel, value) {
+  const el = $(sel);
+  if (lastShown[sel] !== undefined && value > lastShown[sel]) {
+    el.classList.remove('up');
+    void el.offsetWidth;
+    el.classList.add('up');
+  }
+  lastShown[sel] = value;
+  el.textContent = value;
 }
 
 export function updateQuest(info) {
@@ -70,12 +113,56 @@ export function setPrompt(text) {
 // ------------------------------------------------------------ toasts
 
 export function toast(text, cls = '') {
+  const box = $('#toasts');
+  // the same message again counts up instead of stacking a copy
+  const same = [...box.children].find(t => t.dataset.text === text && !t.classList.contains('out'));
+  if (same) {
+    const n = (+same.dataset.n || 1) + 1;
+    same.dataset.n = n;
+    let badge = same.querySelector('.toast-n');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'toast-n'; same.appendChild(badge); }
+    badge.textContent = `×${n}`;
+    same.classList.remove('bump');
+    void same.offsetWidth;
+    same.classList.add('bump');
+    clearTimeout(same._t1); clearTimeout(same._t2);
+    same._t1 = setTimeout(() => same.classList.add('out'), 2600);
+    same._t2 = setTimeout(() => same.remove(), 3200);
+    return;
+  }
   const el = document.createElement('div');
   el.className = 'toast ' + cls;
+  el.dataset.text = text;
   el.innerHTML = text;
-  $('#toasts').appendChild(el);
-  setTimeout(() => el.classList.add('out'), 2600);
-  setTimeout(() => el.remove(), 3200);
+  box.appendChild(el);
+  // four at a time: the oldest makes room
+  const live = [...box.children].filter(t => !t.classList.contains('out'));
+  for (const old of live.slice(0, Math.max(0, live.length - 4))) { old.classList.add('out'); setTimeout(() => old.remove(), 500); }
+  el._t1 = setTimeout(() => el.classList.add('out'), 2600);
+  el._t2 = setTimeout(() => el.remove(), 3200);
+}
+
+// ------------------------------------------------------------ banners
+// Big moments (a quest done, a new level, a boss, a new chapter) get a ribbon across the
+// screen. They queue, so two never fight for the same spot.
+const bannerQueue = [];
+let bannerBusy = false;
+export function banner(kind, title, sub = '') {
+  bannerQueue.push({ kind, title, sub });
+  if (!bannerBusy) nextBanner();
+}
+function nextBanner() {
+  const b = bannerQueue.shift();
+  if (!b) { bannerBusy = false; return; }
+  bannerBusy = true;
+  const label = { quest: '📜 Quest complete', level: '⭐ Level up', boss: '💀 A great foe', chapter: '✨ A new chapter', rank: '✦ Archmage rank' }[b.kind] || '';
+  const el = document.createElement('div');
+  el.className = `banner ${b.kind}`;
+  el.innerHTML = `<div class="banner-band"></div><div class="banner-text"><div class="banner-label">${label}</div><div class="banner-title">${b.title}</div>${b.sub ? `<div class="banner-sub">${b.sub}</div>` : ''}</div>`;
+  document.body.appendChild(el);
+  const hold = b.kind === 'boss' ? 2600 : 2900;
+  setTimeout(() => el.classList.add('out'), hold);
+  setTimeout(() => { el.remove(); nextBanner(); }, hold + 450);
 }
 
 // ------------------------------------------------------------ dialogue
@@ -136,8 +223,18 @@ export function openModal(title, bodyHTML, onMount, onClose) {
 }
 
 export function closeModal() {
-  $('#modal').classList.add('hidden');
-  $('#modal').innerHTML = '';
+  const el = $('#modal');
+  // a copy of the window fades out on top while the real one is already gone
+  const box = el.querySelector('.modal-box');
+  if (box && !el.classList.contains('hidden') && !document.body.classList.contains('reduce-motion')) {
+    const ghost = document.createElement('div');
+    ghost.className = 'modal-ghost';
+    ghost.appendChild(box.cloneNode(true));
+    document.body.appendChild(ghost);
+    setTimeout(() => ghost.remove(), 180);
+  }
+  el.classList.add('hidden');
+  el.innerHTML = '';
   if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
 }
 
@@ -290,6 +387,8 @@ export function updateHotbar(state) {
     if (!el || !s) return;
     el.cd.style.background = cdStyle(s.left, s.total);
     el.cd.textContent = s.left > 0.9 ? Math.ceil(s.left) : '';
+    if (el.was > 0.3 && s.left <= 0) { el.b.classList.remove('ready'); void el.b.offsetWidth; el.b.classList.add('ready'); }
+    el.was = s.left;
     el.b.classList.toggle('poor', s.poor);
   });
   const pc = hotbarEls.potion.querySelector('.hb-cd');

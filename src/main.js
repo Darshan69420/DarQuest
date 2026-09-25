@@ -120,6 +120,19 @@ function showNewGame(i) {
 }
 
 function buildTitle() {
+  // embers drifting up past the logo
+  if (!document.querySelector('#title .embers')) {
+    const em = document.createElement('div');
+    em.className = 'embers';
+    for (let i = 0; i < 26; i++) {
+      const s = document.createElement('span');
+      s.className = 'ember';
+      const size = 2 + Math.random() * 3.5;
+      s.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${9 + Math.random() * 10}s;animation-delay:${-Math.random() * 18}s;--dx:${(Math.random() - 0.5) * 160}px`;
+      em.appendChild(s);
+    }
+    $('#title').prepend(em);
+  }
   let chosen = null;
   let difficulty = 'normal';
   const grid = $('#school-grid');
@@ -449,7 +462,7 @@ function acceptQuest(q) {
 function completeQuest(q) {
   const { levels, pet } = applyReward(player, q.reward);
   const r = q.reward;
-  UI.toast(`✅ Quest complete: <b>${UI.esc(q.name)}</b><br>+${r.xp} XP · +${r.gold} gold${r.potions ? ` · +${r.potions} potion` : ''}${r.tp ? ` · +${r.tp} Training Point${r.tp > 1 ? 's' : ''}` : ''}`, 'quest');
+  UI.banner('quest', UI.esc(q.name), `+${r.xp} XP · +${r.gold} gold${r.potions ? ` · +${r.potions} potion` : ''}${r.tp ? ` · +${r.tp} Training Point${r.tp > 1 ? 's' : ''}` : ''}`);
   Audio.sfx('quest');
   if (pet) {
     world.setPet(player.activePet);
@@ -458,11 +471,14 @@ function completeQuest(q) {
   announceLevels(levels);
   player.quest = { index: player.quest.index + 1, state: 'available', progress: 0 };
   if (player.quest.index === 7) setTimeout(() => UI.toast('🌀 The <b>Spiral Door</b> in the courtyard has awakened…', 'good'), 1200);
-  if (player.quest.index === 44) setTimeout(() => UI.toast('🌑 <b>Chapter 7: The Pale Magister.</b> The last Spiral Door has opened, black as ink, near the Rift Gate. The Hollow Deep awaits.', 'good'), 1800);
-  if (player.quest.index === 37) setTimeout(() => UI.toast('🌳 <b>Chapter 6: The Blighted Heart.</b> A vine-wrapped Spiral Door has opened on the east side of the courtyard: Thornwood awaits.', 'good'), 1800);
-  if (player.quest.index === 30) setTimeout(() => UI.toast('⚡ <b>Chapter 5: Eye of the Storm.</b> A crackling Spiral Door has opened in the north-west of the courtyard: Stormspire awaits.', 'good'), 1800);
-  if (player.quest.index === 23) setTimeout(() => UI.toast('❄️ <b>Chapter 4: The Frozen Crown.</b> A Spiral Door in the courtyard has frozen over: Glacierreach awaits.', 'good'), 1800);
-  if (player.quest.index === 14) setTimeout(() => UI.toast('🐉 <b>Chapter 3: Wings of Ruin.</b> A new Spiral Door has opened in the courtyard: the Dragonspire Peaks await.', 'good'), 1800);
+  const chapter = {
+    14: ['Chapter 3: Wings of Ruin', 'A new Spiral Door has opened in the courtyard. The Dragonspire Peaks await.'],
+    23: ['Chapter 4: The Frozen Crown', 'A Spiral Door in the courtyard has frozen over. Glacierreach awaits.'],
+    30: ['Chapter 5: Eye of the Storm', 'A crackling Spiral Door has opened in the north-west of the courtyard.'],
+    37: ['Chapter 6: The Blighted Heart', 'A vine-wrapped Spiral Door has opened on the east side of the courtyard.'],
+    44: ['Chapter 7: The Pale Magister', 'The last Spiral Door has opened, black as ink, near the Rift Gate.'],
+  }[player.quest.index];
+  if (chapter) UI.banner('chapter', ...chapter);
   if (q.reward.voice) setTimeout(() => UI.toast('🗣️ You have the <b>Voice</b>. Read Word Walls to learn dragon shouts!', 'good'), 1200);
   if (!QUESTS[player.quest.index]) {
     player.storyMax = Math.max(player.storyMax || 0, QUESTS.length);
@@ -589,10 +605,10 @@ function announceLevels(levels) {
   if (levels && (settings.worldScaling || player.ngplus)) rescaleFoes();
   world.aura(world.player, 0xf2c14e);
   Audio.sfx('levelup');
-  if (levels) UI.toast(atCap(player)
-    ? `🌟 <b>Level ${player.level}: the level cap!</b> From now on, experience earns <b>Archmage ranks</b> (+1% damage and health each).`
-    : `⭐ <b>Level up!</b> You are now level ${player.level}. +1 Training Point (Mirabel) and +1 Talent Point (C → Talents)!`, 'good');
-  if (arch) UI.toast(`✦ <b>Archmage rank ${player.arch}</b>${player.arch >= ARCH_MAX ? ' (the highest!)' : ''}: +${player.arch}% damage and health.`, 'good legendary');
+  if (levels) UI.banner('level', `Level ${player.level}`, atCap(player)
+    ? 'The level cap. From now on, experience earns Archmage ranks.'
+    : 'A Training Point for Mirabel and a Talent Point to spend');
+  if (arch) UI.banner('rank', `Archmage ${player.arch}`, `${player.arch >= ARCH_MAX ? 'The highest rank there is. ' : ''}+${player.arch}% damage and health`);
 }
 
 // Called whenever a menu changes the player. `kind` picks a sound and whether to rebuild the model.
@@ -621,7 +637,11 @@ const combat = new Combat({
   onCombatChange: (fighting, boss) => {
     Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : areaAt(world.player.position.x, world.player.position.z).music);
     if (fighting) { gatherer.stop(); world.dismount(); }
-    if (fighting && boss) Audio.sfx('boss');
+    if (fighting && boss) {
+      Audio.sfx('boss');
+      const b = world.enemies.find(e => e.def.boss && e.state === 'aggro');
+      if (b) UI.banner('boss', UI.esc(b.def.name), `Level ${b.power?.level ?? b.def.level}`);
+    }
   },
 });
 

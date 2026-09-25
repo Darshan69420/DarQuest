@@ -578,14 +578,19 @@ function sprig() {
   for (const [x, y, z] of [[-0.42, 0.18, -0.25], [0.38, -0.12, -0.32], [0.05, 0.3, -0.48], [-0.3, -0.3, -0.35]]) {
     add(bulb, sph(0.09, 10, 8), mat(0x7a4aa8), x, y, z, { s: [1, 1, 0.4] });
   }
+  // faintly glowing spore freckles on its cheeks and back
+  for (const [x, y, z, r] of [[-0.3, -0.05, 0.42, 0.045], [0.34, 0.12, 0.4, 0.035], [0.15, -0.32, 0.42, 0.04], [-0.1, 0.35, -0.42, 0.05]]) {
+    add(bulb, sph(r, 8, 6), glowMat(0xb46bff, 1.5), x, y, z, { shadow: false });
+  }
   const face = makeFace(R, { eyeR: 0.15, gap: 0.2, eyeY: 0.1, iris: 0xc07bff, brows: 'angry', browColor: 0x14081e, mouth: 'grin', mouthY: -0.16, mouthW: 0.14 });
   bulb.add(face);
   const crown = group(bulb, 0, R * 0.85, 0);
-  const leaves = [[0, 0.75, 0x3e8a4c], [2.1, 0.8, 0x2f7040], [4.2, 0.7, 0x7a3aa0], [1.05, 0.35, 0x4ea85c]];
-  for (const [a, tilt, c] of leaves) {
+  const leaves = [[0, 0.75, 0x3e8a4c, 1], [2.1, 0.8, 0x2f7040, 1.35], [4.2, 0.7, 0x7a3aa0, 1], [1.05, 0.35, 0x4ea85c, 1]];
+  for (const [a, tilt, c, big] of leaves) {
     const p = group(crown);
     p.rotation.set(tilt, a, 0, 'YXZ');
-    add(p, sph(0.2, 14, 10), mat(c), 0, 0.3, 0, { s: [0.55, 1.5, 0.2] });
+    add(p, sph(0.2 * big, 14, 10), mat(c), 0, 0.3 * big, 0, { s: [0.55, 1.5, 0.2] });
+    if (big > 1) add(p, sph(0.05, 8, 6), glowMat(0xd08bff, 1.4), 0, 0.62 * big, 0, { shadow: false });
   }
   add(crown, new THREE.CylinderGeometry(0.03, 0.05, 0.35, 6), mat(0x2f5a34), 0, 0.15, 0);
   const bud = dyn(add(crown, sph(0.1, 12, 10), glowMat(0xd08bff, 1.4), 0, 0.36, 0));
@@ -637,9 +642,13 @@ function rat() {
     ears.push(p);
   }
   for (const [y, z] of [[1.0, 0.15], [1.02, -0.15], [0.98, -0.45]]) add(body, new THREE.ConeGeometry(0.08, 0.26, 5), glowMat(0xff8a2b, 2.2), 0, y, z, { shadow: false });
+  // ember-cracked hide: glowing seams along the flanks
+  for (const s of [-1, 1]) for (const [z, rz] of [[0.28, 0.3], [-0.05, -0.25], [-0.38, 0.35]]) {
+    add(body, new THREE.BoxGeometry(0.03, 0.22, 0.05), basic(0xff8a2a), s * 0.5, 0.62, z, { rz: s * rz, rx: 0.2, shadow: false, noOutline: true });
+  }
   const tail = group(body, 0, 0.5, -0.62);
   tube(tail, [[0, 0, 0], [0, 0.1, -0.35], [0.1, 0.4, -0.6], [0.05, 0.75, -0.55]], 0.05, mat(0xc07060));
-  const fire = flame(tail, 0.05, 0.75, -0.55, 0.8);
+  const fire = flame(tail, 0.05, 0.75, -0.55, 1.1);
   const blink = blinker(face.userData.eyes);
   g.userData.anim = (t, moving) => {
     blink(t);
@@ -729,6 +738,13 @@ function knight({ armor = 0x707894, dark = 0x2d2a3a, accent = 0x9a2a3a, eye = 0x
       add(helm, new THREE.ConeGeometry(0.065, 0.32, 5), mat(0xf2c14e), Math.cos(a) * 0.33, 0.6, Math.sin(a) * 0.33);
       add(helm, new THREE.OctahedronGeometry(0.05), glowMat(0xc542ff, 2.5), Math.cos(a) * 0.33, 0.78, Math.sin(a) * 0.33, { shadow: false });
     }
+    // a tall front spike and swept-back horns: a crown that reads from across the lane
+    add(helm, new THREE.ConeGeometry(0.09, 0.62, 5), mat(0xf2c14e), 0, 0.75, 0.26, { rx: 0.25 });
+    add(helm, new THREE.OctahedronGeometry(0.075), glowMat(0xc542ff, 2.8), 0, 1.06, 0.33, { shadow: false });
+    for (const s of [-1, 1]) {
+      tube(helm, [[s * 0.3, 0.45, -0.05], [s * 0.52, 0.62, -0.18], [s * 0.6, 0.9, -0.4]], 0.055, mat(0xf2c14e), 10);
+      add(helm, new THREE.ConeGeometry(0.05, 0.18, 5), mat(0xf2c14e), s * 0.6, 0.95, -0.43, { rx: -0.5, rz: -s * 0.3 });
+    }
   } else {
     add(helm, new THREE.BoxGeometry(0.07, 0.3, 0.62), acc, 0, 0.58, -0.02);
   }
@@ -750,7 +766,33 @@ function knight({ armor = 0x707894, dark = 0x2d2a3a, accent = 0x9a2a3a, eye = 0x
   add(armL, new THREE.CylinderGeometry(0.44, 0.44, 0.08, 18), boss ? mat(0x3a2a5a) : mat(0x5a3a2a), -0.14, -0.55, 0.46, { rx: Math.PI / 2 });
   add(armL, new THREE.TorusGeometry(0.44, 0.05, 6, 24), boss ? mat(0xf2c14e) : A, -0.14, -0.55, 0.48);
   add(armL, new THREE.OctahedronGeometry(0.13), boss ? glowMat(0xc542ff, 1.8) : acc, -0.14, -0.55, 0.53, { s: [1, 1.3, 0.4] });
-  const cape = dyn(add(body, new THREE.PlaneGeometry(0.95, 1.45, 1, 4), mat(boss ? 0x4a1466 : 0x3a2440, { side: THREE.DoubleSide }), 0, 1.05, -0.44, { rx: 0.12 }));
+  // the boss wears a tattered royal cloak, cut into ragged points
+  let capeGeo = new THREE.PlaneGeometry(0.95, 1.45, 1, 4);
+  if (boss) {
+    const s = new THREE.Shape();
+    s.moveTo(-0.68, 0);
+    s.lineTo(0.68, 0);
+    s.lineTo(0.64, -1.3);
+    s.lineTo(0.42, -1.05);
+    s.lineTo(0.24, -1.62);
+    s.lineTo(0, -1.2);
+    s.lineTo(-0.26, -1.7);
+    s.lineTo(-0.44, -1.1);
+    s.lineTo(-0.66, -1.42);
+    s.lineTo(-0.68, 0);
+    capeGeo = new THREE.ShapeGeometry(s, 4);
+  }
+  const cape = dyn(add(body, capeGeo, mat(boss ? 0x4a1466 : 0x3a2440, { side: THREE.DoubleSide }), 0, boss ? 1.62 : 1.05, -0.44, { rx: 0.12 }));
+  if (boss) add(body, new THREE.TorusGeometry(0.3, 0.045, 6, 18, Math.PI), mat(0xf2c14e), 0, 1.62, -0.42, { rx: Math.PI / 2, rz: Math.PI });
+  // a ring of hollow magic that breathes under the boss's feet
+  let aura = null;
+  if (boss) {
+    aura = dyn(add(g, new THREE.RingGeometry(0.9, 1.3, 28), new THREE.MeshBasicMaterial({ color: 0x8a3ae0, transparent: true, opacity: 0.4, side: THREE.DoubleSide }), 0, 0.06, 0, { rx: -Math.PI / 2, shadow: false, noOutline: true }));
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      add(aura, new THREE.OctahedronGeometry(0.09), glowMat(0xc542ff, 2.2), Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1, { shadow: false, noOutline: true });
+    }
+  }
   const wisps = [];
   if (boss) for (let i = 0; i < 3; i++) wisps.push(flame(body, 0, 1.6, 0, 0.7, [0x7a2ad0, 0xc542ff, 0xf0c8ff]));
   g.userData.anim = (t, moving) => {
@@ -768,6 +810,12 @@ function knight({ armor = 0x707894, dark = 0x2d2a3a, accent = 0x9a2a3a, eye = 0x
       f.position.set(Math.cos(a) * 1.25, 1.5 + Math.sin(t * 2 + i) * 0.25, Math.sin(a) * 1.25);
       f.userData.flicker(t);
     });
+    if (aura) {
+      const p = 1 + Math.sin(t * 2.2) * 0.1;
+      aura.scale.set(p, p, 1);
+      aura.rotation.z = t * 0.5;
+      aura.material.opacity = 0.3 + Math.sin(t * 2.2) * 0.14;
+    }
   };
   return finish(g, 0.028, 0.07);
 }
@@ -802,6 +850,8 @@ function crow() {
     return { p, s };
   });
   for (let k = -1; k <= 1; k++) add(body, new THREE.CapsuleGeometry(0.07, 0.35, 4, 8), k ? feather : tipM, k * 0.1, -0.3, -0.5, { rx: -1.0, rz: k * 0.35 });
+  // a little lightning bolt woven into the tail feathers
+  add(body, boltGeo(0.55), bolt, 0.05, -0.42, -0.62, { rx: -2.6, rz: 0.5, shadow: false });
   for (const s of [-1, 1]) {
     limb(body, V3(s * 0.15, -0.45, 0.05), V3(s * 0.17, -0.8, 0.1), 0.025, 0.025, mat(0xffa020), 5);
     for (const k of [-1, 0, 1]) limb(body, V3(s * 0.17, -0.8, 0.1), V3(s * 0.17 + k * 0.07, -0.85, 0.22), 0.02, 0.015, mat(0xffa020), 4);
@@ -1048,6 +1098,8 @@ function serpent() {
     const r = 0.44 - i * 0.03;
     const s = dyn(add(g, sph(r, 16, 10), i % 2 ? scaleB : scaleA, 0, 0.3 + i * 0.36, 0));
     add(s, new THREE.ConeGeometry(0.08, 0.22, 5), mat(0x2a1a18), 0, r * 0.7, -r * 0.7, { rx: -0.8 });
+    // a glowing heat seam on each segment's belly
+    if (i > 0) add(s, sph(r * 0.5, 10, 8), basic(0xff8a2a), 0, -r * 0.55, r * 0.62, { s: [0.8, 0.35, 0.5], shadow: false, noOutline: true });
     segs.push(s);
   }
   const head = group(g);
@@ -1126,6 +1178,11 @@ function pyrrhon() {
     add(crown, new THREE.ConeGeometry(0.09, 0.42, 5), gold, Math.cos(a) * 0.44, 0.28, Math.sin(a) * 0.44);
     add(crown, new THREE.OctahedronGeometry(0.07), glowMat(0xff3a2a, 2.2), Math.cos(a) * 0.46, 0.05, Math.sin(a) * 0.46, { shadow: false });
   }
+  // great obsidian horns framing the crown
+  for (const s of [-1, 1]) {
+    tube(head, [[s * 0.42, 0.28, -0.05], [s * 0.78, 0.5, -0.2], [s * 0.95, 0.92, -0.42]], 0.12, rock, 12);
+    add(head, new THREE.ConeGeometry(0.1, 0.3, 6), glowMat(0xff5a10, 1.6), s * 0.98, 1.02, -0.48, { rx: -0.6, rz: -s * 0.4 });
+  }
   const crownFire = [flame(crown, 0, 0.1, 0, 1.3), flame(crown, 0.18, 0.08, 0.1, 0.9), flame(crown, -0.18, 0.08, -0.1, 0.9)];
   const arms = [-1, 1].map(s => {
     const a = group(body, s * 1.38, 2.4, 0);
@@ -1136,6 +1193,23 @@ function pyrrhon() {
   });
   const cape = dyn(add(body, new THREE.PlaneGeometry(2.4, 2.6, 1, 6), mat(0x8a1a08, { emissive: 0xc02a08, emissiveIntensity: 0.7, side: THREE.DoubleSide }), 0, 1.7, -0.95, { rx: 0.1 }));
   const orbit = [0, 1, 2, 3].map(() => dyn(add(g, new THREE.DodecahedronGeometry(0.22, 0), mat(0x6e4234, { emissive: 0xff4a10, emissiveIntensity: 0.6 }), 0, 2, 0)));
+  // the ground melts where the Molten King stands: a breathing ring of lava
+  const auraM = new THREE.MeshBasicMaterial({ color: 0xff5a10, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  const aura = dyn(add(g, new THREE.RingGeometry(1.7, 2.35, 32), auraM, 0, 0.06, 0, { rx: -Math.PI / 2, shadow: false, noOutline: true }));
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    add(aura, new THREE.DodecahedronGeometry(0.16, 0), mat(0x241816), Math.cos(a) * 2.5, -0.04, Math.sin(a) * 2.5, { s: [1, 0.5, 1], noOutline: true });
+  }
+  // molten drool that falls from his fists and reforms
+  const drips = [];
+  for (const sx of [-1.48, 1.48]) for (let k = 0; k < 2; k++) {
+    drips.push({ m: dyn(add(body, sph(0.09, 8, 6), basic(0xffa020), sx, 1.1, 0.25, { shadow: false, noOutline: true })), off: k * 0.5 + (sx > 0 ? 0.25 : 0) });
+  }
+  // glowing cracks down his legs
+  for (const s of [-1, 1]) {
+    add(body, new THREE.BoxGeometry(0.06, 0.5, 0.05), magma, s * 0.55, 0.65, 0.48, { rz: s * 0.2, shadow: false, noOutline: true });
+    add(body, new THREE.BoxGeometry(0.06, 0.35, 0.05), magma, s * 0.62, 0.4, 0.46, { rz: -s * 0.35, shadow: false, noOutline: true });
+  }
   g.scale.setScalar(1.25);
   g.userData.anim = (t, moving) => {
     body.position.y = Math.sin(t * 1.4) * 0.05;
@@ -1149,6 +1223,14 @@ function pyrrhon() {
       const a = t * 1.1 + (i / 4) * Math.PI * 2;
       r.position.set(Math.cos(a) * 2.2, 2.4 + Math.sin(t * 2 + i) * 0.4, Math.sin(a) * 2.2);
       r.rotation.set(t, t * 1.3, 0);
+    });
+    const ap = 1 + Math.sin(t * 1.8) * 0.07;
+    aura.scale.set(ap, ap, 1);
+    auraM.opacity = 0.42 + Math.sin(t * 1.8) * 0.12;
+    drips.forEach((d) => {
+      const k = (t * 0.7 + d.off) % 1;
+      d.m.position.y = 1.15 - k * 1.0;
+      d.m.scale.setScalar(0.6 + k * 0.7);
     });
   };
   return finish(g, 0.03, 0.07);
@@ -1820,6 +1902,62 @@ export function makeThrone() {
   add(g, new THREE.CircleGeometry(0.7, 20), basic(0xffd040), 0, 5.2, -0.96, { shadow: false });
   g.userData.anim = (t) => fires.forEach(f => f.userData.flicker(t));
   return finish(g, 0.06, 0.4);
+}
+
+// A lava vent: a cracked obsidian mound that huffs flame and embers.
+export function makeLavaVent(scale = 1) {
+  const g = new THREE.Group();
+  const obs = mat(0x2f1d1a), obs2 = mat(0x44291f);
+  add(g, new THREE.ConeGeometry(1.1, 1.5, 7), obs, 0, 0.7, 0, { s: [1, 1, 0.85] });
+  add(g, new THREE.ConeGeometry(0.55, 0.9, 6), obs2, 0.7, 0.4, 0.35, { rz: -0.3 });
+  add(g, new THREE.ConeGeometry(0.45, 0.7, 6), obs2, -0.65, 0.32, -0.2, { rz: 0.35 });
+  // the glowing throat and cracks
+  add(g, new THREE.CircleGeometry(0.34, 14), basic(0xffc040), 0, 1.42, 0, { rx: -Math.PI / 2, shadow: false, noOutline: true });
+  add(g, new THREE.CircleGeometry(0.44, 14), basic(0xff5a10), 0, 1.41, 0, { rx: -Math.PI / 2, shadow: false, noOutline: true });
+  for (const [x, z, rz, len] of [[0.5, 0.55, 0.7, 0.5], [-0.55, 0.4, -0.5, 0.4], [0.1, -0.75, 0.15, 0.45], [-0.3, -0.5, -0.9, 0.35]]) {
+    add(g, new THREE.BoxGeometry(0.05, len, 0.04), basic(0xff6a1a), x, 0.55, z, { rz, rx: 0.5, shadow: false, noOutline: true });
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.4;
+    add(g, new THREE.DodecahedronGeometry(rnd(0.18, 0.3), 0), obs2, Math.cos(a) * 1.05, 0.08, Math.sin(a) * 1.0, { s: [1, 0.55, 1] });
+  }
+  const jet = flame(g, 0, 1.4, 0, 1.6);
+  const puffs = [0, 1].map(() => dyn(add(g, sph(0.16, 10, 8), glowMat(0xffa040, 1.8), 0, 1.5, 0, { shadow: false })));
+  g.scale.setScalar(scale);
+  g.userData.anim = (t) => {
+    jet.userData.flicker(t * 1.4);
+    jet.scale.setScalar(1 + Math.max(0, Math.sin(t * 0.9)) * 0.5);
+    puffs.forEach((p, i) => {
+      const k = (t * 0.35 + i * 0.5) % 1;
+      p.position.set(Math.sin(i * 9 + t) * 0.15, 1.6 + k * 1.3, Math.cos(i * 7 + t * 0.8) * 0.15);
+      p.scale.setScalar((k < 0.85 ? k : (1 - k) * 5.6) * 1.2);
+    });
+  };
+  return finish(g, 0.04, 0.3);
+}
+
+// A ruined obsidian pillar of the old Emberfall court, runes still warm.
+export function makeRuinedPillar(h = 4, broken = Math.random() < 0.6) {
+  const g = new THREE.Group();
+  const stone = mat(0x3a2420), stone2 = mat(0x4a2e26), rune = glowMat(0xff6a1a, 1.8);
+  add(g, new THREE.CylinderGeometry(0.85, 1.0, 0.5, 8), stone2, 0, 0.25, 0);
+  add(g, new THREE.CylinderGeometry(0.62, 0.72, h, 8), stone, 0, 0.5 + h / 2, 0, { ry: 0.4 });
+  if (broken) {
+    add(g, new THREE.ConeGeometry(0.62, 0.7, 8), stone, 0, 0.5 + h + 0.3, 0, { rx: Math.PI, ry: 0.4, s: [1, 1, 0.9] });
+    // the fallen top, half sunk beside it
+    add(g, new THREE.CylinderGeometry(0.6, 0.6, 1.4, 8), stone2, 1.15, 0.35, 0.5, { rz: 1.25, ry: 0.7 });
+  } else {
+    add(g, new THREE.BoxGeometry(1.5, 0.35, 1.5), stone2, 0, 0.6 + h, 0, { ry: 0.4 });
+    add(g, new THREE.OctahedronGeometry(0.2), glowMat(0xff8a2b, 2.2), 0, 0.95 + h, 0, { shadow: false });
+  }
+  // glowing glyph bands
+  for (const y of [1.1, h * 0.55 + 0.4]) {
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + 0.4;
+      add(g, new THREE.BoxGeometry(0.16, 0.22, 0.03), rune, Math.cos(a) * 0.68, y, Math.sin(a) * 0.68, { ry: -a + Math.PI / 2, shadow: false, noOutline: true });
+    }
+  }
+  return finish(g, 0.045, 0.3, true);
 }
 
 // ---------------------------------------------------------------- skilling: resource nodes

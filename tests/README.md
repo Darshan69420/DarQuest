@@ -4,7 +4,7 @@ Headless browser tests that play the game. They need [Playwright](https://playwr
 (`npm i -g playwright`) and the game served locally:
 
 ```sh
-python3 -m http.server 8123        # from the repository root
+node tests/serve.cjs               # from the repository root (or: python3 -m http.server 8123)
 ```
 
 Then, from the repository root:
@@ -24,7 +24,14 @@ node tests/run.cjs tests/fuzz.js --low --w=390 --h=844 --q="seed=13&n=300&level=
 
 # the Sol Mage wallet, with a pretend wallet and network
 node tests/wallet.cjs
+
+# smoke: visit every land's spawn in one boot, and boot the model gallery on its own
+node tests/run.cjs tests/smoke.js --low --shot=smoke
+node tests/run.cjs --low --page=gallery.html --notitle --shot=gallery
 ```
 
 `--low` uses Low graphics quality, which runs much faster in a headless browser. Each run
 ends with `no console errors` when all is well; the fuzzer also prints the scenarios it tried.
+
+Useful flags: `--page=<html>` loads a different page, `--notitle` skips starting a new game,
+`--w=/--h=` set the viewport, `--shot=<name>` names the screenshot in `tests/shots/`.

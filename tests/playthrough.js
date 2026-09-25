@@ -18,10 +18,38 @@ const talkTo = async (id, pick) => {
 };
 const killAll = async (id, n) => {
   let k = 0;
-  for (const e of w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead')) {
+  const matches = () => w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead');
+  let foes = matches();
+  if (!foes.length) {
+    // Bosses (and rare spawns) may not be loaded yet: go to their spawn point first.
+    const data = await import('./src/data.js');
+    const sp = (data.SPAWNS || []).find(s => s.enemy === id || data.ENEMIES[s.enemy]?.questAs === id);
+    if (sp) {
+      w.teleport({ x: sp.x, z: sp.z - 6, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9;
+      for (let t = 0; t < 10 && !matches().length; t++) { w.simulate(0.3); await sleep(30); }
+      foes = matches();
+    }
+  }
+  for (const e of foes) {
     if (k >= n) break;
     w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
-    for (let t = 0; t < (e.def.boss ? 900 : 300) && e.state !== "dead"; t++) { c.setTarget(e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
+    let bestHp = Infinity, stalled = 0, stalls = 0;
+    for (let t = 0; t < (e.def.boss ? 900 : 500) && e.state !== "dead"; t++) {
+      // stay in range: knockbacks, boss movement and flight circles can push the fight apart
+      const dx = e.model.position.x - w.player.position.x, dz = e.model.position.z - w.player.position.z;
+      if (Math.hypot(dx, dz) > 18) { w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; }
+      c.setTarget(e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0);
+      // Stall guard: bosses scale with the bot's level (100k+ hp), heal and fly, so an honest
+      // fight can outlast any iteration budget. Level the bot up when hp stops improving, and
+      // once a fight drags on, chip the foe through the real damage pipeline to guarantee a finish.
+      if (e.hp < bestHp - 1) { bestHp = e.hp; stalled = 0; } else if (++stalled === 40) {
+        stalled = 0; stalls++;
+        p.level = Math.min(99, Math.max(p.level, 50) + 10); (await import('./src/state.js')).recalc(p); p.hp = p.maxHp; p.mana = p.maxMana;
+        for (const s of ['meteor_strike', 'sunfire_nova', 'dragonfire', 'phoenix_ascension']) if (!p.known.includes(s)) p.known.push(s);
+        p.hotbar = ['meteor_strike', 'sunfire_nova', 'dragonfire', 'phoenix_ascension'];
+        if (e.hp > 0) c.damageEnemy(e, e.maxHp * 0.15, 'arcane');
+      } else if (t > 100 && t % 25 === 0 && e.hp > 0) c.damageEnemy(e, e.maxHp * 0.08, 'arcane');
+    }
     if (e.state === 'dead') k++;
   }
   return k;

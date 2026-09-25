@@ -108,6 +108,7 @@ const GROUPS = {
       ['portal', 'Spiral Door', () => M.makePortal(0xff7a3d)], ['tent', 'Tent', () => M.makeTent()], ['campfire', 'Campfire', () => M.makeCampfire()],
       ['lava', 'Lava pool', () => M.makeLavaPool(1.8)], ['spire', 'Obsidian spire', () => M.makeSpire(5)], ['firetree', 'Fire tree', () => M.makeFireTree(0.8)],
       ['cliff', 'Cliff', () => M.makeCliff(6, 9, 6)], ['throne', 'Molten throne', () => M.makeThrone()],
+      ['vent', 'Lava vent', () => M.makeLavaVent()], ['pillar', 'Ruined pillar', () => M.makeRuinedPillar(4)], ['pillar2', 'Fallen pillar', () => M.makeRuinedPillar(3, true)],
     ].map(([id, name, build]) => ({ id, name, build })),
   },
 };

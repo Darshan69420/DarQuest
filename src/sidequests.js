@@ -154,6 +154,65 @@ export const SIDE_QUESTS = [
     done: 'The path is clear. Take this sigil. It was mine, before the Hollow took me.',
     reward: { xp: 18000, gold: 1800, gear: ['deep_sigil'] },
   },
+
+  // ---------------- Emberfall Wilds ----------------
+  {
+    id: 'ember1', mainQuest: 8, name: 'Emberroot Tea', giver: 'kestra', turnIn: 'kestra',
+    objective: { type: 'bring', item: 'emberroot', count: 6 },
+    offer: 'Scout\'s secret: Emberroot tea keeps your fingers warm when the night wind comes down the canyon. It grows along the canyon walls, little red roots that glow like coals. Bring me 6 and I will brew you a cup that tastes like a bonfire smells.',
+    done: 'Oh, good roots these. Sit a moment... There. Tastes like a bonfire smells, does it not? Here, these potions are for the road. The kettle is always on for you.',
+    reward: { xp: 700, gold: 90, skillXp: { foraging: 300 }, items: { greater_potion: 2 } },
+  },
+  {
+    id: 'ember2', mainQuest: 10, name: 'The Chanting Never Stops', giver: 'tumblewick', turnIn: 'tumblewick',
+    objective: { type: 'defeat', enemy: 'ashen_shaman', count: 5 },
+    offer: 'You smashed their totems, and good work too, but the Ashen Shamans keep sneaking back and chanting the flames awake again. My old ears can hear them all night. Put 5 of them down for good.',
+    done: 'Quiet. Blessed quiet. You know, I cut my first wand from obsidian I picked up in this canyon. Here, it is time it had a better owner.',
+    reward: { xp: 950, gold: 120, gear: ['obsidian_rod'] },
+  },
+
+  // ---------------- Dragonspire Peaks ----------------
+  {
+    id: 'dragon1', mainQuest: 15, name: 'Teeth Like Needles', giver: 'kael', turnIn: 'kael',
+    objective: { type: 'defeat', enemy: 'wyrmling', count: 8 },
+    offer: 'The wyrmlings keep hatching faster than we can count them. Cute as buttons, teeth like needles, and my scouts are running out of boots to be bitten through. Thin them out: 8 of the little horrors.',
+    done: 'Eight? The path is already quieter. Take this ward against dragonfire. I was saving it for myself, but you seem to attract the big ones.',
+    reward: { xp: 2600, gold: 320, items: { dragonfire_ward: 1 } },
+  },
+  {
+    id: 'dragon2', mainQuest: 19, name: 'Silence the Hymn', giver: 'vaelith', turnIn: 'vaelith',
+    objective: { type: 'defeat', enemy: 'dragon_cultist', count: 6 },
+    offer: 'The Scaled Cult sings to the dragons at dawn and dusk, a hymn in a tongue they barely understand. The words still work. That is what frightens me. Silence 6 of their singers on the ridge.',
+    done: 'The dawn came up quiet today. First time in three winters. Take this hood of wyrmscale: it turned a cultist\'s knife once, and it will turn worse.',
+    reward: { xp: 3200, gold: 400, gear: ['wyrmscale_hood'] },
+  },
+
+  // ---------------- more of Glacierreach ----------------
+  {
+    id: 'frost4', mainQuest: 26, name: 'The Frozen Choir', giver: 'ingrid', turnIn: 'ingrid',
+    objective: { type: 'defeat', enemy: 'frost_wraith', count: 8 },
+    offer: 'Some spirits are too frozen to hear the braziers call them home. They stand out on Mirror Lake and sing one thin note, all night, every night. Free 8 of them, gently, and let the choir rest.',
+    done: 'I listened at the window last night. Silence, for the first time in a year. The Queen\'s old cloak hangs in my cedar chest. It kept her warm. Let it keep you warm.',
+    reward: { xp: 6200, gold: 650, gear: ['aurora_cloak'] },
+  },
+
+  // ---------------- more of Stormspire ----------------
+  {
+    id: 'storm4', mainQuest: 34, name: 'Heavy Weather', giver: 'breck', turnIn: 'breck',
+    objective: { type: 'defeat', enemy: 'tempest_golem', count: 6 },
+    offer: 'Those Tempest Golems near the Crystal Spire are walking thunderstorms with grudges. One of them wrecked my best anvil and I want satisfaction. Break 6 of them apart.',
+    done: 'Ha! I heard the thunder turn to pebbles from here. These boots walked the sky-docks before you were born. They have never once been blown off a bridge.',
+    reward: { xp: 8500, gold: 850, gear: ['windstep_boots'] },
+  },
+
+  // ---------------- more of Thornwood ----------------
+  {
+    id: 'thorn4', mainQuest: 43, name: 'Things in the Rot', giver: 'rowan', turnIn: 'rowan',
+    objective: { type: 'defeat', enemy: 'blight_horror', count: 6 },
+    offer: 'In the Blighted Grove, the rot has learned to walk. Blight Horrors, the druids call them, though we have no kinder word that fits. Put 6 of them back into the ground, where rot belongs.',
+    done: 'The grove breathed easier tonight. I felt it in the roots of my own feet. Take this band of living briar. It was grown for a protector, and that is what you have become.',
+    reward: { xp: 13000, gold: 1250, gear: ['briar_band'] },
+  },
 ];
 export const SIDE = Object.fromEntries(SIDE_QUESTS.map(q => [q.id, q]));
 

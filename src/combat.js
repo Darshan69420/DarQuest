@@ -15,6 +15,14 @@ const GLOBAL_COOLDOWN = 0.35;
 const DODGE_COOLDOWN = 1.6;
 const TICK = 1;          // damage / healing over time ticks once a second
 
+// Enemy family twists, keyed by enemy id so no data tables change:
+//   STRAFERS — skittish casters that orbit you between spells instead of standing still
+//   KITERS   — healers/shamans that back away when you crowd them, so you must chase or swap
+//   LUNGERS  — packs that close a medium gap with a sudden burst of speed
+const STRAFERS = new Set(['storm_crow', 'gale_sprite', 'skyraider', 'frost_wraith', 'pixie']);
+const KITERS = new Set(['ashen_shaman', 'dragon_cultist']);
+const LUNGERS = new Set(['cinderhound', 'briar_stalker', 'snow_wolf']);
+
 export class Combat {
   constructor({ world, onKill, onPlayerDeath, onHurt, onCombatChange, onMessage }) {
     this.world = world;
@@ -74,6 +82,11 @@ export class Combat {
     e.fly = null;
     e.flyPending = null;
     e.stunUntil = e.rendUntil = e.slowUntil = 0;
+    e.strafeDir = 0;       // circling casters: which way round the player they drift
+    e.strafeFlip = 0;
+    e.lungeReady = 0;      // lunging packs: next time they may burst forward
+    e.grasp = null;        // Lord Hollowmere's chasing grave circles
+    e.graspReady = 0;
     e.state = e.state === 'dead' ? 'dead' : 'idle';
     this.updateBar(e);
   }
@@ -240,7 +253,7 @@ export class Combat {
         const flight = big ? w.meteor(target.model, color, 0.8 + spell.pips * 0.12) : w.projectile(fromModel, target.model, color, (0.22 + spell.pips * 0.05) * (power > 1 ? 1.7 : 1));
         const cm = hitMult();
         flight.then(() => {
-          if (target.state === 'dead') return;
+          if (!target.mods || target.state === 'dead') return; // target may be despawned by a zone change mid-flight
           const hit = spell.target === 'all'
             ? this.alive().filter(e => flat(e.model.position, target.model.position) < 6)
             : [target];
@@ -269,7 +282,7 @@ export class Combat {
       case 'dot': {
         const cm = hitMult();
         w.projectile(fromModel, target.model, color, 0.28).then(() => {
-          if (target.state === 'dead') return;
+          if (!target.mods || target.state === 'dead') return;
           this.addOverTime(target.mods.dots, spell.total * cm, spell.rounds, spell.school);
           w.float(target.model, `${school.icon} burning`, 'status');
           this.aggro(target);
@@ -279,7 +292,7 @@ export class Combat {
       case 'trap':
       case 'weakness':
         w.projectile(fromModel, target.model, spell.type === 'trap' ? color : 0x888899, 0.2).then(() => {
-          if (target.state === 'dead') return;
+          if (!target.mods || target.state === 'dead') return;
           (spell.type === 'trap' ? target.mods.traps : target.mods.weak).push(spell.pct);
           w.float(target.model, spell.type === 'trap' ? `🎯 +${Math.round(spell.pct * 100)}%` : `🔻 −${Math.round(spell.pct * 100)}%`, 'status');
           this.aggro(target);
@@ -341,10 +354,19 @@ export class Combat {
   }
 
   // Damage from the world itself (traps, explosions), not from an enemy.
+  // An attack met by dodge i-frames: a bright whiff so the player FEELS the save.
+  dodged() {
+    const w = this.world;
+    w.float(w.player, '✦ Dodged!', 'status');
+    w.burst(w.chest(w.player), 0x9fe6ff, 8, 2.5);
+    w.hitStop(0.05);
+    sfx('fizzle');
+  }
+
   envHit(amount, school = 'arcane') {
     const p = this.p, w = this.world;
     if (!p || p.hp <= 0) return;
-    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
+    if (w.time < w.invulnUntil) { this.dodged(); return; }
     let m = 1 + this.rm('taken');
     for (const s of this.hero.shields) m *= 1 - s;
     this.hero.shields = [];
@@ -383,7 +405,7 @@ export class Combat {
     this.world.float(e.model, crit ? `${dealt}!` : `${dealt}`, crit ? 'dmg crit' : 'dmg');
     this.world.hitReact(e.model);
     if (crit) sfx('crit');
-    if (knock && !e.def.boss && e.def.speed > 0 && e.hp > dealt) this.world.knock(e, this.world.player.position, 1.4);
+    if (knock && !e.def.boss && e.def.speed > 0 && e.hp > dealt) this.world.knock(e, this.world.player.position, crit ? 1.9 : 1.4);
     this.aggro(e);
     if (e.hp <= 0) this.kill(e);
     else this.checkPhases(e);
@@ -402,7 +424,7 @@ export class Combat {
   hitHero(amount, school, color, from) {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
-    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
+    if (w.time < w.invulnUntil) { this.dodged(); return; }
     let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * ferocity(from.def) * (1 + this.rm('taken'));
     if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
@@ -421,7 +443,7 @@ export class Combat {
     if (this.rm('thorns') && from.state !== 'dead') this.damageEnemy(from, dealt * this.rm('thorns'), 'verdant', 0x5fdc6a);
     if (from.def.drainHit) { from.hp = Math.min(from.maxHp, from.hp + dealt * from.def.drainHit); this.updateBar(from); }
     w.burst(w.chest(w.player), color, 10, 3);
-    if (dealt > p.maxHp * 0.15) w.shake(0.3);
+    if (dealt > p.maxHp * 0.15) { w.shake(0.3); w.hitStop(0.05); }
     this.onHurt?.();
     if (p.hp <= 0) this.heroDown();
   }
@@ -501,6 +523,54 @@ export class Combat {
           this.world.aura(add.model, 0xff6a2b);
         }
       }
+    }
+  }
+
+  // ------------------------------------------------------------ behaviour twists
+
+  // Skittish casters orbit the player at spell range instead of standing still.
+  strafe(e, pp, dt, t, range, speed) {
+    if (!e.strafeDir) e.strafeDir = Math.random() < 0.5 ? 1 : -1;
+    if (t >= e.strafeFlip) { e.strafeFlip = t + rand(3, 6); if (Math.random() < 0.2) e.strafeDir *= -1; }
+    const m = e.model.position;
+    const ang = Math.atan2(m.x - pp.x, m.z - pp.z) + e.strafeDir * dt * 1.1;
+    const to = { x: pp.x + Math.sin(ang) * range * 0.85, z: pp.z + Math.cos(ang) * range * 0.85 };
+    this.world.moveEnemy(e, to, speed * 1.5, dt, 0.3);
+    this.world.faceEnemy(e, pp);
+  }
+
+  // Healers and shamans hate being crowded: they back away, so you must chase or swap targets.
+  kite(e, pp, dt, t, d, speed) {
+    if (d > 7.5) return;
+    const m = e.model.position;
+    const ang = Math.atan2(m.x - pp.x, m.z - pp.z);
+    const to = { x: pp.x + Math.sin(ang) * 10, z: pp.z + Math.cos(ang) * 10 };
+    this.world.moveEnemy(e, to, speed * 1.4, dt, 0.3);
+    this.world.faceEnemy(e, pp);
+  }
+
+  // Lord Hollowmere's signature: at 60% the ground itself starts hunting the player —
+  // four grave circles that snap to where you STAND, one after another. Keep moving.
+  bossSignature(e, t) {
+    if (e.def.id !== 'lord_hollowmere') return;
+    const g = e.grasp;
+    if (g) {
+      if (t >= g.next) {
+        const pp = this.world.player.position;
+        const a = Math.random() * Math.PI * 2, r = Math.random() * 1.8;
+        const spell = { id: 'grave_grasp', name: 'Grave Grasp', school: 'umbral', type: 'damage', min: 34, max: 58, pips: 2 };
+        this.queueAoe(e, spell, [{ shape: 'circle', x: pp.x + Math.cos(a) * r, z: pp.z + Math.sin(a) * r, r: 2.7, color: 0xb46bff }], 1.05);
+        if (--g.left <= 0) e.grasp = null;
+        else g.next = t + 0.85;
+      }
+      return;
+    }
+    if (e.hp < e.maxHp * 0.6 && t >= e.graspReady && !e.cast) {
+      e.graspReady = t + 17;
+      e.grasp = { left: 4, next: t + 0.9 };
+      this.onMessage?.(`${e.def.name}: "The Hollow hungers. Keep moving, little light."`, 'boss');
+      sfx('boss');
+      this.world.aura(e.model, 0xb46bff);
     }
   }
 
@@ -594,6 +664,9 @@ export class Combat {
       const dur = (aoe.dur ?? 1.1) / Math.sqrt(speed);
       const shapes = this.aoeShapes(e, aoe);
       e.cast = { spell, t: 0, dur, aoe: shapes, tele: shapes.map(sp => this.world.telegraph({ ...sp, dur })) };
+      // big ground attacks need to read BEFORE the shape fills: warn over the caster and flash it
+      this.world.float(e.model, spell.pips >= 4 ? '‼️' : '⚠️', 'status');
+      this.world.aura(e.model, SCHOOLS[spell.school].color);
       sfx('warn');
       if (aoe.breath) { e.model.userData.roar?.(); sfx('roar'); }
       return;
@@ -660,7 +733,7 @@ export class Combat {
         return;
       }
       const flight = spell.pips >= 4 ? w.meteor(w.player, color, 0.7 + spell.pips * 0.1) : w.projectile(e.model, w.player, color, 0.22 + spell.pips * 0.05, 15);
-      flight.then(() => { if (e.state !== 'dead') this.applyEnemyHit(e, spell, color); });
+      flight.then(() => { if (e.mods && e.state !== 'dead') this.applyEnemyHit(e, spell, color); });
       return;
     }
     // support spells: heal the most hurt friend nearby, buff itself
@@ -697,7 +770,7 @@ export class Combat {
         break;
       }
       case 'dot':
-        if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
+        if (w.time < w.invulnUntil) { this.dodged(); return; }
         this.addOverTime(this.hero.dots, spell.total * (1 + this.diff.dmg), spell.rounds, spell.school);
         w.float(w.player, `${SCHOOLS[spell.school].icon} burning`, 'status');
         break;
@@ -770,6 +843,7 @@ export class Combat {
         if (e.fly) { this.updateFlight(e, dt); this.updateBar(e); continue; }
         if (e.stunUntil > t) { e.moving = false; this.updateBar(e); continue; }
         if (e.flyPending && !(e.rendUntil > t)) { const cfg = e.flyPending; e.flyPending = null; this.startFlight(e, cfg); continue; }
+        this.bossSignature(e, t);
         const range = e.def.speed <= 0 ? Math.max(e.def.range, 26) : e.def.range;
         if (e.cast) {
           e.cast.t += dt;
@@ -784,10 +858,18 @@ export class Combat {
             else this.enemySpell(e, c.spell);
           }
         } else if (d > range * 0.95) {
-          w.moveEnemy(e, pp, speed * 1.8, dt, range * 0.8);
+          // lunging packs don't just walk at you: they burst across the last few meters
+          if (LUNGERS.has(e.def.id) && d > range + 3 && d < 14 && t >= e.lungeReady) {
+            e.lungeReady = t + rand(5, 8);
+            w.dashEnemy(e, Math.atan2(pp.x - e.model.position.x, pp.z - e.model.position.z), Math.min(d - range * 0.8, 8));
+            w.puff(e.model.position.x, 0.5, e.model.position.z, 0xc8b89a, 8, 2);
+            sfx('dodge');
+          } else w.moveEnemy(e, pp, speed * 1.8, dt, range * 0.8);
         } else {
           e.moving = false;
           w.faceEnemy(e, pp);
+          if (STRAFERS.has(e.def.id) && speed > 0) this.strafe(e, pp, dt, t, range, speed);
+          else if (KITERS.has(e.def.id) && speed > 0) this.kite(e, pp, dt, t, d, speed);
           if (t >= e.nextAttack) this.startAttack(e);
         }
       }

@@ -1757,3 +1757,406 @@ export function makeThrone() {
   g.userData.anim = (t) => fires.forEach(f => f.userData.flicker(t));
   return finish(g, 0.06, 0.4);
 }
+
+// ---------------------------------------------------------------- skilling: resource nodes
+
+export function makeOreRock(vein = 0xd4803a) {
+  const g = new THREE.Group();
+  const base = 0x6c6776;
+  add(g, new THREE.DodecahedronGeometry(0.95, 0), mat(base), 0, 0.55, 0, { s: [1.25, 0.85, 1.05], ry: rnd(0, 3) });
+  add(g, new THREE.DodecahedronGeometry(0.55, 0), mat(darker(base, 0.85)), 0.8, 0.3, 0.35);
+  add(g, new THREE.DodecahedronGeometry(0.45, 0), mat(lighter(base, 0.12)), -0.8, 0.28, -0.25);
+  const ore = mat(vein, { emissive: vein, emissiveIntensity: 0.3 });
+  for (const [x, y, z, r] of [[0.35, 1.05, 0.45, 0.17], [-0.45, 0.85, 0.62, 0.14], [0.85, 0.62, 0.55, 0.13], [-0.1, 1.2, -0.25, 0.15], [0.55, 0.6, -0.7, 0.13], [-0.9, 0.55, 0.25, 0.12], [0.1, 0.5, 0.95, 0.12]]) {
+    add(g, new THREE.OctahedronGeometry(r), ore, x, y, z, { ry: x * 3, rx: y * 2 });
+  }
+  return finish(g, 0.035, 0.12, true);
+}
+
+export function makeRubble() {
+  const g = new THREE.Group();
+  const c = mat(0x5a5664);
+  for (const [x, z, r] of [[0, 0, 0.45], [0.55, 0.3, 0.3], [-0.5, -0.2, 0.35], [0.2, -0.55, 0.25]]) add(g, new THREE.DodecahedronGeometry(r, 0), c, x, r * 0.5, z, { s: [1, 0.6, 1] });
+  return finish(g, 0.03, 0.12, true);
+}
+
+export function makeStump(bark = 0x6b4a2b) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.38, 0.5, 0.55, 9), mat(bark), 0, 0.27, 0);
+  add(g, new THREE.CylinderGeometry(0.34, 0.34, 0.04, 9), mat(0xd8b884), 0, 0.56, 0);
+  add(g, new THREE.TorusGeometry(0.2, 0.02, 4, 12), mat(0xa88454), 0, 0.585, 0, { rx: Math.PI / 2, noOutline: true });
+  for (const s of [-1, 1]) limb(g, V3(0, 0.15, 0), V3(s * 0.65, 0, s * 0.2), 0.14, 0.05, mat(bark), 5);
+  return finish(g, 0.03, 0.12, true);
+}
+
+export function makeOak(scale = 1) {
+  const g = new THREE.Group();
+  const bark = mat(0x5e4028);
+  limb(g, V3(0, 0, 0), V3(0, 2.2, 0), 0.45, 0.32, bark, 9);
+  limb(g, V3(0, 1.8, 0), V3(0.9, 2.9, 0.2), 0.2, 0.12, bark, 7);
+  limb(g, V3(0, 2, 0), V3(-0.85, 3.0, -0.2), 0.2, 0.12, bark, 7);
+  for (const s of [-1, 1]) limb(g, V3(0, 0.3, 0), V3(s * 0.75, 0, s * 0.3), 0.18, 0.06, bark, 5);
+  const L = mat(0x4f8a3a), L2 = mat(0x5f9d44), L3 = mat(0x437a32);
+  for (const [x, y, z, r, m] of [[0, 3.6, 0, 1.55, L], [1.2, 3.2, 0.3, 1.1, L2], [-1.1, 3.3, -0.2, 1.15, L3], [0.3, 3.1, 1.1, 1.0, L2], [-0.3, 3.2, -1.1, 1.0, L], [0.2, 4.5, 0.1, 1.0, L2]]) {
+    add(g, new THREE.IcosahedronGeometry(r, 1), m, x, y, z);
+  }
+  for (let i = 0; i < 5; i++) add(g, sph(0.12, 8, 6), mat(0x8a5a2a), rnd(-1.3, 1.3), rnd(2.6, 3.6), rnd(-1.2, 1.2), { shadow: false });
+  g.scale.setScalar(scale);
+  return finish(g, 0.04, 0.4, true);
+}
+
+export function makeWillow(scale = 1) {
+  const g = new THREE.Group();
+  const bark = mat(0x6a5a40);
+  limb(g, V3(0, 0, 0), V3(0.2, 2.8, 0), 0.4, 0.26, bark, 8);
+  const L = mat(0x8ab060), L2 = mat(0x9cc070);
+  add(g, new THREE.IcosahedronGeometry(1.5, 1), L, 0.2, 3.5, 0, { s: [1.25, 0.7, 1.25] });
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    add(g, new THREE.ConeGeometry(0.34, 2.4, 6), i % 2 ? L : L2, 0.2 + Math.cos(a) * 1.4, 2.35, Math.sin(a) * 1.4, { rx: Math.PI + Math.sin(a) * 0.15, rz: Math.cos(a) * 0.15 });
+  }
+  g.scale.setScalar(scale);
+  return finish(g, 0.04, 0.4, true);
+}
+
+export function makeElder(scale = 1) {
+  const g = new THREE.Group();
+  const bark = mat(0x3a2a3a);
+  limb(g, V3(0, 0, 0), V3(0.3, 3, 0), 0.75, 0.45, bark, 9);
+  limb(g, V3(0.3, 2.6, 0), V3(1.7, 4.2, 0.3), 0.3, 0.16, bark, 7);
+  limb(g, V3(0.2, 2.8, 0), V3(-1.5, 4.4, -0.3), 0.3, 0.16, bark, 7);
+  limb(g, V3(0.3, 3, 0), V3(0.2, 5.1, 0.8), 0.26, 0.14, bark, 7);
+  for (const [x, z] of [[1.2, 0.4], [-1.1, 0.5], [0.3, -1.2], [-0.4, 1.1]]) limb(g, V3(0, 0.5, 0), V3(x, 0, z), 0.3, 0.08, bark, 6);
+  const L = mat(0x5a3a8a), L2 = mat(0x7a4ab0), L3 = mat(0x4a2a70);
+  for (const [x, y, z, r, m] of [[0.3, 5.2, 0.2, 1.7, L], [1.8, 4.5, 0.4, 1.3, L2], [-1.6, 4.7, -0.3, 1.35, L3], [0.4, 4.4, 1.5, 1.2, L2], [0, 4.5, -1.4, 1.2, L], [0.4, 6.3, 0.2, 1.1, L2]]) {
+    add(g, new THREE.IcosahedronGeometry(r, 1), m, x, y, z);
+  }
+  for (let i = 0; i < 10; i++) add(g, sph(0.09, 8, 6), basic(0xe0b8ff), rnd(-2, 2), rnd(3.8, 6.8), rnd(-1.8, 1.8), { shadow: false });
+  g.scale.setScalar(scale);
+  return finish(g, 0.045, 0.4, true);
+}
+
+export function makeDragonwood(scale = 1) {
+  const g = new THREE.Group();
+  const bark = mat(0x5a1a1a);
+  limb(g, V3(0, 0, 0), V3(-0.2, 3.2, 0.1), 0.55, 0.3, bark, 8);
+  limb(g, V3(-0.2, 2.8, 0.1), V3(1.2, 4.3, 0.2), 0.22, 0.1, bark, 6);
+  limb(g, V3(-0.2, 3.0, 0.1), V3(-1.3, 4.5, -0.2), 0.22, 0.1, bark, 6);
+  const L = mat(0xa0202a), L2 = mat(0xc0392b);
+  for (const [x, y, z, r, m] of [[-0.2, 4.6, 0.1, 1.4, L], [1.3, 4.3, 0.2, 1.0, L2], [-1.4, 4.5, -0.2, 1.05, L2], [0, 5.6, 0, 0.9, L]]) {
+    add(g, new THREE.OctahedronGeometry(r, 1), m, x, y, z, { ry: x });
+  }
+  // thorny spikes along the trunk
+  for (let i = 0; i < 7; i++) {
+    const a = i * 2.1, y = 0.6 + i * 0.35;
+    add(g, new THREE.ConeGeometry(0.08, 0.45, 5), mat(0xf0e0c0), Math.cos(a) * 0.42, y, Math.sin(a) * 0.42, { rz: -Math.cos(a) * 1.2, rx: Math.sin(a) * 1.2 });
+  }
+  for (let i = 0; i < 6; i++) add(g, sph(0.1, 8, 6), basic(0xffb040), rnd(-1.6, 1.6), rnd(3.8, 6), rnd(-1.2, 1.2), { shadow: false });
+  g.scale.setScalar(scale);
+  return finish(g, 0.045, 0.4, true);
+}
+
+export function makeHerb(color = 0x9fe6c0) {
+  const g = new THREE.Group();
+  const leaf = mat(0x4f9a4a), leaf2 = mat(0x6ab85a);
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    add(g, sph(0.2, 8, 6), i % 2 ? leaf : leaf2, Math.cos(a) * 0.22, 0.18, Math.sin(a) * 0.22, { s: [0.7, 0.35, 1.4], ry: -a, rx: 0.3 });
+  }
+  const bloom = mat(color, { emissive: color, emissiveIntensity: 0.35 });
+  for (const [x, z, h] of [[0, 0, 0.55], [0.18, 0.1, 0.42], [-0.15, -0.12, 0.46], [0.05, -0.2, 0.38]]) {
+    add(g, new THREE.CylinderGeometry(0.018, 0.018, h, 4), leaf, x, h / 2, z, { noOutline: true });
+    add(g, sph(0.08, 8, 6), bloom, x, h + 0.04, z);
+  }
+  return finish(g, 0.02, 0.1, true);
+}
+
+export function makeMushroom(color = 0x6fd3ff) {
+  const g = new THREE.Group();
+  const stem = mat(0xf0e6d0), cap = mat(color, { emissive: color, emissiveIntensity: 0.55 });
+  for (const [x, z, s] of [[0, 0, 1], [0.32, 0.15, 0.7], [-0.28, 0.2, 0.6], [0.1, -0.3, 0.55]]) {
+    add(g, new THREE.CylinderGeometry(0.07 * s, 0.09 * s, 0.4 * s, 8), stem, x, 0.2 * s, z);
+    add(g, new THREE.SphereGeometry(0.22 * s, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), cap, x, 0.38 * s, z);
+    add(g, sph(0.035 * s, 6, 4), basic(0xffffff), x + 0.08 * s, 0.52 * s, z + 0.08 * s, { shadow: false });
+  }
+  return finish(g, 0.02, 0.08, true);
+}
+
+export function makeBerryBush(full = true) {
+  const g = new THREE.Group();
+  const L = mat(0x3f7a3a), L2 = mat(0x4f8a44);
+  for (const [x, y, z, r, m] of [[0, 0.45, 0, 0.55, L], [0.4, 0.35, 0.15, 0.4, L2], [-0.38, 0.35, -0.1, 0.42, L2], [0.05, 0.3, 0.42, 0.38, L]]) {
+    add(g, new THREE.IcosahedronGeometry(r, 1), m, x, y, z);
+  }
+  if (full) {
+    const berry = mat(0x6a5ad0, { emissive: 0x3a2a90, emissiveIntensity: 0.4 });
+    for (let i = 0; i < 12; i++) {
+      const a = rnd(0, Math.PI * 2), y = rnd(0.25, 0.9), r = 0.5 - Math.abs(y - 0.5) * 0.3;
+      add(g, sph(0.07, 8, 6), berry, Math.cos(a) * r, y, Math.sin(a) * r, { shadow: false, noOutline: true });
+    }
+  }
+  return finish(g, 0.025, 0.12, true);
+}
+
+export function makeSprout() {
+  const g = new THREE.Group();
+  add(g, sph(0.3, 10, 6), mat(0x5a4230), 0, 0, 0, { s: [1, 0.35, 1] });
+  for (const s of [-1, 1]) add(g, sph(0.08, 8, 6), mat(0x6ab85a), s * 0.06, 0.15, 0, { s: [1.4, 0.4, 0.7], rz: s * 0.5 });
+  return finish(g, 0.02, 0.1, true);
+}
+
+// Ripples and a fish that leaps now and then. water: 'water' | 'lava' | 'ice'
+export function makeFishSpot(water = 'water') {
+  const g = new THREE.Group();
+  const color = water === 'lava' ? 0xffc040 : water === 'ice' ? 0xffffff : 0xdff6ff;
+  const rings = [0, 1, 2].map(() => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.58, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = 0.13;
+    g.add(m);
+    return m;
+  });
+  const fish = group(g);
+  const fc = water === 'lava' ? 0xff5a1a : water === 'ice' ? 0xbfe8ff : 0x7ab0d0;
+  add(fish, sph(0.16, 10, 8), mat(fc), 0, 0, 0, { s: [0.55, 0.8, 1.6] });
+  add(fish, new THREE.ConeGeometry(0.14, 0.25, 4), mat(darker(fc, 0.8)), 0, 0, -0.32, { rx: -Math.PI / 2, s: [0.3, 1, 1] });
+  const bubbles = [0, 1, 2, 3].map(() => add(g, sph(0.05, 6, 4), basic(color), 0, 0, 0, { shadow: false }));
+  const seed = Math.random() * 10;
+  g.userData.anim = (t) => {
+    rings.forEach((r, i) => {
+      const k = (t * 0.5 + i / 3 + seed) % 1;
+      r.scale.setScalar(0.6 + k * 2.2);
+      r.material.opacity = 0.65 * (1 - k);
+    });
+    const j = (t * 0.3 + seed) % 1;
+    fish.visible = j < 0.12;
+    if (fish.visible) {
+      const k = j / 0.12;
+      fish.position.set(Math.sin(seed) * 0.4, 0.1 + Math.sin(k * Math.PI) * 0.9, -0.6 + k * 1.2);
+      fish.rotation.x = -1.2 + k * 2.4;
+    }
+    bubbles.forEach((b, i) => {
+      const k = (t * 0.8 + i / 4 + seed) % 1;
+      b.position.set(Math.cos(i * 1.7 + seed) * 0.35, 0.1 + k * 0.25, Math.sin(i * 2.3 + seed) * 0.35);
+      b.scale.setScalar(k < 0.85 ? 1 : 0.01);
+    });
+  };
+  return g;
+}
+
+// ---------------------------------------------------------------- skilling: crafting stations
+
+export function makeFurnace() {
+  const g = new THREE.Group();
+  const brick = mat(0x8a6a5a), brick2 = mat(0x6e5446), dark = mat(0x2a2020);
+  add(g, new THREE.BoxGeometry(2.4, 2.2, 2), brick, 0, 1.1, 0);
+  add(g, new THREE.BoxGeometry(2.6, 0.3, 2.2), brick2, 0, 2.35, 0);
+  add(g, new THREE.CylinderGeometry(0.4, 0.5, 2.2, 8), brick2, 0.5, 3.5, -0.4);
+  add(g, new THREE.CylinderGeometry(0.5, 0.5, 0.2, 8), dark, 0.5, 4.6, -0.4);
+  add(g, archGeo(1.1, 1.3, 0.1), dark, 0, 0.4, 0.97);
+  add(g, archGeo(0.9, 1.05, 0.05), basic(0xff7a1a), 0, 0.45, 1.02, { shadow: false });
+  for (let i = 0; i < 5; i++) add(g, new THREE.BoxGeometry(0.5, 0.24, 0.1), brick2, rnd(-0.9, 0.9), rnd(0.3, 2.0), 1.01, { noOutline: true });
+  const fires = [flame(g, 0, 0.45, 0.85, 1.4), flame(g, 0.25, 0.45, 0.8, 0.9), flame(g, -0.25, 0.45, 0.8, 1.0)];
+  const smoke = [0, 1, 2].map(() => dyn(add(g, sph(0.25, 8, 6), mat(0x9a9aa8, { transparent: true, opacity: 0.5 }), 0.5, 4.8, -0.4, { shadow: false })));
+  g.userData.anim = (t) => {
+    fires.forEach(f => f.userData.flicker(t));
+    smoke.forEach((s, i) => {
+      const k = (t * 0.35 + i / 3) % 1;
+      s.position.set(0.5 + Math.sin(t + i) * 0.3 * k, 4.8 + k * 2.5, -0.4 + k * 0.4);
+      s.scale.setScalar(0.6 + k * 1.6);
+      s.material.opacity = 0.5 * (1 - k);
+    });
+  };
+  return finish(g, 0.04, 0.2);
+}
+
+export function makeAnvil() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.55, 0.65, 0.9, 10), mat(0x6b4a2b), 0, 0.45, 0);
+  const iron = mat(0x3a3a48), iron2 = mat(0x55556a);
+  add(g, new THREE.BoxGeometry(0.5, 0.35, 0.4), iron, 0, 1.07, 0);
+  add(g, new THREE.BoxGeometry(1.2, 0.3, 0.55), iron2, 0, 1.38, 0);
+  add(g, new THREE.ConeGeometry(0.2, 0.6, 8), iron2, -0.85, 1.38, 0, { rz: Math.PI / 2 });
+  const hammer = group(g, 0.35, 1.58, 0.15);
+  hammer.rotation.y = 0.6;
+  add(hammer, new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6), mat(0x7a5230), 0, 0.05, 0, { rz: Math.PI / 2 });
+  add(hammer, new THREE.BoxGeometry(0.16, 0.2, 0.2), iron, 0.35, 0.05, 0);
+  add(g, new THREE.BoxGeometry(0.5, 0.08, 0.14), glowMat(0xff7a1a, 1.5), 0.2, 1.57, -0.15);
+  return finish(g, 0.035, 0.1, true);
+}
+
+export function makeRange() {
+  const g = new THREE.Group();
+  const stone = mat(0x6a6470);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    add(g, new THREE.DodecahedronGeometry(0.3, 0), stone, Math.cos(a) * 0.9, 0.2, Math.sin(a) * 0.9);
+  }
+  for (let i = 0; i < 3; i++) add(g, new THREE.CylinderGeometry(0.1, 0.1, 1.2, 7), mat(0x4a2e1f), 0, 0.18, 0, { rz: Math.PI / 2, ry: (i / 3) * Math.PI });
+  const iron = mat(0x2b2733);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    limb(g, V3(Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1), V3(0, 2.1, 0), 0.04, 0.04, iron, 5);
+  }
+  add(g, new THREE.CylinderGeometry(0.015, 0.015, 0.7, 4), iron, 0, 1.75, 0, { noOutline: true });
+  add(g, new THREE.SphereGeometry(0.5, 14, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), iron, 0, 1.35, 0);
+  add(g, new THREE.TorusGeometry(0.5, 0.05, 6, 18), iron, 0, 1.35, 0, { rx: Math.PI / 2 });
+  const soup = dyn(add(g, new THREE.CircleGeometry(0.46, 18), mat(0xd08a3a, { emissive: 0x6a3010, emissiveIntensity: 0.4 }), 0, 1.3, 0, { rx: -Math.PI / 2, shadow: false }));
+  const fires = [flame(g, 0, 0.2, 0, 1.3), flame(g, 0.2, 0.18, 0.1, 0.9), flame(g, -0.2, 0.18, -0.1, 0.9)];
+  g.userData.anim = (t) => { fires.forEach(f => f.userData.flicker(t)); soup.position.y = 1.3 + Math.sin(t * 5) * 0.015; };
+  return finish(g, 0.035, 0.12);
+}
+
+function table(g, w = 2.2, d = 1.1, h = 1.0, color = 0x7a5236) {
+  const wood = mat(color), leg = mat(darker(color, 0.8));
+  add(g, new THREE.BoxGeometry(w, 0.14, d), wood, 0, h, 0);
+  for (const x of [-w / 2 + 0.15, w / 2 - 0.15]) for (const z of [-d / 2 + 0.12, d / 2 - 0.12]) add(g, new THREE.BoxGeometry(0.12, h, 0.12), leg, x, h / 2, z);
+}
+
+export function makeAlchemyTable() {
+  const g = new THREE.Group();
+  table(g, 2.2, 1.1, 1.0, 0x5a3d6a);
+  const glass = [0xff5fa2, 0x3a7ae0, 0x5fdc6a, 0xf2c14e];
+  glass.forEach((c, i) => {
+    const x = -0.85 + i * 0.28;
+    add(g, sph(0.12, 10, 8), mat(c, { emissive: c, emissiveIntensity: 0.6 }), x, 1.2, 0.25);
+    add(g, new THREE.CylinderGeometry(0.035, 0.035, 0.16, 6), mat(0xdff6ff), x, 1.36, 0.25, { noOutline: true });
+  });
+  add(g, new THREE.CylinderGeometry(0.28, 0.22, 0.4, 10), mat(0x2b2733), 0.55, 1.28, -0.05);
+  const liquid = dyn(add(g, new THREE.CircleGeometry(0.25, 14), basic(0x9aff6a), 0.55, 1.47, -0.05, { rx: -Math.PI / 2, shadow: false }));
+  const bubbles = [0, 1, 2].map(() => dyn(add(g, sph(0.05, 6, 4), basic(0xc8ffb0), 0.55, 1.5, -0.05, { shadow: false })));
+  add(g, new THREE.BoxGeometry(0.5, 0.08, 0.35), mat(0x8a3a3a), -0.2, 1.11, -0.25, { ry: 0.3 });
+  add(g, new THREE.BoxGeometry(0.46, 0.04, 0.3), mat(0xf0e6d0), -0.2, 1.17, -0.25, { ry: 0.3, noOutline: true });
+  g.userData.anim = (t) => {
+    liquid.scale.setScalar(1 + Math.sin(t * 4) * 0.05);
+    bubbles.forEach((b, i) => {
+      const k = (t * 0.9 + i / 3) % 1;
+      b.position.set(0.55 + Math.cos(i * 2) * 0.12, 1.48 + k * 0.4, -0.05 + Math.sin(i * 2) * 0.12);
+      b.scale.setScalar(1 - k);
+    });
+  };
+  return finish(g, 0.03, 0.1);
+}
+
+export function makeWorkbench() {
+  const g = new THREE.Group();
+  table(g, 2.4, 1.1, 0.95, 0x8a6236);
+  add(g, new THREE.BoxGeometry(0.9, 0.08, 0.35), mat(0xc9a06a), -0.4, 1.07, 0.15, { ry: 0.15 });
+  const saw = group(g, 0.55, 1.1, 0.1);
+  saw.rotation.set(-Math.PI / 2, 0, 0.3);
+  add(saw, new THREE.BoxGeometry(0.7, 0.22, 0.02), mat(0xb8bcc8));
+  add(saw, new THREE.BoxGeometry(0.2, 0.26, 0.06), mat(0x7a3a2a), -0.42, 0.02, 0);
+  for (let i = 0; i < 3; i++) add(g, new THREE.CylinderGeometry(0.16, 0.16, 1.1, 8), mat(0x9a6a3a), 1.6, 0.18 + (i === 2 ? 0.28 : 0), -0.2 + i * 0.3 - (i === 2 ? 0.45 : 0), { rx: Math.PI / 2 });
+  add(g, new THREE.BoxGeometry(0.2, 0.3, 0.3), mat(0x3a3a48), -1.0, 1.2, -0.3);
+  return finish(g, 0.035, 0.1, true);
+}
+
+// ---------------------------------------------------------------- meadow scenery
+
+export function makePond(r = 9) {
+  const g = new THREE.Group();
+  add(g, new THREE.CircleGeometry(r + 0.6, 36), mat(0x7a6a4a), 0, 0.03, 0, { rx: -Math.PI / 2, shadow: false });
+  add(g, new THREE.CircleGeometry(r, 36), mat(0x3a8ac0, { emissive: 0x103050, emissiveIntensity: 0.4 }), 0, 0.06, 0, { rx: -Math.PI / 2, shadow: false });
+  add(g, new THREE.CircleGeometry(r * 0.6, 30), mat(0x2a6aa0), 0, 0.07, 0, { rx: -Math.PI / 2, shadow: false });
+  const n = Math.round(r * 2.4);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + rnd(-0.1, 0.1);
+    add(g, new THREE.DodecahedronGeometry(rnd(0.25, 0.5), 0), mat(0x7c7684), Math.cos(a) * (r + 0.4), 0.12, Math.sin(a) * (r + 0.4), { s: [1, 0.6, 1] });
+  }
+  for (let i = 0; i < 7; i++) {
+    const a = rnd(0, Math.PI * 2), rr = rnd(r * 0.3, r * 0.85);
+    add(g, new THREE.CircleGeometry(0.45, 12, 0.3, Math.PI * 1.8), mat(0x4f9a4a), Math.cos(a) * rr, 0.09, Math.sin(a) * rr, { rx: -Math.PI / 2, shadow: false });
+    if (i % 2) add(g, sph(0.1, 8, 6), mat(0xffc3e1), Math.cos(a) * rr, 0.14, Math.sin(a) * rr, { shadow: false });
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = rnd(0, Math.PI * 2);
+    add(g, new THREE.ConeGeometry(0.06, rnd(0.8, 1.5), 4), mat(0x6a8a3a), Math.cos(a) * (r - 0.2), 0.5, Math.sin(a) * (r - 0.2), { rz: rnd(-0.2, 0.2), noOutline: true });
+  }
+  return finish(g, 0.03, 0.2, true);
+}
+
+// A wooden fence running `len` along +X.
+export function makeFence(len = 10) {
+  const g = new THREE.Group();
+  const wood = mat(0x8a6236), wood2 = mat(0x7a5230);
+  const posts = Math.max(2, Math.round(len / 2.2) + 1);
+  for (let i = 0; i < posts; i++) add(g, new THREE.BoxGeometry(0.2, 1.3, 0.2), wood2, (i / (posts - 1)) * len, 0.65, 0);
+  for (const y of [0.5, 1.0]) add(g, new THREE.BoxGeometry(len, 0.12, 0.08), wood, len / 2, y, 0);
+  return finish(g, 0.025, 0.1, true);
+}
+
+export function makeWindmill() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(1.6, 2.4, 7, 8), mat(0xe8dcc0), 0, 3.5, 0);
+  add(g, new THREE.ConeGeometry(2.1, 2.2, 8), mat(0x8a3a2a), 0, 8.1, 0);
+  add(g, archGeo(1, 1.8, 0.1), mat(0x5a3a20), 0, 0, 2.3);
+  for (const y of [3.5, 5.5]) add(g, new THREE.BoxGeometry(0.7, 0.7, 0.1), glowMat(0xffd27a, 1), 0, y, 1.9);
+  const hub = group(g, 0, 6.2, 2.1);
+  add(hub, new THREE.CylinderGeometry(0.3, 0.3, 0.5, 10), mat(0x5a3a20), 0, 0, 0, { rx: Math.PI / 2 });
+  const blades = group(hub, 0, 0, 0.3);
+  for (let i = 0; i < 4; i++) {
+    const b = group(blades);
+    b.rotation.z = (i / 4) * Math.PI * 2;
+    add(b, new THREE.BoxGeometry(0.2, 4.2, 0.1), mat(0x7a5230), 0, 2.2, 0);
+    add(b, new THREE.BoxGeometry(1.1, 3.4, 0.05), mat(0xf5ecd8), 0.6, 2.5, 0.03);
+  }
+  dyn(blades);
+  g.userData.anim = (t) => { blades.rotation.z = t * 0.6; };
+  return finish(g, 0.04, 0.3);
+}
+
+export function makeSignpost() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.1, 0.12, 2.6, 6), mat(0x7a5230), 0, 1.3, 0);
+  add(g, new THREE.BoxGeometry(1.6, 0.4, 0.1), mat(0xc9a06a), 0.6, 2.2, 0);
+  add(g, new THREE.ConeGeometry(0.28, 0.35, 3), mat(0xc9a06a), 1.52, 2.2, 0, { rz: -Math.PI / 2, s: [1, 1, 0.3] });
+  add(g, new THREE.BoxGeometry(1.4, 0.36, 0.1), mat(0xb8905a), -0.5, 1.7, 0, { ry: 0.2 });
+  return finish(g, 0.025, 0.1, true);
+}
+
+export function makeHayBale() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.6, 0.6, 1.1, 14), mat(0xe0c060), 0, 0.6, 0, { rz: Math.PI / 2 });
+  for (const x of [-0.25, 0.25]) add(g, new THREE.TorusGeometry(0.61, 0.03, 4, 16), mat(0xa08030), x, 0.6, 0, { ry: Math.PI / 2, noOutline: true });
+  return finish(g, 0.03, 0.1, true);
+}
+
+export function makeFlowers(color = 0xffc3e1) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 7; i++) {
+    const x = rnd(-0.6, 0.6), z = rnd(-0.6, 0.6), h = rnd(0.2, 0.45);
+    add(g, new THREE.CylinderGeometry(0.015, 0.015, h, 4), mat(0x4f8a3a), x, h / 2, z, { noOutline: true, shadow: false });
+    add(g, sph(0.07, 8, 6), mat(i % 3 ? color : 0xfff4b0), x, h, z, { shadow: false, noOutline: true });
+  }
+  return finish(g, 0.02, 0.5, true);
+}
+
+// Builds the right model for a resource node (or its depleted look).
+export function makeNode(model, depleted = false) {
+  switch (model.kind) {
+    case 'rock': return depleted ? makeRubble() : makeOreRock(model.vein);
+    case 'pine': return depleted ? makeStump(0x6b4a2b) : makeTree(0.9);
+    case 'oak': return depleted ? makeStump(0x5e4028) : makeOak(0.95);
+    case 'willow': return depleted ? makeStump(0x6a5a40) : makeWillow(1);
+    case 'moonwood': return depleted ? makeStump(0x5a3d24) : makeRoundTree(1.05, 0xd36fae);
+    case 'emberwood': return depleted ? makeStump(0x3e302c) : makeFireTree(1.05);
+    case 'elder': return depleted ? makeStump(0x3a2a3a) : makeElder(1.1);
+    case 'dragonwood': return depleted ? makeStump(0x5a1a1a) : makeDragonwood(1.05);
+    case 'herb': return depleted ? makeSprout() : makeHerb(model.color);
+    case 'mushroom': return depleted ? makeSprout() : makeMushroom(model.color);
+    case 'berry': return makeBerryBush(!depleted);
+    case 'fish': return makeFishSpot(model.water);
+  }
+  return makeRock();
+}
+
+export function makeStation(type) {
+  switch (type) {
+    case 'furnace': return makeFurnace();
+    case 'anvil': return makeAnvil();
+    case 'range': return makeRange();
+    case 'alchemy': return makeAlchemyTable();
+    case 'workbench': return makeWorkbench();
+  }
+  return makeAnvil();
+}

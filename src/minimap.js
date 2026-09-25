@@ -58,6 +58,17 @@ export class Minimap {
     };
 
     for (const f of FOUNTAINS) dot(f.x, f.z, 4, '#6fd3ff');
+    // resource nodes and crafting stations
+    const NODE = { mining: '#c8c0d8', woodcutting: '#6ab85a', fishing: '#7fd8ff', foraging: '#f0a0ff' };
+    for (const n of world.nodes) {
+      if (n.depleted || Math.abs(n.x - p.x) > VIEW * 1.5 || Math.abs(n.z - p.z) > VIEW * 1.5) continue;
+      dot(n.x, n.z, 1.8, NODE[n.def.skill]);
+    }
+    ctx.fillStyle = '#ffb36b';
+    for (const st of world.stations) {
+      if (Math.abs(st.x - p.x) > VIEW * 1.5 || Math.abs(st.z - p.z) > VIEW * 1.5) continue;
+      ctx.fillRect(sx(st.x) - 3, sz(st.z) - 3, 6, 6);
+    }
     for (const pt of PORTALS) dot(pt.x, pt.z, 5, '#b46bff', '#fff');
     for (const e of world.enemies) {
       if (e.state === 'dead' || !e.model.visible) continue;

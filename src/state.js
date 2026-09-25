@@ -1,5 +1,6 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
+import { BUFFS } from './items.js';
 
 // Three save slots. Slot 1 keeps the original key so older saves still load.
 export const SLOT_KEYS = ['darquest-save-v1', 'darquest-save-slot2', 'darquest-save-slot3'];
@@ -40,6 +41,12 @@ function upgrade(p) {
   p.activePet ??= null;
   p.difficulty = DIFFICULTIES[p.difficulty] ? p.difficulty : 'normal';
   p.stats ??= {};
+  // skills, materials and side quests (added with the Gatherers' Guild)
+  p.skills ??= {};
+  p.bag ??= { copper_pickaxe: 1, copper_axe: 1, twig_rod: 1 };
+  p.side ??= {};
+  p.buffs ??= {};
+  p.stats_log ??= { kills: 0, gathered: 0, crafted: 0, deaths: 0 };
   return p;
 }
 
@@ -63,6 +70,7 @@ export function recalc(p) {
   const add = (stats) => { for (const [k, v] of Object.entries(stats || {})) s[k] = (s[k] || 0) + v; };
   for (const id of Object.values(p.equipped)) if (id && GEAR[id]) add(GEAR[id].stats);
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
+  for (const [id, left] of Object.entries(p.buffs || {})) if (left > 0 && BUFFS[id]) add(BUFFS[id].stats);
   p.stats = s;
   p.maxHp = baseHpFor(p.school, p.level) + s.hp;
   p.maxMana = 100 + (p.level - 1) * 6;

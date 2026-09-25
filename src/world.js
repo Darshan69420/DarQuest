@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
-  makePet, makePortal, mergeGeometries,
+  makePet, makePortal, mergeGeometries, makeNode, makeStation,
 } from './models.js';
+import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
-import { buildEmberfall } from './maps.js';
+import { buildEmberfall, buildMeadow } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -91,6 +92,8 @@ export class World {
     this.colliders = [];      // {x, z, r}
     this.staticObjs = [];     // scenery merged into batches after the map is built
     this.animated = [];       // objects with userData.anim
+    this.nodes = [];          // resource nodes: trees, rocks, fishing spots, herbs
+    this.stations = [];       // crafting stations
     this.player = null;
     this.heading = Math.PI;   // facing -Z (toward the academy)
     this.camYawOffset = 0;    // classic controls: camera swing away from the heading
@@ -288,6 +291,7 @@ export class World {
       const a = (i / 18) * Math.PI * 2 + 0.1;
       const x = Math.sin(a) * (COURTYARD_R - 2), z = Math.cos(a) * (COURTYARD_R - 2);
       if (z > 20 && Math.abs(x) < 12) continue;   // leave the south exit open
+      if (x > 20 && Math.abs(z) < 11) continue;   // and the east gate to the meadow
       if (z < -24 && Math.abs(x) < 20) continue;  // academy front
       const tree = i % 2 ? makeTree(0.9 + Math.random() * 0.3) : makeRoundTree(0.9 + Math.random() * 0.3, [0xd36fae, 0xf29a6b, 0xb46bff][i % 3]);
       this.add(tree, x, z, Math.random() * 6, 1.2);
@@ -300,6 +304,7 @@ export class World {
       const r = 48 + Math.random() * 20;
       const x = Math.sin(a) * r, z = Math.cos(a) * r;
       if (z > 20 && Math.abs(x) < 30) continue;
+      if (x > 24 && Math.abs(z) < 64) continue;  // Millbrook Meadow
       this.add(makeTree(1.4 + Math.random() * 1.2, 0x2f6b3c), x, z, Math.random() * 6);
     }
     for (let i = 0; i < 40; i++) {
@@ -344,7 +349,8 @@ export class World {
     }
     this.motes = motes;
 
-    // Chapter 2 zone + the portals that connect the zones
+    // Millbrook Meadow (skilling), Chapter 2 zone, and the portals that connect the zones
+    buildMeadow(this);
     const ember = buildEmberfall(this);
     this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring };
     this.portalModels = {};
@@ -511,7 +517,67 @@ export class World {
     const list = this.npcs.map(n => ({ id: n.id, x: n.model.position.x, z: n.model.position.z, r: 3.2 }));
     for (const f of FOUNTAINS) list.push({ id: f.id, x: f.x, z: f.z, r: f.r });
     for (const pt of PORTALS) list.push({ id: pt.id, x: pt.x, z: pt.z, r: 4 });
+    const pp = this.player?.position;
+    for (const n of this.nodes) if (!n.depleted && (!pp || Math.abs(n.x - pp.x) + Math.abs(n.z - pp.z) < 12)) list.push({ id: n.id, x: n.x, z: n.z, r: n.r });
+    for (const st of this.stations) list.push({ id: st.id, x: st.x, z: st.z, r: st.r });
+    for (const extra of this.extraInteractables || []) list.push(...extra());
     return list;
+  }
+
+  // ------------------------------------------------------------ skilling
+
+  // A tree, rock, fishing spot or herb you can gather from.
+  addNode(type, x, z) {
+    const def = NODE_TYPES[type];
+    const kind = def.model.kind;
+    const rot = Math.random() * Math.PI * 2;
+    const place = (m) => { m.position.set(x, 0, z); m.rotation.y = rot; this.scene.add(m); return m; };
+    const full = place(makeNode(def.model, false));
+    const empty = def.deplete > 0 ? place(makeNode(def.model, true)) : null;
+    if (empty) empty.visible = false;
+    if (full.userData.anim) this.animated.push(full);
+    const col = { rock: 1.1, pine: 0.7, oak: 0.9, willow: 0.8, moonwood: 0.7, emberwood: 0.7, elder: 1.2, dragonwood: 1.0 }[kind] || 0;
+    if (col) this.colliders.push({ x, z, r: col });
+    const reach = kind === 'fish' ? 3.6 : col ? col + 1.9 : 1.9;
+    const node = { id: 'node:' + this.nodes.length, def, x, z, full, empty, depleted: false, respawnAt: 0, r: reach };
+    this.nodes.push(node);
+    return node;
+  }
+
+  depleteNode(node) {
+    node.depleted = true;
+    node.full.visible = false;
+    if (node.empty) node.empty.visible = true;
+    node.respawnAt = this.time + node.def.respawn;
+  }
+
+  updateNodes() {
+    for (const n of this.nodes) {
+      if (!n.depleted || this.time < n.respawnAt) continue;
+      n.depleted = false;
+      n.full.visible = true;
+      if (n.empty) n.empty.visible = false;
+      const base = n.full.scale.x;
+      let t = 0;
+      this.effects.push((dt) => {
+        t += dt;
+        n.full.scale.setScalar(base * Math.min(1, 0.2 + t * 2));
+        if (t >= 0.4) { n.full.scale.setScalar(base); return false; }
+      });
+    }
+  }
+
+  // A crafting station. With `model: false` an existing prop (like a campfire) becomes one.
+  addStation(type, x, z, rotY = 0, model = true) {
+    if (model) {
+      const m = makeStation(type);
+      this.add(m, x, z, rotY, type === 'range' ? 1.1 : 1.3);
+      const def = STATION_TYPES[type];
+      this.addLabel(m, `<div class="name">${def.icon} ${def.name}</div>`, 'station', type === 'furnace' ? 3 : 2.3);
+    }
+    const st = { id: 'station:' + this.stations.length, type, x, z, r: 3 };
+    this.stations.push(st);
+    return st;
   }
 
   // Instantly moves the player (used by portals), with a flash of light.
@@ -783,12 +849,12 @@ export class World {
     return l;
   }
 
-  setNpcMarker(id, marker) {
+  setNpcMarker(id, marker, side = false) {
     const npc = this.npcs.find(n => n.id === id);
     if (!npc) return;
     const m = npc.label.el.querySelector('.marker');
     m.textContent = marker;
-    m.className = 'marker' + (marker ? ' on' : '');
+    m.className = 'marker' + (marker ? ' on' : '') + (side ? ' side' : '');
   }
 
   projectToScreen(v) {
@@ -862,6 +928,13 @@ export class World {
   }
 
   groundBurst(x, z, color, count = 18, power = 6) { this.burst(V(x, 0.4, z), color, count, power); }
+
+  // A little spray of chips, sparks or droplets (gathering, crafting).
+  puff(x, y, z, color, n = 6, power = 2) {
+    for (let i = 0; i < Math.ceil(n * this.fx); i++) {
+      this.particle(V(x, y, z), color, { vel: V((Math.random() - 0.5) * power, Math.random() * power, (Math.random() - 0.5) * power), life: 0.5 + Math.random() * 0.3, size: 0.07 + Math.random() * 0.05, gravity: 7 });
+    }
+  }
 
   shockwave(pos, color, maxScale = 3) {
     const ring = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -1101,7 +1174,12 @@ export class World {
     else if (this.player) this.player.userData.anim(this.time, false);
     this.updateEnemies(dt);
     this.updateTargetRing();
-    for (const o of this.animated) o.userData.anim(this.time);
+    const fp = this.player?.position;
+    for (const o of this.animated) {
+      if (fp && Math.abs(o.position.x - fp.x) + Math.abs(o.position.z - fp.z) > 140) continue;
+      o.userData.anim(this.time);
+    }
+    this.updateNodes();
     for (const n of this.npcs) {
       n.model.userData.anim(this.time, false);
       if (this.player && this.mode === 'explore') {

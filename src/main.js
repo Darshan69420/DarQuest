@@ -5,14 +5,19 @@ import { Minimap } from './minimap.js';
 import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
-  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, zoneAt,
+  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
 } from './data.js';
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
-  setSlot, getSlot, listSlots, exportSave, importSave,
+  setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem,
 } from './state.js';
-import { settings, actionOf, onSettings } from './settings.js';
+import { settings, actionOf, onSettings, keyFor, keyLabel } from './settings.js';
+import { Gatherer } from './skilling.js';
+import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
+import { ITEMS, BUFFS, removeItem, pickFood } from './items.js';
+import { npcSideQuests, accept as acceptSideQuest, complete as completeSideQuest, sideEvent, rewardText, goalText } from './sidequests.js';
+import * as SK from './ui_skills.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -20,6 +25,8 @@ const minimap = new Minimap($('#minimap'), world);
 let player = null;
 let hudTimer = 0;
 let saveTimer = 0;
+let eatReady = 0;
+let area = null;
 
 // ------------------------------------------------------------ title screen
 
@@ -149,8 +156,9 @@ function startGame(p, isNew) {
   updateMuteButton();
   refresh();
   save(player);
-  Audio.setMusic(ZONES[zoneAt(world.player.position.x)].music);
-  showZoneName(zoneAt(world.player.position.x));
+  area = null;
+  checkArea();
+  showZoneName(area.name);
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
@@ -163,23 +171,36 @@ function refresh() {
   if (!player) return;
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
-  for (const id of Object.keys(NPCS)) world.setNpcMarker(id, npcMarker(player, id));
+  $('#side-tracker').innerHTML = SK.sideTrackerHTML(player);
+  for (const id of Object.keys(NPCS)) {
+    let marker = npcMarker(player, id), side = false;
+    if (!marker) {
+      const sq = npcSideQuests(player, id);
+      if (sq.ready.length) { marker = '?'; side = true; } else if (sq.offers.length) { marker = '!'; side = true; }
+    }
+    world.setNpcMarker(id, marker, side);
+  }
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
+  SK.updateBuffs(player);
 }
 
 function showZoneName(zone) {
   const el = $('#zone-name');
-  el.textContent = ZONES[zone].name;
+  el.textContent = ZONES[zone]?.name || zone;
   el.classList.add('show');
   clearTimeout(showZoneName.t);
   showZoneName.t = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-world.onZoneChange = (zone) => {
-  if (!player) return;
-  showZoneName(zone);
-  if (!combat.inCombat) Audio.setMusic(ZONES[zone].music);
-};
+// Named areas (zones and the places inside them) get a title card and their own music.
+function checkArea() {
+  const a = areaAt(world.player.position.x, world.player.position.z);
+  if (area && a.id === area.id) return;
+  const first = !area;
+  area = a;
+  if (!first) showZoneName(a.name);
+  if (!combat.inCombat) Audio.setMusic(a.music);
+}
 
 // Where the quest tracker's star should point on the minimap.
 function questTargetPos() {
@@ -216,6 +237,18 @@ function questTargetPos() {
 function talk(id) {
   if (!player || world.mode !== 'explore' || UI.isDialogOpen()) return;
   world.moveTarget = null;
+  if (id.startsWith('node:')) {
+    const node = world.nodes[+id.slice(5)];
+    if (gatherer.active?.node !== node) gatherer.start(node);
+    return;
+  }
+  if (id.startsWith('station:')) {
+    Audio.sfx('click');
+    gatherer.stop();
+    SK.openCrafting(player, world.stations[+id.slice(8)].type, craft);
+    return;
+  }
+  if (onExtraInteract?.(id)) return;
   Audio.sfx('click');
 
   const fountain = FOUNTAINS.find(f => f.id === id);
@@ -245,21 +278,38 @@ function talk(id) {
   if (npc.service === 'tutor') extra.push({ label: '📚 Learn Spells', action: () => UI.openTutor(player, onChange) });
   if (npc.service === 'shop') extra.push({ label: '🧪 Potions & Pets', action: () => UI.openShop(player, onChange) });
   if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange) });
+  if (npc.service === 'guild') extra.push({ label: '🌾 Tools & Trading', action: () => SK.openGuildShop(player, onChange) });
+  for (const svc of extraServices) if (svc.npc === id) extra.push({ label: svc.label, action: svc.action });
+  const side = npcSideQuests(player, id);
 
   if (q) {
     const talkObjective = q.objective.type === 'talk' && q.objective.npc === id && player.quest.state === 'active';
     if (q.turnIn === id && (player.quest.state === 'ready' || talkObjective)) {
       return UI.dialog(npc.name, npc.title, q.done, [{ label: `Complete: ${q.name}`, primary: true, action: () => completeQuest(q) }]);
     }
-    if (q.giver === id && player.quest.state === 'available') {
-      return UI.dialog(npc.name, npc.title, q.offer, [
-        { label: 'Accept quest', primary: true, action: () => acceptQuest(q) },
-        { label: 'Not yet' },
-      ]);
-    }
-    if (q.giver === id && player.quest.state === 'active') {
-      return UI.dialog(npc.name, npc.title, `How goes "${q.name}"? ${questTrackerText(player).goal}.`, [...extra, { label: 'Goodbye' }]);
-    }
+  }
+  if (side.ready.length) {
+    const sq = side.ready[0];
+    return UI.dialog(npc.name, npc.title, sq.done, [{ label: `Complete: ${sq.name}`, primary: true, action: () => completeSide(sq) }]);
+  }
+  if (q && q.giver === id && player.quest.state === 'available') {
+    return UI.dialog(npc.name, npc.title, q.offer, [
+      { label: 'Accept quest', primary: true, action: () => acceptQuest(q) },
+      { label: 'Not yet' },
+    ]);
+  }
+  if (side.offers.length) {
+    const sq = side.offers[0];
+    return UI.dialog(npc.name, npc.title, `${sq.offer}\n\nReward: ${rewardText(sq)}`, [
+      { label: `Accept: ${sq.name}`, primary: true, action: () => acceptSide(sq) }, ...extra, { label: 'Not now' },
+    ]);
+  }
+  if (q && q.giver === id && player.quest.state === 'active') {
+    return UI.dialog(npc.name, npc.title, `How goes "${q.name}"? ${questTrackerText(player).goal}.`, [...extra, { label: 'Goodbye' }]);
+  }
+  if (side.active.length) {
+    const sq = side.active[0];
+    return UI.dialog(npc.name, npc.title, `How goes "${sq.name}"? ${goalText(player, sq)}.`, [...extra, { label: 'Goodbye' }]);
   }
   const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
   UI.dialog(npc.name, npc.title, line, [...extra, { label: 'Goodbye' }]);
@@ -304,6 +354,113 @@ function completeQuest(q) {
   save(player);
 }
 
+function acceptSide(sq) {
+  acceptSideQuest(player, sq);
+  UI.toast(`📋 Side quest: <b>${UI.esc(sq.name)}</b>`, 'quest');
+  Audio.sfx('quest');
+  refresh();
+  save(player);
+}
+
+function completeSide(sq) {
+  const { skillLevels } = completeSideQuest(player, sq);
+  const r = sq.reward || {};
+  player.gold += r.gold || 0;
+  player.tp += r.tp || 0;
+  for (const id of r.gear || []) giveItem(player, id);
+  const levels = gainXp(player, r.xp || 0);
+  UI.toast(`✅ <b>${UI.esc(sq.name)}</b> complete!<br>${UI.esc(rewardText(sq))}`, 'quest');
+  Audio.sfx('quest');
+  for (const s of skillLevels) announceSkill(s);
+  announceLevels(levels);
+  refresh();
+  save(player);
+}
+
+function announceSkill(skill) {
+  const sk = SKILLS[skill];
+  world.aura(world.player, 0x7fd8ff);
+  Audio.sfx('skill');
+  UI.toast(`🎉 ${sk.icon} <b>${sk.name}</b> is now level <b>${skillLevel(player, skill)}</b>!`, 'good');
+}
+
+// Side-quest progress from gathering, crafting or fighting.
+function sideProgress(type, key) {
+  for (const q of sideEvent(player, type, key)) {
+    UI.toast(`📋 <b>${UI.esc(q.name)}</b>: ready to hand in to ${UI.esc(NPCS[q.turnIn].name)}!`, 'quest');
+    Audio.sfx('quest');
+  }
+}
+
+function craft(r, n) {
+  const skill = STATION_TYPES[r.station].skill;
+  let made = 0, burnt = 0, levels = 0;
+  for (let i = 0; i < n; i++) {
+    if (r.out.potions && player.potions >= RULES.maxPotions) { UI.toast('You can only carry 5 healing potions.'); break; }
+    if (r.out.gear && player.inventory.length >= RULES.inventoryMax) { UI.toast('Your gear backpack is full!'); break; }
+    const res = craftOnce(player, r);
+    if (!res.ok) break;
+    levels += res.levels;
+    if (res.burnt) { burnt++; continue; }
+    made++;
+    if (r.out.gear) giveItem(player, r.out.gear);
+    if (r.out.potions) player.potions++;
+    sideProgress('craft', r.id);
+  }
+  if (!made && !burnt) return;
+  player.stats_log.crafted += made;
+  const name = r.out.item ? ITEMS[r.out.item].name : r.out.gear ? GEAR[r.out.gear].name : 'Healing Potion';
+  UI.toast(made ? `${SKILLS[skill].icon} Made ${made}× <b>${UI.esc(name)}</b>${burnt ? ` · ${burnt} burnt` : ''}${r.out.gear ? ' · press C to equip' : ''}` : '🔥 Oops, you burnt it!', made ? 'good' : '');
+  Audio.sfx(made ? 'craft' : 'fail');
+  world.castPose(world.player);
+  const pp = world.player.position;
+  world.puff(pp.x, 1.2, pp.z, SCHOOLS[player.school].color, 10, 3);
+  if (levels) announceSkill(skill);
+  refresh();
+  save(player);
+}
+
+// Eats food: the best fit for your missing health, or a specific item from the bag.
+function eat(item = null) {
+  const food = item || pickFood(player);
+  if (!food) return UI.combatMessage('You have no food. Catch fish and cook them at a range!');
+  if (player.hp >= player.maxHp && !food.regen) return UI.combatMessage('You are already at full health.');
+  if (world.time < eatReady) return;
+  eatReady = world.time + 1.6;
+  removeItem(player, food.id);
+  combat.healHero(food.heal);
+  if (food.regen) player.buffs.regen = BUFFS.regen.dur;
+  Audio.sfx('eat');
+  world.float(world.player, `🍴 ${food.name}`, 'status');
+  refresh();
+  save(player);
+}
+
+function useItem(id) {
+  const it = ITEMS[id];
+  if (!it || !player.bag[id]) return;
+  if (it.type === 'food') return eat(it);
+  if (it.use === 'mana') {
+    if (player.mana >= player.maxMana) return UI.toast('Your mana is already full.');
+    player.mana = Math.min(player.maxMana, player.mana + player.maxMana * it.amount);
+    world.aura(world.player, 0x3a7ae0);
+  } else if (it.use === 'heal') {
+    if (player.hp >= player.maxHp) return UI.toast('You are already at full health.');
+    combat.healHero(player.maxHp * it.amount);
+    world.aura(world.player, 0xff5fa2);
+  } else if (it.use === 'buff') {
+    const b = BUFFS[it.buff];
+    player.buffs[it.buff] = b.dur;
+    recalc(player);
+    world.aura(world.player, 0xf2c14e);
+    UI.toast(`${b.icon} <b>${b.name}</b> for ${Math.round(b.dur / 60)} minutes`, 'good');
+  } else return;
+  removeItem(player, id);
+  Audio.sfx('drink');
+  refresh();
+  save(player);
+}
+
 function announceLevels(levels) {
   if (!levels) return;
   world.aura(world.player, 0xf2c14e);
@@ -331,13 +488,30 @@ const combat = new Combat({
   world,
   onKill: rewardKill,
   onPlayerDeath: playerDefeated,
-  onHurt: () => UI.flashHurt(),
+  onHurt: () => { UI.flashHurt(); gatherer.stop(); },
   onMessage: (text, cls) => UI.combatMessage(text, cls),
   onCombatChange: (fighting, boss) => {
-    Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : ZONES[zoneAt(world.player.position.x)].music);
+    Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : areaAt(world.player.position.x, world.player.position.z).music);
+    if (fighting) gatherer.stop();
     if (fighting && boss) Audio.sfx('boss');
   },
 });
+
+const gatherer = new Gatherer({
+  world,
+  getPlayer: () => player,
+  onMessage: (text) => UI.combatMessage(text),
+  onGain: (def, levels, gem) => {
+    sideProgress('gather', def.item);
+    if (gem) { UI.toast(`💎 You found a <b>${ITEMS[gem].name}</b>!`, 'good'); Audio.sfx('loot'); }
+    if (levels) announceSkill(def.skill);
+    refresh();
+  },
+});
+
+// Later systems (dungeons, shouts, building...) can add their own interactables and NPC services.
+let onExtraInteract = null;
+const extraServices = [];
 
 function buildHotbar() {
   if (!player) return;
@@ -358,6 +532,8 @@ function rewardKill(e) {
   player.gold += gold;
   world.float(e.model, `+${xp} XP`, 'xp');
   const quest = recordKill(player, def.id);
+  player.stats_log.kills++;
+  sideProgress('defeat', def.id);
   const loot = rollLoot(player, [def]);
   const levels = gainXp(player, xp);
   if (quest) {
@@ -385,6 +561,7 @@ async function playerDefeated() {
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;
+  player.stats_log.deaths++;
   world.respawnPlayer();
   world.mode = 'explore';
   refresh();
@@ -396,6 +573,20 @@ async function playerDefeated() {
 world.onTick = (dt) => {
   if (!player || world.mode !== 'explore') return;
   combat.update(dt);
+  gatherer.update(dt);
+  // elixir buffs tick down; Well Fed regenerates health
+  let buffsChanged = false;
+  for (const id of Object.keys(player.buffs)) {
+    player.buffs[id] -= dt;
+    if (player.buffs[id] <= 0) {
+      delete player.buffs[id];
+      buffsChanged = true;
+      if (BUFFS[id]) UI.toast(`${BUFFS[id].icon} ${BUFFS[id].name} wore off`);
+    }
+  }
+  if (buffsChanged) recalc(player);
+  world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0);
+  if (player.buffs.regen > 0 && player.hp > 0) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.025 * dt);
   UI.updateHotbar(combat.hotbar());
   minimap.update(dt, questTargetPos());
   hudTimer += dt;
@@ -404,13 +595,22 @@ world.onTick = (dt) => {
     UI.updateHUD(player);
     UI.updateTarget(combat.target);
     const near = UI.isDialogOpen() ? null : world.nearestInteractable();
+    const key = keyLabel(keyFor('interact'));
     let text = '';
-    if (near) {
+    if (near && !gatherer.busy) {
       const f = FOUNTAINS.find(x => x.id === near.id);
       const pt = PORTALS.find(x => x.id === near.id);
-      text = f ? `Press E to use the ${f.name}` : pt ? 'Press E to use the Spiral Door' : `Press E to talk to ${NPCS[near.id].name}`;
+      if (near.id.startsWith('node:')) {
+        const n = world.nodes[+near.id.slice(5)].def;
+        text = skillLevel(player, n.skill) >= n.level ? `${key}: ${n.verb} ${n.name}` : `${n.name} · needs ${SKILLS[n.skill].name} ${n.level}`;
+      } else if (near.id.startsWith('station:')) text = `${key}: use the ${STATION_TYPES[world.stations[+near.id.slice(8)].type].name}`;
+      else if (near.label) text = `${key}: ${near.label}`;
+      else text = f ? `${key}: use the ${f.name}` : pt ? `${key}: use the Spiral Door` : NPCS[near.id] ? `${key}: talk to ${NPCS[near.id].name}` : '';
     }
     UI.setPrompt(text);
+    SK.updateActionBar(gatherer.progress());
+    SK.updateBuffs(player);
+    checkArea();
     const fps = $('#fps');
     fps.classList.toggle('hidden', !settings.showFps);
     if (settings.showFps) fps.textContent = `${Math.round(world.fps)} FPS`;
@@ -423,9 +623,7 @@ world.onTick = (dt) => {
   }
 };
 
-function updateMuteButton() {
-  $('#btn-mute').textContent = Audio.isMuted() ? '🔇' : '🔊';
-}
+function updateMuteButton() {}
 
 function toggleMute() {
   Audio.initAudio();
@@ -438,6 +636,7 @@ function openGameMenu() {
   UI.openMenu([
     { label: '▶ Resume', primary: true },
     { label: '⚙️ Settings', action: () => UI.openSettings() },
+    { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
     { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
     { label: '🏠 Save & quit to title', action: () => { player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
@@ -464,8 +663,13 @@ window.addEventListener('keydown', (e) => {
     case 'target': e.preventDefault(); combat.cycleTarget(); break;
     case 'help': e.preventDefault(); UI.openHelp(); break;
     case 'slot1': case 'slot2': case 'slot3': case 'slot4': case 'slot5':
+      gatherer.stop();
       combat.castSlot(+act.slice(4) - 1);
       break;
+    case 'skills': SK.openSkills(player); break;
+    case 'bag': SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }); break;
+    case 'journal': SK.openJournal(player); break;
+    case 'eat': eat(); break;
     default: onAction?.(act, e);
   }
 });
@@ -483,8 +687,9 @@ function drinkPotion() {
 const inExplore = () => world.mode === 'explore' && player;
 $('#btn-char').addEventListener('click', () => inExplore() && UI.openCharacter(player, onChange));
 $('#btn-book').addEventListener('click', () => inExplore() && UI.openSpellbook(player, onChange));
-$('#btn-potion').addEventListener('click', () => inExplore() && drinkPotion());
-$('#btn-mute').addEventListener('click', toggleMute);
+$('#btn-skills').addEventListener('click', () => inExplore() && SK.openSkills(player));
+$('#btn-bag').addEventListener('click', () => inExplore() && SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }));
+$('#btn-journal').addEventListener('click', () => inExplore() && SK.openJournal(player));
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
 onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });

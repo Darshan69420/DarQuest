@@ -321,7 +321,8 @@ export const NPCS = {
   orvyn: {
     name: 'Headmaster Orvyn', title: 'Headmaster', x: 0, z: -22, robe: 0x3b2d7a, hat: 0x2a1f5c, trim: 0xf2c14e, beard: true, hair: 0xe8e8f0, skin: 0xf0c8a8, eyeColor: 0x6a4aa0,
     lines: ['Starfall Academy has stood for a thousand years. It will stand for a thousand more, if its students are brave.',
-            'Magic is like a deck of cards, young one. What matters is how you play the hand you are dealt.'],
+            'Magic is like a deck of cards, young one. What matters is how you play the hand you are dealt.',
+            'East through the side gate lies Millbrook Meadow. The Gatherers\' Guild there will teach you to chop, mine, fish and craft. A wise wizard does not live on spells alone.'],
   },
   mirabel: {
     name: 'Mirabel Quill', title: 'Spell Tutor', x: -15, z: -6, robe: 0x2e7d6b, hat: 0x1f5c4f, trim: 0xe0f2e9, service: 'tutor', hair: 0xa0432a, glasses: true, eyeColor: 0x2e7d6b,
@@ -339,6 +340,12 @@ export const NPCS = {
     name: 'Ranger Kestra', title: 'Emberfall Scout', x: X - 7, z: 6, robe: 0x7a4a24, hat: 0x3d5a2a, trim: 0xe0c080, hatStyle: 'hood', hair: 0xe0702a, eyeColor: 0x2e7d3b, quiver: true,
     lines: ['The canyon runs north to the Molten Throne. Everything between here and there wants to cook you.',
             'Frost magic works wonders on these fire beasts. Just saying.'],
+  },
+  brisa: {
+    name: 'Forewoman Brisa', title: 'Gatherers\' Guild', x: 42, z: 4, robe: 0x5a7a3a, hat: 0x3a4a24, trim: 0xd8b060, service: 'guild', hatStyle: 'hood', backpack: true, hair: 0x6a3a1a, skin: 0xc68a5e, eyeColor: 0x3a6a2a,
+    lines: ['Trees, rocks, fish and flowers: the whole meadow is a treasure chest if you know how to open it.',
+            'Every skill goes all the way to 99. Nobody has ever mastered them all. Yet!',
+            'Chop, mine, fish and pick here, then use the stations in the crafting yard to make something of it.'],
   },
   tumblewick: {
     name: 'Old Tumblewick', title: 'Wandering Outfitter', x: X + 8, z: 3, robe: 0x4a3a6b, hat: 0x2a2040, trim: 0xff9a3d, beard: true, service: 'gear', backpack: true, hair: 0xb0b0b8, skin: 0xd8a888,
@@ -511,6 +518,25 @@ export const GEAR = {
   wisp_charm:        { name: 'Wisp Charm',          slot: 'amulet', level: 3,  stats: { hp: 35, heal: 8 } },
   hollowmere_locket: { name: 'Hollowmere\'s Locket', slot: 'amulet', level: 8, stats: { hp: 90, dmg: 5, resist: 5 } },
   ember_heart:       { name: 'Ember Heart',         slot: 'amulet', level: 11, stats: { hp: 160, heal: 12, pip: 3 } },
+
+  // ---------- crafted (Smithing at the anvil, Woodworking at the workbench) ----------
+  copper_amulet:     { name: 'Copper Amulet',       slot: 'amulet', level: 1,  stats: { hp: 30 }, crafted: true },
+  iron_ward:         { name: 'Iron Ward',           slot: 'amulet', level: 5,  stats: { hp: 60, resist: 3 }, crafted: true },
+  ironshod_boots:    { name: 'Ironshod Boots',      slot: 'boots',  level: 6,  stats: { hp: 60, resist: 3, acc: 1 }, crafted: true },
+  silver_locket:     { name: 'Silver Locket',       slot: 'amulet', level: 8,  stats: { hp: 90, heal: 8, resist: 2 }, crafted: true },
+  sunburst_amulet:   { name: 'Sunburst Amulet',     slot: 'amulet', level: 11, stats: { hp: 130, dmg: 5, acc: 2 }, crafted: true },
+  emberite_greaves:  { name: 'Emberite Greaves',    slot: 'boots',  level: 13, stats: { hp: 130, resist: 6, acc: 3 }, crafted: true },
+  emberite_pendant:  { name: 'Emberite Pendant',    slot: 'amulet', level: 14, stats: { hp: 170, dmg: 7, pip: 3 }, crafted: true },
+  starmetal_circlet: { name: 'Starmetal Circlet',   slot: 'hat',    level: 18, stats: { hp: 220, dmg: 8, acc: 4 }, color: 0x9fd6ff, crafted: true },
+  starmetal_amulet:  { name: 'Starmetal Amulet',    slot: 'amulet', level: 19, stats: { hp: 240, dmg: 9, heal: 6 }, crafted: true },
+  dragonite_amulet:  { name: 'Dragonite Amulet',    slot: 'amulet', level: 25, stats: { hp: 340, dmg: 12, resist: 6 }, crafted: true },
+  dragonscale_boots: { name: 'Dragonscale Boots',   slot: 'boots',  level: 26, stats: { hp: 300, resist: 10, acc: 5 }, crafted: true },
+  oak_wand:          { name: 'Oak Wand',            slot: 'wand',   level: 3,  stats: { dmg: 4, acc: 1 }, crafted: true },
+  willow_wand:       { name: 'Willow Wand',         slot: 'wand',   level: 7,  stats: { dmg: 6, acc: 2, pip: 1 }, crafted: true },
+  moonwood_staff:    { name: 'Moonwood Staff',      slot: 'wand',   level: 11, stats: { dmg: 9, acc: 3, pip: 3 }, crafted: true },
+  emberwood_staff:   { name: 'Emberwood Staff',     slot: 'wand',   level: 14, stats: { dmg: 11, pip: 4, acc: 2 }, crafted: true },
+  elder_staff:       { name: 'Elder Staff',         slot: 'wand',   level: 20, stats: { dmg: 15, pip: 5, acc: 3 }, crafted: true },
+  dragonwood_staff:  { name: 'Dragonwood Staff',    slot: 'wand',   level: 26, stats: { dmg: 19, pip: 6, acc: 5 }, crafted: true },
 };
 for (const [id, g] of Object.entries(GEAR)) {
   g.id = id;
@@ -536,7 +562,11 @@ for (const [id, p] of Object.entries(PETS)) p.id = id;
 export const ZONES = {
   academy: {
     name: 'Starfall Academy',
-    regions: [{ type: 'circle', x: 0, z: 0, r: 31 }, { type: 'rect', x0: -8.5, x1: 8.5, z0: 24, z1: 146 }],
+    regions: [
+      { type: 'circle', x: 0, z: 0, r: 31 }, { type: 'rect', x0: -8.5, x1: 8.5, z0: 24, z1: 146 },
+      // Millbrook Meadow, east through the courtyard's side gate
+      { type: 'rect', x0: 27, x1: 40, z0: -4, z1: 4 }, { type: 'rect', x0: 36, x1: 132, z0: -46, z1: 46 },
+    ],
     spawn: { x: 0, z: -14, heading: Math.PI },
     atmosphere: { fog: 0x4a3468, top: 0x140f38, mid: 0x5b3a8c, bottom: 0xf29a6b, hemi: 0xc4b5ff },
     music: 'academy',
@@ -554,6 +584,17 @@ export const ZONES = {
   },
 };
 export function zoneAt(x) { return x > 350 ? 'emberfall' : 'academy'; }
+
+// Named places inside a zone: they get their own title card and music.
+export const AREAS = [
+  { id: 'meadow', name: 'Millbrook Meadow', x0: 34, x1: 160, z0: -70, z1: 70, music: 'meadow' },
+  { id: 'lane', name: 'Hollow Lane', x0: -12, x1: 12, z0: 30, z1: 170, music: 'academy' },
+];
+export function areaAt(x, z) {
+  for (const a of AREAS) if (x > a.x0 && x < a.x1 && z > a.z0 && z < a.z1) return a;
+  const zone = zoneAt(x);
+  return { id: zone, name: ZONES[zone].name, music: ZONES[zone].music };
+}
 
 // Portals between zones. `unlock` = quest index needed to use it.
 export const PORTALS = [

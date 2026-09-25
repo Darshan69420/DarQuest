@@ -1,10 +1,106 @@
-// Chapter 2 zone: the Emberfall Wilds, a volcanic canyon east of the academy.
+// Zone builders: Millbrook Meadow (the skilling area next to the academy) and the
+// Emberfall Wilds (Chapter 2), a volcanic canyon far to the east.
 import * as THREE from 'three';
 import {
   makeFountain, makeTent, makeCampfire, makeLavaPool, makeSpire, makeFireTree, makeCliff,
-  makeThrone, makeRock, makeLamp, glowMat,
+  makeThrone, makeRock, makeLamp, glowMat, makeGate, makeTree, makePond, makeFence, makeWindmill,
+  makeSignpost, makeHayBale, makeFlowers, makeRoundTree,
 } from './models.js';
 import { EMBER_X as X, NPCS } from './data.js';
+
+function flatPlane(scene, geo, color, x, z, y = 0.02) {
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 1 }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+
+// ------------------------------------------------------------ Millbrook Meadow
+
+export function buildMeadow(world) {
+  const scene = world.scene;
+  // ground: meadow grass, dirt paths, quarry gravel
+  flatPlane(scene, new THREE.PlaneGeometry(98, 94), 0x4f8a45, 84, 0, 0.012);
+  flatPlane(scene, new THREE.PlaneGeometry(40, 5), 0x9a8060, 44, 0, 0.025);
+  flatPlane(scene, new THREE.PlaneGeometry(48, 4), 0x9a8060, 86, 0, 0.026);
+  flatPlane(scene, new THREE.PlaneGeometry(4, 30), 0x9a8060, 70, -15, 0.027);
+  flatPlane(scene, new THREE.PlaneGeometry(4, 12), 0x9a8060, 84, 9, 0.027);
+  flatPlane(scene, new THREE.CircleGeometry(16, 28), 0x8a8494, 117, 2, 0.028);
+
+  // the east gate out of the courtyard
+  const gate = makeGate();
+  gate.scale.setScalar(0.5);
+  world.add(gate, 31, 0, Math.PI / 2);
+  world.colliders.push({ x: 31, z: -4.75, r: 0.9 }, { x: 31, z: 4.75, r: 0.9 });
+  world.add(makeSignpost(), 38, -5.5, 0.3, 0.3);
+
+  // fences around the meadow (with a gap for the gate)
+  const fence = (x, z, len, rot) => world.add(makeFence(len), x, z, rot);
+  for (let x = 36; x < 132; x += 12) { fence(x, -46, 12, 0); fence(x, 46, 12, 0); }
+  for (let z = -46; z < 46; z += 12) fence(132, z, 12, -Math.PI / 2);
+  for (let z = -46; z < -4; z += 10.5) fence(36, z, 10.5, -Math.PI / 2);
+  for (let z = 4; z < 46; z += 10.5) fence(36, z, 10.5, -Math.PI / 2);
+
+  // crafting yard by the gate
+  world.addStation('furnace', 47, -10.5, 0);
+  world.addStation('anvil', 53, -9.5, 0.2);
+  world.addStation('workbench', 59, -10, 0);
+  world.addStation('range', 47, 10, 0);
+  world.addStation('alchemy', 54, 10.5, Math.PI);
+
+  // woodcutting grove (north)
+  for (const [x, z] of [[64, -22], [68, -31], [62, -39], [75, -40], [79, -27], [85, -36]]) world.addNode('tree', x, z);
+  for (const [x, z] of [[91, -21], [97, -32], [89, -42], [103, -24]]) world.addNode('oak', x, z);
+  for (const [x, z] of [[109, -38], [113, -26]]) world.addNode('moonwood', x, z);
+  world.addNode('elder', 123, -38);
+
+  // the pond (fishing, willows, glowcaps)
+  world.add(makePond(9), 84, 24, 0);
+  world.colliders.push({ x: 84, z: 24, r: 8.7 });
+  world.addNode('fish_minnow', 77, 27);
+  world.addNode('fish_minnow', 80, 17.3);
+  world.addNode('fish_trout', 90.7, 19);
+  world.addNode('fish_trout', 91, 28.5);
+  world.addNode('fish_salmon', 84, 31.4);
+  for (const [x, z] of [[72, 35], [96, 35], [98, 14]]) world.addNode('willow', x, z);
+  world.addNode('herb_glowcap', 99.5, 38);
+  world.addNode('herb_glowcap', 74.5, 39);
+
+  // quarry (east)
+  for (const [x, z] of [[106, -8], [110, -13], [126, -10]]) world.addNode('stone_rock', x, z);
+  for (const [x, z] of [[108, 4], [112, 10], [116, -4], [104, 14]]) world.addNode('copper_rock', x, z);
+  for (const [x, z] of [[120, 2], [124, 10], [118, 15]]) world.addNode('iron_rock', x, z);
+  for (const [x, z] of [[126, -2], [128.5, 6]]) world.addNode('silver_rock', x, z);
+  world.addNode('gold_rock', 121, -12.5);
+  world.addNode('starmetal_rock', 128.5, 16);
+  for (const [x, z, s] of [[102, -16, 2.2], [130, -18, 2.6], [100, 20, 1.8], [131, 24, 2.4]]) world.add(makeRock(s, 0x6c6776), x, z, Math.random() * 6, s);
+
+  // herbs & berries (south-west)
+  for (const [x, z] of [[58, 24], [62, 32], [50, 38], [66, 41], [44, 29]]) world.addNode('herb_moonleaf', x, z);
+  for (const [x, z] of [[41, 40], [56, 43], [70, 21]]) world.addNode('berry_bush', x, z);
+  for (const [x, z] of [[104, 31], [110, 39], [118, 27]]) world.addNode('herb_sunpetal', x, z);
+
+  // farm corner and decorations
+  world.add(makeWindmill(), 123, 36, -0.5, 2.6);
+  for (const [x, z, r] of [[112, 42, 0.3], [115.5, 41, 1.2], [109, 44, 2]]) world.add(makeHayBale(), x, z, r, 0.7);
+  const petals = [0xffc3e1, 0xfff4b0, 0xc9b0ff, 0xff9a8a, 0x9fd6ff];
+  for (let i = 0; i < 26; i++) {
+    const x = 40 + Math.random() * 88, z = -44 + Math.random() * 88;
+    if (Math.abs(z) < 4 || (x < 62 && Math.abs(z) < 14) || Math.hypot(x - 84, z - 24) < 11 || Math.hypot(x - 117, z - 2) < 16) continue;
+    world.add(makeFlowers(petals[i % petals.length]), x, z, Math.random() * 6);
+  }
+  // a wall of trees around the outside of the fence
+  for (let i = 0; i < 70; i++) {
+    const side = i % 3;
+    const x = side === 0 ? 34 + Math.random() * 104 : side === 1 ? 138 + Math.random() * 16 : 34 + Math.random() * 104;
+    const z = side === 0 ? -50 - Math.random() * 16 : side === 1 ? -60 + Math.random() * 120 : 50 + Math.random() * 16;
+    world.add(Math.random() < 0.8 ? makeTree(1.2 + Math.random() * 1.1, 0x2f6b3c) : makeRoundTree(1.1, 0xf29a6b), x, z, Math.random() * 6);
+  }
+}
+
+// ------------------------------------------------------------ Emberfall Wilds
 
 export function buildEmberfall(world) {
   const scene = world.scene;
@@ -79,6 +175,21 @@ export function buildEmberfall(world) {
     world.add(makeLavaPool(1.8), X + Math.sin(a) * 11, 165 + Math.cos(a) * 11, 0, 2);
   }
   world.add(makeThrone(), X, 178, 0);
+
+  // skilling in the wilds: emberwood, emberite, gold, lavafish and emberroot
+  world.addNode('emberwood', X - 16.5, -4);
+  world.addNode('emberwood', X + 17, 5);
+  world.addNode('emberite_rock', X - 6.5, -12.5);
+  world.addNode('emberite_rock', X + 6.5, -12.5);
+  world.addNode('emberite_rock', X - 7.6, 64);
+  world.addNode('gold_rock', X + 7.6, 100);
+  for (const [dx, z] of [[-9.6, 33], [9.6, 71], [-9.6, 112]]) {
+    world.add(makeLavaPool(1.7), X + dx, z, 0, 1.5);
+    world.addNode('fish_lava', X + dx, z);
+  }
+  for (const [dx, z] of [[-7.6, 45], [7.6, 88], [-7.6, 124]]) world.addNode('herb_emberroot', X + dx, z);
+  world.addStation('range', X, 4, 0, false);
+  world.addStation('anvil', X + 7, -5, -0.4);
 
   // distant volcano
   const volcano = new THREE.Mesh(new THREE.ConeGeometry(90, 110, 8, 1, true), new THREE.MeshStandardMaterial({ color: 0x2a1614, flatShading: true }));

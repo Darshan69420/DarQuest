@@ -392,6 +392,9 @@ export function openHelp() {
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
+    <h3>Skills &amp; crafting</h3>
+    <p>Go east through the courtyard's side gate to <b>Millbrook Meadow</b>. Stand next to a tree, rock, fishing spot or herb and press <b>E</b>: your wizard keeps gathering until it runs out or you walk away. There are 8 skills (Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking) and each one goes up to level <b>99</b>. Press <b>K</b> to see them and what they unlock.</p>
+    <p>Use the <b>crafting stations</b> to smelt bars and forge tools and jewellery, cook food, brew potions and elixirs, and carve rods, wands and staffs. <b>I</b> opens your materials bag, <b>F</b> eats food, and <b>J</b> opens your quest journal. Forewoman Brisa of the Gatherers' Guild has side quests (blue <b style="color:#7fd8ff">!</b>), sells tools and buys materials.</p>
     <h3>Gear &amp; pets</h3>
     <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>
     <h3>Combat</h3>

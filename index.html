@@ -26,23 +26,27 @@
         <span title="Potions">🧪 <b id="hud-potions"></b></span>
         <span id="hud-tp-wrap" title="Training Points: spend them at Mirabel's spell table">📘 TP <b id="hud-tp"></b></span>
       </div>
+      <div id="buffs"></div>
     </div>
     <div class="hud-card hud-quest">
       <div class="quest-label">📜 Quest</div>
       <div id="quest-title" class="quest-title"></div>
       <div id="quest-goal" class="quest-goal"></div>
+      <div id="side-tracker"></div>
     </div>
     <canvas id="minimap" title="Minimap"></canvas>
     <div id="zone-name" class="zone-name"></div>
     <div class="hud-buttons">
       <button class="btn round" id="btn-char" title="Character, gear &amp; pets (C)">🎒</button>
+      <button class="btn round" id="btn-bag" title="Materials bag (I)">👜</button>
+      <button class="btn round" id="btn-skills" title="Skills (K)">📊</button>
       <button class="btn round" id="btn-book" title="Spellbook (B)">📖</button>
-      <button class="btn round" id="btn-potion" title="Drink potion (H)">🧪</button>
-      <button class="btn round" id="btn-mute" title="Sound on/off (M)">🔊</button>
+      <button class="btn round" id="btn-journal" title="Quest journal (J)">📜</button>
       <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
       <button class="btn round" id="btn-menu" title="Menu &amp; settings (Esc)">☰</button>
     </div>
     <div id="prompt" class="hidden"></div>
+    <div id="action-bar" class="hidden"><div class="ab-label"></div><div class="ab-track"><div class="ab-fill"></div></div></div>
   </div>
 
   <div id="hurt"></div>

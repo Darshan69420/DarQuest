@@ -49,7 +49,8 @@ export class Combat {
   }
 
   get diff() { return DIFFICULTIES[this.p?.difficulty] || DIFFICULTIES.normal; }
-  rm(k) { return this.runMods?.[k] || 0; }
+  // A combat modifier from rift boons plus talents and legendary gear.
+  rm(k) { return (this.runMods?.[k] || 0) + (this.p?.tmods?.[k] || 0); }
   get now() { return this.world.time; }
 
   initEnemy(e) {
@@ -136,7 +137,7 @@ export class Combat {
       this.combo = t - this.lastBasic < BASIC_COOLDOWN + 1.5 ? this.combo + 1 : 1;
       this.lastBasic = t;
       if (this.combo >= 3) {
-        power = 1.8;
+        power = 1.8 + this.rm('comboPower');
         this.combo = 0;
         sfx('combo', spell.school);
         this.world.float(this.world.player, '✦ Combo!', 'status');
@@ -154,7 +155,7 @@ export class Combat {
   dodge() {
     if (this.now < this.dodgeReady || !this.p || this.p.hp <= 0) return;
     if (this.world.dash()) {
-      this.dodgeReady = this.now + DODGE_COOLDOWN;
+      this.dodgeReady = this.now + DODGE_COOLDOWN * (1 - Math.min(0.6, this.rm('dodgeCd')));
       sfx('dodge');
       if (this.rm('nova')) {
         const pp = this.world.player.position;
@@ -173,7 +174,7 @@ export class Combat {
     if (this.now < this.potionReady) { this.onMessage?.('Potion is not ready yet'); return false; }
     p.potions--;
     this.potionReady = this.now + RULES.potionCooldown;
-    this.healHero(p.maxHp * 0.5);
+    this.healHero(p.maxHp * 0.5 * (1 + this.rm('potionHeal')));
     this.world.aura(this.world.player, 0xff5fa2);
     sfx('drink');
     return true;
@@ -209,7 +210,9 @@ export class Combat {
     const st = this.p.stats || {};
     const dmgBonus = (this.p.level - 1) * 0.02 + (st.dmg || 0) / 100;
     const critChance = 0.05 + (st.acc || 0) / 100 + this.rm('crit');
+    const critMult = 1.5 + this.rm('critDmg');
     const hitMult = () => {
+      if (isPet) return (1 + dmgBonus) * (1 + this.rm('petPower'));
       let m = (1 + dmgBonus) * power * (1 + this.rm('dmg') + this.rm('berserk') * (1 - this.p.hp / this.p.maxHp));
       if (!isPet) {
         for (const b of this.hero.blades) m *= 1 + b;
@@ -234,15 +237,16 @@ export class Combat {
           for (const e of hit) {
             const crit = Math.random() < critChance;
             let tm = 1;
-            if (!isPet && this.runMods) {
+            if (!isPet) {
               if (e.hp < e.maxHp * 0.3) tm += this.rm('execute');
               if (e.def.boss || e.def.elite) tm += this.rm('big');
+              if (e.hp >= e.maxHp) tm += this.rm('firstStrike');
             }
-            const amount = rand(spell.min, spell.max) * cm * tm * (crit ? 1.5 : 1);
+            const amount = rand(spell.min, spell.max) * cm * tm * (crit ? critMult : 1);
             total += this.damageEnemy(e, amount, spell.school, color, crit, !isPet && (crit || big || power > 1));
             if (!isPet && (crit || big)) w.hitStop(big ? 0.09 : 0.05);
             if (spell.dot && e.hp > 0) this.addOverTime(e.mods.dots, spell.dot.total * cm, spell.dot.rounds, spell.school);
-            if (!isPet && this.runMods) this.riftOnHit(e, amount, spell, power);
+            if (!isPet) this.riftOnHit(e, amount, spell, power);
           }
           sfx(big ? 'bighit' : 'hit');
           if (spell.type === 'drain' && total > 0) this.healHero(total * spell.heal);
@@ -271,7 +275,7 @@ export class Combat {
         break;
       case 'heal':
         w.aura(w.player, 0x7dff9a);
-        this.healHero(spell.amount);
+        this.healHero(spell.amount * (isPet ? 1 + this.rm('petPower') : 1));
         break;
       case 'hot':
         w.aura(w.player, 0x7dff9a);

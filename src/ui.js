@@ -2,6 +2,8 @@
 import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell } from './state.js';
 import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
+import { RARITIES, RARITY_ORDER, LEGENDARY, itemName, itemColor, itemStats, itemValue, compareText, makeItem } from './gear.js';
+import { TALENTS, freePoints, talentPoints, spentPoints, branchSpent, canLearn, respecCost } from './talents.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -326,53 +328,104 @@ export function statsText(stats) {
   return Object.entries(stats || {}).filter(([, v]) => v).map(([k, v]) => k === 'hp' ? `+${v} ${STAT_NAMES[k]}` : `+${v}% ${STAT_NAMES[k]}`).join(' · ');
 }
 
-function gearRow(g, right) {
-  return `<div class="gear-row"><div class="gear-icon">${SLOTS[g.slot].split(' ')[0]}</div>
-    <div class="gear-info"><b>${esc(g.name)}</b> <small>Lv ${g.level} ${SLOTS[g.slot].split(' ')[1]}</small><br><span>${statsText(g.stats)}</span></div>${right}</div>`;
+function gearRow(g, right, inst = null, extra = '') {
+  const name = inst ? itemName(inst) : g.name;
+  const color = inst ? itemColor(inst) : RARITIES.common.color;
+  const stats = inst ? itemStats(inst) : g.stats;
+  const r = inst ? RARITIES[inst.r] : null;
+  return `<div class="gear-row ${inst ? 'rar-' + inst.r : ''}"><div class="gear-icon">${SLOTS[g.slot].split(' ')[0]}</div>
+    <div class="gear-info"><b style="color:${color}">${esc(name)}</b> <small>${r && inst.r !== 'common' ? r.label + ' · ' : ''}Lv ${g.level} ${SLOTS[g.slot].split(' ')[1]}</small><br><span>${statsText(stats)}</span>
+    ${inst?.p ? `<br><span class="legend">✦ ${esc(LEGENDARY[inst.p].desc)}</span>` : ''}${extra}</div>${right}</div>`;
 }
 
 export function openCharacter(p, onChange, tab = 'gear') {
+  let sort = 'slot';
   const render = (body) => {
     const s = p.stats || {};
     const petList = p.pets.map(id => {
       const pet = PETS[id], sp = SPELLS[pet.spell];
       const active = p.activePet === id;
       return `<div class="gear-row ${active ? 'active' : ''}"><div class="gear-icon">${SCHOOLS[pet.school].icon}</div>
-        <div class="gear-info"><b>${pet.name}</b><br><span>${Math.round(pet.chance * 100)}% chance each round: ${esc(describe(sp))}</span><br><span>${statsText(pet.stats)}</span></div>
+        <div class="gear-info"><b>${pet.name}</b><br><span>Casts in battle: ${esc(describe(sp))}</span><br><span>${statsText(pet.stats)}</span></div>
         <button class="btn small ${active ? '' : 'primary'}" data-pet="${id}">${active ? 'Dismiss' : 'Summon'}</button></div>`;
     }).join('') || '<p class="modal-note">No pets yet. Buy a Mystery Pet Egg from Madame Fizz, or find one on powerful foes.</p>';
+    const order = { slot: (a, b) => Object.keys(SLOTS).indexOf(a.g.slot) - Object.keys(SLOTS).indexOf(b.g.slot) || b.g.level - a.g.level,
+      level: (a, b) => b.g.level - a.g.level, rarity: (a, b) => RARITY_ORDER.indexOf(b.inst.r) - RARITY_ORDER.indexOf(a.inst.r) || b.g.level - a.g.level };
+    const pack = p.inventory.map((inst, i) => ({ inst, i, g: GEAR[inst.b] })).sort(order[sort]);
+    const free = freePoints(p);
+    let inner = '';
+    if (tab === 'gear') inner = `
+      <h3 class="sub-h">Equipped</h3>
+      <div class="equip-grid">${Object.keys(SLOTS).map(slot => {
+        const inst = p.equipped[slot];
+        return inst ? gearRow(GEAR[inst.b], `<button class="btn small" data-unequip="${slot}">Remove</button>`, inst)
+          : `<div class="gear-row empty"><div class="gear-icon">${SLOTS[slot].split(' ')[0]}</div><div class="gear-info"><span>No ${SLOTS[slot].split(' ')[1].toLowerCase()}</span></div></div>`;
+      }).join('')}</div>
+      <h3 class="sub-h row">Backpack (${p.inventory.length}/${RULES.inventoryMax})
+        <span class="sort">Sort: ${['slot', 'level', 'rarity'].map(k => `<button class="btn small ${sort === k ? 'primary' : ''}" data-sort="${k}">${k}</button>`).join('')}
+        ${p.inventory.some(x => x.r === 'common') ? '<button class="btn small" id="sell-common">Sell all common</button>' : ''}</span></h3>
+      ${pack.map(({ inst, i, g }) => {
+        const low = p.level < g.level;
+        const cmp = compareText(inst, p.equipped[g.slot]);
+        return gearRow(g, `<div class="gear-btns"><button class="btn small primary" data-equip="${i}" ${low ? 'disabled title="Level too low"' : ''}>${low ? `Lv ${g.level}` : 'Equip'}</button><button class="btn small" data-sell="${i}">Sell 🪙${itemValue(inst)}</button></div>`,
+          inst, cmp ? `<div class="compare">${cmp}</div>` : '');
+      }).join('') || '<p class="modal-note">Your backpack is empty. Defeat enemies to find gear!</p>'}`;
+    if (tab === 'talents') inner = `
+      <p class="modal-note">Talent points: <b>${free}</b> free · ${talentPoints(p)} total (one per level after the first). Deeper talents need 2 points spent above them in the same branch.
+        ${spentPoints(p) ? `<button class="btn small" id="respec">Reset talents · 🪙${respecCost(p)}</button>` : ''}</p>
+      <div class="talent-trees">${TALENTS[p.school].map((br, bi) => `<div class="branch"><div class="branch-head">${br.icon} <b>${esc(br.name)}</b><small>${esc(br.desc)} · ${branchSpent(p, br)} pts</small></div>
+        ${br.talents.map((t, i) => {
+          const rank = p.talents[t.id] || 0;
+          const can = canLearn(p, br, i);
+          const locked = branchSpent(p, br) < i * 2;
+          return `<button class="talent ${rank ? 'has' : ''} ${rank >= t.max ? 'max' : ''} ${locked ? 'locked' : ''} ${i === 4 ? 'cap' : ''}" data-talent="${bi}:${i}" ${can ? '' : 'disabled'}>
+            <span class="t-icon">${t.icon}</span><span class="t-name">${esc(t.name)}</span><span class="t-rank">${rank}/${t.max}</span><span class="t-desc">${esc(t.desc)}${t.max > 1 ? ' per rank' : ''}</span></button>`;
+        }).join('')}</div>`).join('')}</div>`;
+    if (tab === 'pets') inner = petList;
     body.innerHTML = `
-      <div class="tabs"><button class="btn small ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🎒 Gear</button><button class="btn small ${tab === 'pets' ? 'primary' : ''}" data-tab="pets">🐾 Pets (${p.pets.length}/${Object.keys(PETS).length})</button></div>
+      <div class="tabs"><button class="btn small ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🎒 Gear</button><button class="btn small ${tab === 'talents' ? 'primary' : ''}" data-tab="talents">🌟 Talents${free ? ` (${free})` : ''}</button><button class="btn small ${tab === 'pets' ? 'primary' : ''}" data-tab="pets">🐾 Pets (${p.pets.length}/${Object.keys(PETS).length})</button></div>
       <div class="stat-grid">
         <div>❤️ Health <b>${p.maxHp}</b></div><div>⚔️ Damage <b>+${Math.round((p.level - 1) * 2 + (s.dmg || 0))}%</b></div>
         <div>🎯 Crit Chance <b>${5 + (s.acc || 0)}%</b></div><div>🛡️ Resist <b>${s.resist || 0}%</b></div>
         <div>⏱️ Haste <b>${s.pip || 0}%</b></div><div>💚 Healing <b>+${s.heal || 0}%</b></div><div>💧 Mana <b>${p.maxMana}</b></div>
         <div>🏅 Difficulty <b>${DIFFICULTIES[p.difficulty].icon} ${DIFFICULTIES[p.difficulty].name}</b></div>
-      </div>
-      ${tab === 'gear' ? `
-      <h3 class="sub-h">Equipped</h3>
-      ${Object.keys(SLOTS).map(slot => {
-        const g = GEAR[p.equipped[slot]];
-        return g ? gearRow(g, `<button class="btn small" data-unequip="${slot}">Remove</button>`)
-          : `<div class="gear-row empty"><div class="gear-icon">${SLOTS[slot].split(' ')[0]}</div><div class="gear-info"><span>No ${SLOTS[slot].split(' ')[1].toLowerCase()} equipped</span></div></div>`;
-      }).join('')}
-      <h3 class="sub-h">Backpack (${p.inventory.length}/${RULES.inventoryMax})</h3>
-      ${p.inventory.map((id, i) => {
-        const g = GEAR[id];
-        const low = p.level < g.level;
-        return gearRow(g, `<div class="gear-btns"><button class="btn small primary" data-equip="${i}" ${low ? 'disabled title="Level too low"' : ''}>${low ? `Lv ${g.level}` : 'Equip'}</button><button class="btn small" data-sell="${i}">Sell 🪙${g.sell}</button></div>`);
-      }).join('') || '<p class="modal-note">Your backpack is empty. Defeat enemies to find gear!</p>'}` : petList}`;
+      </div>${inner}`;
     body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; render(body); }));
+    body.querySelectorAll('[data-sort]').forEach(b => b.addEventListener('click', () => { sort = b.dataset.sort; render(body); }));
     body.querySelectorAll('[data-equip]').forEach(b => b.addEventListener('click', () => { if (equip(p, +b.dataset.equip)) { onChange('gear'); render(body); } }));
     body.querySelectorAll('[data-unequip]').forEach(b => b.addEventListener('click', () => {
       if (!unequip(p, b.dataset.unequip)) return toast('Your backpack is full!');
       onChange('gear'); render(body);
     }));
     body.querySelectorAll('[data-sell]').forEach(b => b.addEventListener('click', () => { sellItem(p, +b.dataset.sell); onChange('sell'); render(body); }));
+    body.querySelector('#sell-common')?.addEventListener('click', () => {
+      let gold = 0;
+      for (let i = p.inventory.length - 1; i >= 0; i--) if (p.inventory[i].r === 'common') gold += sellItem(p, i);
+      toast(`Sold every common item for 🪙 ${gold}`);
+      onChange('sell'); render(body);
+    });
     body.querySelectorAll('[data-pet]').forEach(b => b.addEventListener('click', () => {
       setActivePet(p, p.activePet === b.dataset.pet ? null : b.dataset.pet);
       onChange('pet'); render(body);
     }));
+    body.querySelectorAll('[data-talent]').forEach(b => b.addEventListener('click', () => {
+      const [bi, i] = b.dataset.talent.split(':').map(Number);
+      const br = TALENTS[p.school][bi];
+      if (!canLearn(p, br, i)) return;
+      const t = br.talents[i];
+      p.talents[t.id] = (p.talents[t.id] || 0) + 1;
+      onChange('talent');
+      render(body);
+    }));
+    body.querySelector('#respec')?.addEventListener('click', () => {
+      const cost = respecCost(p);
+      if (p.gold < cost) return toast('Not enough gold to reset your talents.');
+      if (!confirm(`Reset all talents for ${cost} gold?`)) return;
+      p.gold -= cost;
+      p.talents = {};
+      onChange('talent');
+      render(body);
+    });
   };
   openModal(`🧙 ${esc(p.name)}`, '', render);
 }
@@ -382,13 +435,15 @@ export function openGearShop(p, onChange, stock = GEAR_SHOP, title = '🎩 Tumbl
     body.innerHTML = `<p class="modal-note">Gold: <b>🪙 ${p.gold}</b> · Anything you buy goes into your backpack. Open your character screen (C) to equip it.</p>
       ${stock.map(id => {
         const g = GEAR[id];
-        return gearRow(g, `<button class="btn small primary" data-buy="${id}" ${p.gold < g.price || p.inventory.length >= RULES.inventoryMax ? 'disabled' : ''}>Buy 🪙${g.price}</button>`);
+        const worn = p.equipped[g.slot];
+        const cmp = compareText(makeItem(id), worn);
+        return gearRow(g, `<button class="btn small primary" data-buy="${id}" ${p.gold < g.price || p.inventory.length >= RULES.inventoryMax ? 'disabled' : ''}>Buy 🪙${g.price}</button>`, null, cmp ? `<div class="compare">${cmp}</div>` : '');
       }).join('')}`;
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       const g = GEAR[b.dataset.buy];
       if (p.gold < g.price || p.inventory.length >= RULES.inventoryMax) return;
       p.gold -= g.price;
-      p.inventory.push(g.id);
+      p.inventory.push(makeItem(g.id));
       toast(`Bought <b>${esc(g.name)}</b>!`, 'good');
       onChange('loot');
       render(body);
@@ -412,8 +467,9 @@ export function openHelp() {
     <p>The swirling <b>Rift Gate</b> in the courtyard leads to a dungeon that is different every time. Clear rooms, open chests, pray at shrines for <b>boons</b> that last the whole run, and find the Rift Portal to go deeper. A guardian boss waits every 5 floors. If you fall you keep half your <b>Rift Shards</b>; escape through a Rift Exit to keep them all. Warden Nyx trades shards for permanent upgrades.</p>
     <h3>Dragons &amp; shouts</h3>
     <p>In Chapter 3 a new Spiral Door opens to the <b>Dragonspire Peaks</b>. Sage Vaelith awakens your <b>Voice</b>: read <b>Word Walls</b> (Hollow Lane, Emberfall and the Peaks) to learn dragon shouts, and press <b>R</b> to shout. Slaying dragons grants <b>dragon souls</b>, which teach each shout's second and third words (spellbook → Shouts). Unrelenting Force hurls foes back, Fire and Frost Breath scorch or slow, Whirlwind Sprint dashes, Become Ethereal makes you untouchable, and <b>Dragonrend</b> drags a flying dragon out of the sky.</p>
-    <h3>Gear &amp; pets</h3>
-    <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>
+    <h3>Gear, talents &amp; pets</h3>
+    <p>Enemies drop gear for 8 slots: hat, robe, cloak, boots, wand, offhand, amulet and ring. Every piece rolls a <b>rarity</b>: <span style="color:#5fdc6a">uncommon</span>, <span style="color:#4d9fff">rare</span>, <span style="color:#c542ff">epic</span> or <span style="color:#ff9a1a">legendary</span>, with bonus stats; legendaries also carry a special power. Bosses, elites, the deep Rift and harder difficulties drop better gear, and a skilled crafter can forge masterwork items. The character screen (C) compares every item with what you wear.</p>
+    <p>Each level gives a <b>talent point</b> (C → Talents). Every school has three branches of five talents, ending in a powerful capstone. Pets follow you around and cast spells to help whenever you are fighting.</p>
     <h3>Combat</h3>
     <p>Fights happen right in the world. Get close to an enemy and it will attack. Its friends nearby join in!</p>
     <p><b>1</b> is your free basic attack. <b>2–5</b> are the spells on your spell bar: they cost mana (💧) and have cooldowns. Change them in your spellbook (<b>B</b>) and learn new ones from Mirabel.</p>

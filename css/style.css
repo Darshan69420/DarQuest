@@ -83,6 +83,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .toast { background: var(--panel); border: 2px solid #8e7ad6; border-radius: 14px; padding: 10px 16px; text-align: center; animation: toastIn .3s ease; transition: opacity .5s, transform .5s; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
 .toast.good { border-color: var(--gold); }
 .toast.quest { border-color: var(--good); }
+.toast.legendary { border-color: #ff9a1a; box-shadow: 0 0 22px rgba(255,154,26,.5); }
 .toast.out { opacity: 0; transform: translateY(-10px); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(10px) scale(.95); } }
 
@@ -376,6 +377,35 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 .shout-words { display: flex; gap: 8px; margin: 3px 0; }
 .shout-words span { font: 800 16px var(--display); letter-spacing: .08em; color: #5a5270; }
 .shout-words span.on { color: #ffd23d; text-shadow: 0 0 10px rgba(255,210,61,.7); }
+
+/* ---------------------------------------------------------------- gear rarity & talents */
+.gear-row.rar-uncommon { border-color: rgba(95,220,106,.4); }
+.gear-row.rar-rare { border-color: rgba(77,159,255,.5); }
+.gear-row.rar-epic { border-color: rgba(197,66,255,.55); background: linear-gradient(90deg, rgba(197,66,255,.12), rgba(0,0,0,.22)); }
+.gear-row.rar-legendary { border-color: rgba(255,154,26,.7); background: linear-gradient(90deg, rgba(255,154,26,.16), rgba(0,0,0,.22)); box-shadow: 0 0 12px rgba(255,154,26,.2); }
+.gear-info .legend { color: #ffb050; font-weight: 800; }
+.compare { font-size: 12px; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 8px; }
+.compare .up { color: var(--good); }
+.compare .down { color: var(--bad); }
+.equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 8px; }
+.sub-h.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sub-h .sort { margin-left: auto; font: 700 12px var(--body); color: var(--muted); display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.talent-trees { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 8px; }
+.branch { background: rgba(0,0,0,.22); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.branch-head { font: 800 16px var(--display); color: var(--gold); display: flex; flex-direction: column; }
+.branch-head small { font: 700 12px var(--body); color: var(--muted); }
+.talent { display: grid; grid-template-columns: 32px 1fr auto; grid-template-areas: 'i n r' 'i d d'; gap: 0 8px; align-items: center; text-align: left; font-family: var(--body); color: var(--ink); cursor: pointer;
+  background: linear-gradient(160deg, #2e2263, #17103a); border: 2px solid rgba(142,122,214,.5); border-radius: 12px; padding: 7px 10px; }
+.talent:disabled { cursor: default; }
+.talent.locked { opacity: .4; }
+.talent.has { border-color: var(--gold); }
+.talent.max { border-color: var(--good); box-shadow: 0 0 10px rgba(111,227,154,.3); }
+.talent.cap { border-style: double; border-width: 4px; }
+.talent:not(:disabled):hover { filter: brightness(1.25); }
+.t-icon { grid-area: i; font-size: 22px; }
+.t-name { grid-area: n; font-weight: 800; font-size: 14px; }
+.t-rank { grid-area: r; font-weight: 800; color: var(--gold); font-size: 13px; }
+.t-desc { grid-area: d; font-size: 11.5px; color: var(--muted); }
 
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {

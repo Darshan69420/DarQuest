@@ -17,6 +17,7 @@ import * as RU from './ui_rift.js';
 import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
 import { openShouts } from './ui_dragon.js';
+import { itemName, itemColor, craftRarity, rollRarity, RARITIES } from './gear.js';
 import { settings, actionOf, onSettings, keyFor, keyLabel } from './settings.js';
 import { Gatherer } from './skilling.js';
 import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
@@ -418,6 +419,7 @@ function sideProgress(type, key) {
 function craft(r, n) {
   const skill = STATION_TYPES[r.station].skill;
   let made = 0, burnt = 0, levels = 0;
+  const crafted = [];
   for (let i = 0; i < n; i++) {
     if (r.out.potions && player.potions >= RULES.maxPotions) { UI.toast('You can only carry 5 healing potions.'); break; }
     if (r.out.gear && player.inventory.length >= RULES.inventoryMax) { UI.toast('Your gear backpack is full!'); break; }
@@ -426,7 +428,7 @@ function craft(r, n) {
     levels += res.levels;
     if (res.burnt) { burnt++; continue; }
     made++;
-    if (r.out.gear) giveItem(player, r.out.gear);
+    if (r.out.gear) crafted.push(giveItem(player, r.out.gear, craftRarity(skillLevel(player, skill) - r.level)).inst);
     if (r.out.potions) player.potions++;
     sideProgress('craft', r.id);
   }
@@ -434,6 +436,7 @@ function craft(r, n) {
   player.stats_log.crafted += made;
   const name = r.out.item ? ITEMS[r.out.item].name : r.out.gear ? GEAR[r.out.gear].name : 'Healing Potion';
   UI.toast(made ? `${SKILLS[skill].icon} Made ${made}× <b>${UI.esc(name)}</b>${burnt ? ` · ${burnt} burnt` : ''}${r.out.gear ? ' · press C to equip' : ''}` : '🔥 Oops, you burnt it!', made ? 'good' : '');
+  for (const inst of crafted.filter(x => x.r !== 'common')) UI.toast(`✨ Masterwork! <b style="color:${itemColor(inst)}">${UI.esc(itemName(inst))}</b> (${RARITIES[inst.r].label})`, 'good');
   Audio.sfx(made ? 'craft' : 'fail');
   world.castPose(world.player);
   const pp = world.player.position;
@@ -488,12 +491,13 @@ function announceLevels(levels) {
   if (!levels) return;
   world.aura(world.player, 0xf2c14e);
   Audio.sfx('levelup');
-  UI.toast(`⭐ <b>Level up!</b> You are now level ${player.level}. Visit Mirabel to learn a new spell!`, 'good');
+  UI.toast(`⭐ <b>Level up!</b> You are now level ${player.level}. +1 Training Point (Mirabel) and +1 Talent Point (C → Talents)!`, 'good');
 }
 
 // Called whenever a menu changes the player. `kind` picks a sound and whether to rebuild the model.
 function onChange(kind) {
   if (kind === 'gear' || kind === 'pet') world.spawnPlayer(player);
+  if (kind === 'talent') { recalc(player); Audio.sfx('buff'); world.aura(world.player, 0xf2c14e); }
   buildHotbar();
   if (kind === 'drink') Audio.sfx('drink');
   else if (kind === 'pet') Audio.sfx('pet');
@@ -567,7 +571,7 @@ const rift = new Rift({
     sfx: (n) => Audio.sfx(n),
     fade: fadeThen,
     onMods: applyRunMods,
-    giveGear: (id) => giveItem(player, id),
+    giveGear: (id, floor = 1) => { const r = giveItem(player, id, rollRarity(0.3 + floor * 0.04)); return `<span style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</span>`; },
     openBoons: (choices, opts) => RU.openBoonChoice(choices, opts),
     openMerchant: (pr) => RU.openMerchant(player, pr, rift.run.floor, { onBuyBoon: (id) => { rift.grantBoon(id); refresh(); }, onChange: () => { refresh(); save(player); } }),
     onFloor: (floor, boss) => {
@@ -651,7 +655,7 @@ function doShout() {
   const tg = combat.target;
   if (tg && tg.state !== 'dead' && id !== 'sprint') combat.faceTarget(tg);
   if (castShout(player, { world, combat })) {
-    combat.shoutTotal = SHOUTS[id].cooldown[shoutWords(player, id) - 1];
+    combat.shoutTotal = SHOUTS[id].cooldown[shoutWords(player, id) - 1] * (1 - Math.min(0.6, combat.rm('shoutCd')));
     combat.shoutReady = t + combat.shoutTotal;
   }
 }
@@ -700,7 +704,8 @@ function rewardKill(e) {
     UI.toast(player.quest.state === 'ready' ? `📜 <b>${UI.esc(q.name)}</b>: ready to turn in!` : `📜 ${UI.esc(questTrackerText(player).goal)}`, 'quest');
     Audio.sfx('quest');
   }
-  for (const it of loot.items) UI.toast(`🎁 <b>${UI.esc(GEAR[it.id].name)}</b> ${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, 'good');
+  for (const it of loot.items) UI.toast(`🎁 <b style="color:${itemColor(it.inst)}">${UI.esc(itemName(it.inst))}</b> ${it.inst.r !== 'common' ? `<small>(${RARITIES[it.inst.r].label})</small> ` : ''}${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, it.inst.r === 'legendary' || it.inst.r === 'epic' ? 'good legendary' : 'good');
+  if (loot.items.some(it => it.inst.r === 'legendary')) Audio.sfx('chest');
   for (const id of loot.pets) UI.toast(`🐾 New pet: <b>${PETS[id].name}</b>! Press C to summon it.`, 'good');
   if (loot.mats.length) UI.toast(loot.mats.map(m => `${ITEMS[m.id].icon} ${m.n > 1 ? m.n + '× ' : ''}<b>${ITEMS[m.id].name}</b>`).join(' · '), 'good');
   // dragons give up their souls to those with the Voice

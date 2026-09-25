@@ -435,9 +435,10 @@ export class World {
     const keep = old ? old.position.clone() : null;
     if (old) this.scene.remove(old);
     const c = SCHOOLS[p.school].color;
-    const hat = GEAR[p.equipped?.hat]?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
-    const robe = GEAR[p.equipped?.robe]?.color ?? c;
-    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    const worn = (slot) => GEAR[p.equipped?.[slot]?.b];
+    const hat = worn('hat')?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
+    const robe = worn('robe')?.color ?? c;
+    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c, cape: worn('cloak')?.color, orb: worn('offhand')?.color });
     this.player.userData.height = measure(this.player);
     this.scene.add(this.player);
     this.setPet(p.activePet);

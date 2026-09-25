@@ -2,6 +2,8 @@
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
 import { BUFFS, addItem } from './items.js';
 import { SHOUTS } from './shouts.js';
+import { makeItem, normalize, gearTotals, itemValue, rollRarity, base } from './gear.js';
+import { talentTotals } from './talents.js';
 
 // Three save slots. Slot 1 keeps the original key so older saves still load.
 export const SLOT_KEYS = ['darquest-save-v1', 'darquest-save-slot2', 'darquest-save-slot3'];
@@ -52,6 +54,10 @@ function upgrade(p) {
   p.rift ??= { shards: 0, best: 0, runs: 0, upgrades: {}, run: null };
   // dragon shouts and souls (Chapter 3)
   p.dragon ??= { voice: false, souls: 0, shouts: {}, equipped: null };
+  // gear became item instances with rarities; talents arrived
+  p.inventory = p.inventory.map(normalize).filter(Boolean);
+  for (const [slot, e] of Object.entries(p.equipped)) { const inst = normalize(e); if (inst) p.equipped[slot] = inst; else delete p.equipped[slot]; }
+  p.talents ??= {};
   return p;
 }
 
@@ -73,16 +79,23 @@ export function newPlayer(name, school, difficulty = 'normal') {
 let runHp = 0;
 export function setRunHp(v) { runHp = v || 0; }
 
-// Totals every bonus from gear and the active pet, and updates max health.
+// Totals every bonus from gear, talents, buffs and the active pet, and updates max health.
+// p.tmods holds the special powers (lifesteal, chain lightning...) that combat reads.
 export function recalc(p) {
   const s = { hp: 0, dmg: 0, acc: 0, resist: 0, pip: 0, heal: 0 };
   const add = (stats) => { for (const [k, v] of Object.entries(stats || {})) s[k] = (s[k] || 0) + v; };
-  for (const id of Object.values(p.equipped)) if (id && GEAR[id]) add(GEAR[id].stats);
+  const gear = gearTotals(p.equipped);
+  const tal = talentTotals(p);
+  add(gear.stats);
+  add(tal.stats);
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
   for (const [id, left] of Object.entries(p.buffs || {})) if (left > 0 && BUFFS[id]) add(BUFFS[id].stats);
   p.stats = s;
-  p.maxHp = Math.round((baseHpFor(p.school, p.level) + s.hp) * (1 + runHp));
-  p.maxMana = 100 + (p.level - 1) * 6;
+  const mods = { ...tal.mods };
+  for (const [k, v] of Object.entries(gear.mods)) mods[k] = (mods[k] || 0) + v;
+  p.tmods = mods;
+  p.maxHp = Math.round((baseHpFor(p.school, p.level) + s.hp) * (1 + runHp + tal.hpPct + (mods.hpPct || 0)));
+  p.maxMana = Math.round((100 + (p.level - 1) * 6) * (1 + tal.manaPct));
   p.mana = Math.min(p.mana ?? p.maxMana, p.maxMana);
   if (p.hp != null) p.hp = Math.min(p.hp, p.maxHp);
   return s;
@@ -155,12 +168,12 @@ export function gainXp(p, amount) {
 // ----- Gear -----
 
 export function equip(p, invIndex) {
-  const id = p.inventory[invIndex];
-  const g = GEAR[id];
+  const inst = p.inventory[invIndex];
+  const g = inst && base(inst);
   if (!g || p.level < g.level) return false;
   p.inventory.splice(invIndex, 1);
   if (p.equipped[g.slot]) p.inventory.push(p.equipped[g.slot]);
-  p.equipped[g.slot] = id;
+  p.equipped[g.slot] = inst;
   recalc(p);
   return true;
 }
@@ -174,18 +187,21 @@ export function unequip(p, slot) {
 }
 
 export function sellItem(p, invIndex) {
-  const g = GEAR[p.inventory[invIndex]];
-  if (!g) return 0;
+  const inst = p.inventory[invIndex];
+  if (!inst) return 0;
+  const v = itemValue(inst);
   p.inventory.splice(invIndex, 1);
-  p.gold += g.sell;
-  return g.sell;
+  p.gold += v;
+  return v;
 }
 
-// Adds an item; if the bag is full it is sold automatically. Returns 'bag' | 'sold'.
-export function giveItem(p, id) {
-  if (p.inventory.length < RULES.inventoryMax) { p.inventory.push(id); return 'bag'; }
-  p.gold += GEAR[id].sell;
-  return 'sold';
+// Adds gear (a base id, rolled at `rarity`, or a ready-made item). A full backpack sells it
+// automatically. Returns { where: 'bag' | 'sold', inst }.
+export function giveItem(p, idOrInst, rarity = 'common') {
+  const inst = typeof idOrInst === 'string' ? makeItem(idOrInst, rarity) : idOrInst;
+  if (p.inventory.length < RULES.inventoryMax) { p.inventory.push(inst); return { where: 'bag', inst }; }
+  p.gold += itemValue(inst);
+  return { where: 'sold', inst };
 }
 
 // ----- Pets -----
@@ -204,15 +220,18 @@ export function setActivePet(p, id) {
 
 // ----- Loot -----
 
-// Rolls drops for a list of defeated enemy definitions.
+// Rolls drops for a list of defeated enemy definitions. Gear gets a random rarity:
+// bosses, elites, deep rift floors and harder difficulties roll better.
 export function rollLoot(p, defs) {
-  const mult = DIFFICULTIES[p.difficulty].drop;
+  const diff = DIFFICULTIES[p.difficulty];
+  const mult = diff.drop;
   const loot = { items: [], pets: [], mats: [] };
   for (const def of defs) {
+    const luck = (diff.drop - 1) * 0.4 + (def.boss ? 1 : 0) + (def.elite ? 0.5 : 0) + (def.rift ? def.level * 0.01 : 0);
     for (const d of def.drops || []) {
       if (Math.random() >= Math.min(1, d.chance * mult)) continue;
       if (d.mat) { addItem(p, d.mat, d.n || 1); loot.mats.push({ id: d.mat, n: d.n || 1 }); }
-      if (d.item) loot.items.push({ id: d.item, where: giveItem(p, d.item) });
+      if (d.item) { const r = giveItem(p, d.item, rollRarity(luck)); loot.items.push({ id: d.item, inst: r.inst, where: r.where }); }
       if (d.pet && givePet(p, d.pet)) loot.pets.push(d.pet);
     }
   }

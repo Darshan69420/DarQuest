@@ -515,6 +515,17 @@ export function makeWizard(o = {}) {
       add(q, new THREE.ConeGeometry(0.05, 0.14, 3), mat(0xc0392b), x, 0.82, z);
     }
   }
+  // cloak: a curved cape behind the shoulders
+  let capeMesh = null;
+  if (o.cape != null) {
+    capeMesh = dyn(add(body, new THREE.CylinderGeometry(0.46, 0.82, 1.4, 14, 1, true, Math.PI * 0.62, Math.PI * 0.76), mat(o.cape, { side: THREE.DoubleSide }), 0, 0.78, -0.02, { noOutline: true }));
+    add(body, new THREE.TorusGeometry(0.3, 0.05, 6, 16, Math.PI), mat(darker(o.cape, 0.7)), 0, 1.47, -0.02, { rx: Math.PI / 2, rz: Math.PI });
+  }
+  // offhand: a glowing orb or tome floating by the left hand
+  let orbMesh = null;
+  if (o.orb != null) {
+    orbMesh = dyn(add(armL.grp, new THREE.OctahedronGeometry(0.14, 1), glowMat(o.orb, 1.6), armL.rel.x - 0.08, armL.rel.y + 0.35, armL.rel.z + 0.15, { shadow: false }));
+  }
   if (backpack) {
     const bp = group(body, 0, 1.15, -0.46);
     add(bp, new THREE.BoxGeometry(0.66, 0.78, 0.4), mat(0x7a5230));
@@ -544,6 +555,8 @@ export function makeWizard(o = {}) {
         joints[1].rotation.set(-0.62 + Math.sin(t * 2.4 + 0.8) * 0.1 - (moving ? 0.2 : 0), 0, Math.sin(t * 1.7 + 0.5) * 0.1);
       }
       gemMesh.rotation.y = t * 2;
+      if (capeMesh) capeMesh.rotation.x = moving ? -0.25 - Math.abs(w) * 0.1 : -0.04 + Math.sin(t * 1.5) * 0.03;
+      if (orbMesh) { orbMesh.position.y = armL.rel.y + 0.35 + Math.sin(t * 2.5) * 0.06; orbMesh.rotation.y = t * 1.5; }
       sparks.forEach((s, i) => {
         const a = t * 3 + i * Math.PI;
         s.position.set(Math.cos(a) * 0.26, 1.16 + Math.sin(a * 1.5) * 0.1, Math.sin(a) * 0.26);

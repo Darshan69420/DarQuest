@@ -563,7 +563,7 @@ export class Rift {
     // a piece of gear around your level
     if (Math.random() < 0.45) {
       const gear = Object.values(GEAR).filter(gd => gd.level <= p.level + 2 && gd.level >= p.level - 6);
-      if (gear.length) { const gd = pick(gear); this.hooks.giveGear(gd.id); lines.push(`🎁 ${gd.name}`); }
+      if (gear.length) { const gd = pick(gear); lines.push(`🎁 ${this.hooks.giveGear(gd.id, floor)}`); }
     }
     this.world.aura(pr.obj, 0xf2c14e);
     this.hooks.sfx('chest');

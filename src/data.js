@@ -210,7 +210,7 @@ export const ENEMIES = {
     spells: ['hollow_strike', 'hollow_strike', 'ghoul_claw', 'wither', 'banshee_wail', 'dread_hex', 'grave_mend'],
     resist: { umbral: 0.35 }, boost: {}, speed: 0, aggro: 6, powerPipChance: 0.5,
     phases: [{ at: 0.5, say: 'The Hollow cannot be defeated!', blade: 0.35, pips: 2 }],
-    drops: [{ item: 'hollowmere_locket', chance: 1 }, { item: 'hollow_blade', chance: 0.6 }, { item: 'knightsilk_robe', chance: 0.4 }, { pet: 'bat_familiar', chance: 0.25 }],
+    drops: [{ item: 'hollowmere_locket', chance: 1 }, { item: 'hollow_blade', chance: 0.6 }, { item: 'knightsilk_robe', chance: 0.4 }, { item: 'hollow_signet', chance: 0.35 }, { pet: 'bat_familiar', chance: 0.25 }],
   },
 
   // ---------------- Chapter 2: Emberfall Wilds ----------------
@@ -242,7 +242,7 @@ export const ENEMIES = {
     name: 'Magma Serpent', school: 'blaze', level: 11, hp: 800, xp: 210, gold: [20, 35], model: 'serpent',
     spells: ['fire_serpent', 'kindle', 'phoenix_rush', 'imp_flare'], resist: { blaze: 0.45 }, boost: { frost: 0.25 },
     speed: 2.6, aggro: 7,
-    drops: [{ item: 'cinderguard_robe', chance: 0.1 }, { item: 'ember_heart', chance: 0.07 }],
+    drops: [{ item: 'cinderguard_robe', chance: 0.1 }, { item: 'ember_heart', chance: 0.07 }, { item: 'ember_mantle', chance: 0.05 }],
   },
   magma_guard: {
     name: 'Magma Guard', school: 'blaze', level: 11, hp: 800, xp: 220, gold: [25, 40], model: 'guard',
@@ -259,7 +259,7 @@ export const ENEMIES = {
       { at: 0.33, say: 'Then we burn TOGETHER!', blade: 0.5, pips: 3, heal: 800 },
     ],
     reactions: [{ school: 'frost', say: 'Ice?! You DARE bring ice before the Molten King?', cast: 'kindle' }],
-    drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { pet: 'ember_drake', chance: 1 }],
+    drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { item: 'molten_band', chance: 0.4 }, { item: 'grimoire_of_ash', chance: 0.3 }, { pet: 'ember_drake', chance: 1 }],
   },
 
   // ---------------- Chapter 3: Dragonspire Peaks ----------------
@@ -279,13 +279,13 @@ export const ENEMIES = {
     name: 'Scaled Cultist', school: 'umbral', level: 17, hp: 1150, xp: 400, gold: [30, 50], model: 'cultist',
     spells: ['cult_flame', 'cult_flame', 'dragon_blessing', 'cult_mend', 'dread_hex'], resist: { umbral: 0.3 }, boost: { arcane: 0.15 },
     speed: 2.2, aggro: 7,
-    drops: [{ item: 'dragonbone_wand', chance: 0.06 }, { mat: 'dragons_tongue', chance: 0.3 }],
+    drops: [{ item: 'dragonbone_wand', chance: 0.06 }, { item: 'elder_codex', chance: 0.03 }, { mat: 'dragons_tongue', chance: 0.3 }],
   },
   wyvern: {
     name: 'Stormwing Wyvern', school: 'tempest', level: 18, hp: 1350, xp: 450, gold: [32, 52], model: 'wyvern', dragon: true, soul: 0.35,
     spells: ['wyvern_dive', 'fireball_rain', 'venom_sting'], resist: { tempest: 0.35 }, boost: { umbral: 0.2 },
     speed: 3.4, aggro: 9,
-    drops: [{ mat: 'dragon_scale', chance: 0.5 }, { item: 'wyvern_wing_boots', chance: 0.06 }, { pet: 'stormwing', chance: 0.02 }],
+    drops: [{ mat: 'dragon_scale', chance: 0.5 }, { item: 'wyvern_wing_boots', chance: 0.06 }, { item: 'wyvern_cape', chance: 0.05 }, { item: 'storm_orb', chance: 0.04 }, { pet: 'stormwing', chance: 0.02 }],
   },
   vorathrax: {
     name: 'Vorathrax, the Sky Tyrant', school: 'blaze', level: 22, hp: 9500, xp: 4000, gold: [600, 800], model: 'elder_dragon', boss: true, dragon: true, soul: 1, souls: 3,
@@ -297,7 +297,7 @@ export const ENEMIES = {
       { at: 0.25, say: 'Enough! I will burn this mountain to ash!', fly: { dur: 14, radius: 11 }, blade: 0.4 },
     ],
     reactions: [{ school: 'frost', say: 'Frost?! My fire will swallow your cold!', cast: 'tail_sweep' }],
-    drops: [{ item: 'crown_of_the_sky', chance: 1 }, { item: 'tyrant_robe', chance: 0.6 }, { item: 'fang_of_vorathrax', chance: 0.5 }, { mat: 'dragon_scale', chance: 1, n: 6 }, { mat: 'dragon_bone', chance: 1, n: 3 }, { pet: 'stormwing', chance: 0.5 }],
+    drops: [{ item: 'crown_of_the_sky', chance: 1 }, { item: 'tyrant_robe', chance: 0.6 }, { item: 'fang_of_vorathrax', chance: 0.5 }, { item: 'dragonwing_cloak', chance: 0.45 }, { item: 'tyrant_ring', chance: 0.35 }, { item: 'eye_of_vorathrax', chance: 0.3 }, { mat: 'dragon_scale', chance: 1, n: 6 }, { mat: 'dragon_bone', chance: 1, n: 3 }, { pet: 'stormwing', chance: 0.5 }],
   },
 };
 for (const [id, e] of Object.entries(ENEMIES)) e.id = id;
@@ -445,7 +445,7 @@ export const NPCS = {
   },
   hesk: {
     name: 'Quartermaster Hesk', title: 'Dragonforged Gear', x: 1411, z: -7, robe: 0x4a4a5a, hat: 0x2a2a34, trim: 0xff7a1a, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x5a3a2a, skin: 0xd8a888,
-    stock: ['wyrmscale_hood', 'drakehide_robe', 'dragonbone_wand', 'dragonheart_amulet'],
+    stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
   },
   tumblewick: {
@@ -631,7 +631,7 @@ export const RULES = {
   potionCooldown: 8,
   maxPotions: 5,
   hpPerLevel: 50,
-  inventoryMax: 30,
+  inventoryMax: 40,
 };
 
 // ---------------------------------------------------------------- difficulty
@@ -653,7 +653,7 @@ export const DIFFICULTIES = {
 
 // ---------------------------------------------------------------- gear
 
-export const SLOTS = { hat: '🎩 Hat', robe: '👘 Robe', boots: '👢 Boots', wand: '🪄 Wand', amulet: '📿 Amulet' };
+export const SLOTS = { hat: '🎩 Hat', robe: '👘 Robe', cloak: '🧣 Cloak', boots: '👢 Boots', wand: '🪄 Wand', offhand: '📕 Offhand', amulet: '📿 Amulet', ring: '💍 Ring' };
 export const STAT_NAMES = { hp: 'Health', dmg: 'Damage', acc: 'Crit Chance', resist: 'Resist', pip: 'Haste', heal: 'Healing' };
 
 // Stats: hp (flat), dmg / acc / resist / pip / heal (percent).
@@ -694,6 +694,29 @@ export const GEAR = {
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
 
+  // ---------- rings, cloaks and offhands ----------
+  hollow_signet:     { name: 'Hollow Signet',       slot: 'ring',    level: 8,  stats: { dmg: 4, acc: 3 } },
+  molten_band:       { name: 'Molten Band',         slot: 'ring',    level: 13, stats: { dmg: 6, pip: 4 } },
+  tyrant_ring:       { name: 'Tyrant\'s Ring',      slot: 'ring',    level: 22, stats: { dmg: 10, acc: 6, hp: 120 } },
+  traveler_cloak:    { name: 'Traveler\'s Cloak',   slot: 'cloak',   level: 3,  stats: { hp: 40, resist: 2 }, color: 0x6a4a2a, price: 90 },
+  starweave_cloak:   { name: 'Starweave Cloak',     slot: 'cloak',   level: 8,  stats: { hp: 90, resist: 4, heal: 4 }, color: 0x3b2d7a, price: 320 },
+  ember_mantle:      { name: 'Ember Mantle',        slot: 'cloak',   level: 12, stats: { hp: 140, dmg: 4, resist: 5 }, color: 0xa0301a },
+  frostfur_cloak:    { name: 'Frostfur Cloak',      slot: 'cloak',   level: 16, stats: { hp: 200, resist: 8 }, color: 0xdff6ff, price: 1000 },
+  wyvern_cape:       { name: 'Wyvern Cape',         slot: 'cloak',   level: 19, stats: { hp: 220, pip: 5, acc: 3 }, color: 0x3a5a8a },
+  dragonwing_cloak:  { name: 'Dragonwing Cloak',    slot: 'cloak',   level: 22, stats: { hp: 300, dmg: 8, resist: 8 }, color: 0x8a1a1a },
+  apprentice_tome:   { name: 'Apprentice\'s Tome',  slot: 'offhand', level: 2,  stats: { dmg: 2, heal: 3 }, color: 0x7a3a2a, price: 60 },
+  crystal_orb:       { name: 'Crystal Orb',         slot: 'offhand', level: 7,  stats: { dmg: 4, acc: 3 }, color: 0x9fd6ff, price: 260 },
+  grimoire_of_ash:   { name: 'Grimoire of Ash',     slot: 'offhand', level: 12, stats: { dmg: 7, pip: 3 }, color: 0x5a2a1a },
+  storm_orb:         { name: 'Storm Orb',           slot: 'offhand', level: 16, stats: { dmg: 9, acc: 4 }, color: 0xb46bff },
+  elder_codex:       { name: 'Elder Codex',         slot: 'offhand', level: 20, stats: { dmg: 11, heal: 8, pip: 4 }, color: 0x6a4aa0 },
+  eye_of_vorathrax:  { name: 'Eye of Vorathrax',    slot: 'offhand', level: 22, stats: { dmg: 14, acc: 6 }, color: 0xffd23d },
+  copper_ring:       { name: 'Copper Ring',         slot: 'ring',    level: 2,  stats: { acc: 2, hp: 15 }, crafted: true },
+  silver_ring:       { name: 'Silver Ring',         slot: 'ring',    level: 9,  stats: { acc: 4, heal: 5 }, crafted: true },
+  gold_ring:         { name: 'Gold Ring',           slot: 'ring',    level: 13, stats: { dmg: 5, acc: 3 }, crafted: true },
+  emberite_band:     { name: 'Emberite Band',       slot: 'ring',    level: 15, stats: { dmg: 6, pip: 4 }, crafted: true },
+  starmetal_ring:    { name: 'Starmetal Ring',      slot: 'ring',    level: 19, stats: { acc: 6, dmg: 6, resist: 3 }, crafted: true },
+  dragonite_ring:    { name: 'Dragonite Ring',      slot: 'ring',    level: 25, stats: { dmg: 10, acc: 6, pip: 4 }, crafted: true },
+
   // ---------- crafted (Smithing at the anvil, Woodworking at the workbench) ----------
   copper_amulet:     { name: 'Copper Amulet',       slot: 'amulet', level: 1,  stats: { hp: 30 }, crafted: true },
   iron_ward:         { name: 'Iron Ward',           slot: 'amulet', level: 5,  stats: { hp: 60, resist: 3 }, crafted: true },
@@ -717,7 +740,7 @@ for (const [id, g] of Object.entries(GEAR)) {
   g.id = id;
   g.sell = 8 + g.level * 7;
 }
-export const GEAR_SHOP = ['sprigwood_wand', 'lanternweave_robe', 'crowfeather_boots', 'ember_cowl', 'ashwalkers', 'obsidian_rod'];
+export const GEAR_SHOP = ['sprigwood_wand', 'apprentice_tome', 'traveler_cloak', 'lanternweave_robe', 'crowfeather_boots', 'crystal_orb', 'ember_cowl', 'starweave_cloak', 'ashwalkers', 'obsidian_rod'];
 
 // ---------------------------------------------------------------- pets
 

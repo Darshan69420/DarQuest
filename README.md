@@ -8,6 +8,8 @@ A 3D fantasy RPG that runs in your browser. You start as a new apprentice at Sta
 | ![Vorathrax, the Sky Tyrant](docs/screenshots/dragon.jpg) | ![Fighting Pyrrhon in Emberfall](docs/screenshots/combat.jpg) |
 | ![Queen Sylvara's ice castle at night](docs/screenshots/glacier.jpg) | ![Rope bridges over the clouds of Stormspire](docs/screenshots/stormspire.jpg) |
 | ![Greenhollow in Thornwood](docs/screenshots/thornwood.jpg) | ![The light-beam puzzle in the Hollow Undercroft](docs/screenshots/undercroft.jpg) |
+| ![Queen Sylvara before her ice throne](docs/screenshots/sylvara.jpg) | ![Voltaris, the Storm Herald, over the Stormspire](docs/screenshots/voltaris.jpg) |
+| ![The Thornmother in the Blighted Grove](docs/screenshots/thornmother.jpg) | ![Malvoren, the Pale Magister, in the Hollow Deep](docs/screenshots/hollowdeep.jpg) |
 
 ## Play it
 

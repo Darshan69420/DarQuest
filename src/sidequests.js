@@ -62,6 +62,98 @@ export const SIDE_QUESTS = [
     done: 'Beautiful. The secret? Dragons sleep on beds of dragonite. Brave or foolish, you\'ll have to find out yourself.',
     reward: { xp: 600, gold: 350, skillXp: { mining: 400, smithing: 200 }, items: { gold_pickaxe: 1 } },
   },
+
+  // ---------------- Glacierreach ----------------
+  {
+    id: 'frost1', mainQuest: 24, name: 'Warm Hands', giver: 'frida', turnIn: 'frida',
+    objective: { type: 'bring', item: 'frostbloom', count: 6 },
+    offer: 'Frostbloom only grows in the coldest places, and it makes the warmest mittens. Pick 6 for me around Frostholm and the north road.',
+    done: 'Perfect petals! Here: a cloak lined with the first batch. It will keep the blizzard out.',
+    reward: { xp: 3500, gold: 400, skillXp: { foraging: 600 }, gear: ['frostfur_cloak'] },
+  },
+  {
+    id: 'frost2', after: 'frost1', name: 'Lake Supper', giver: 'frida', turnIn: 'frida',
+    objective: { type: 'bring', item: 'cooked_frostcod', count: 5 },
+    offer: 'The whole town is hungry, and the Mirror Lake is full of frostcod. Fish through the ice holes, cook the catch at the hearth, and bring 5 Frostcod Fillets.',
+    done: 'The smell alone brought half of Frostholm running! Thank you, truly.',
+    reward: { xp: 4000, gold: 500, skillXp: { fishing: 700, cooking: 700 }, items: { hearty_stew: 3 } },
+  },
+  {
+    id: 'frost3', mainQuest: 25, name: 'The Whole Pack', giver: 'halvard', turnIn: 'halvard',
+    objective: { type: 'defeat', enemy: 'snow_wolf', count: 12 },
+    offer: 'The wolves keep coming back. Their den must be huge. Thin the pack properly: 12 Snowfang Wolves.',
+    done: 'Twelve! The watch will sleep tonight. Take these boots: they never slip on ice.',
+    reward: { xp: 6000, gold: 700, gear: ['rimewalker_boots'] },
+  },
+
+  // ---------------- Stormspire ----------------
+  {
+    id: 'storm1', mainQuest: 31, name: 'Ship Parts', giver: 'breck', turnIn: 'breck',
+    objective: { type: 'bring', item: 'starmetal_ore', count: 8 },
+    offer: 'Our airships need starmetal for their engines, and Voltaris\'s storm wrecked half of them. Bring me 8 Starmetal Ore; there is some on Thunder Isle.',
+    done: 'That will get two ships flying again. You have a sailor\'s heart, wizard.',
+    reward: { xp: 6500, gold: 700, skillXp: { mining: 1200 }, items: { storm_elixir: 2 } },
+  },
+  {
+    id: 'storm2', mainQuest: 32, name: 'Calm Winds', giver: 'tavi', turnIn: 'tavi',
+    objective: { type: 'defeat', enemy: 'gale_sprite', count: 10 },
+    offer: 'The Gale Sprites keep knocking the wind vanes crooked, and then the rods misfire. Calm 10 of them for me.',
+    done: 'The vanes point true again. Here, the Stormcallers sew this for friends.',
+    reward: { xp: 8000, gold: 800, gear: ['stormcaller_hood'] },
+  },
+  {
+    id: 'storm3', mainQuest: 33, name: 'Cloud Catch', giver: 'aeris', turnIn: 'aeris',
+    objective: { type: 'bring', item: 'raw_skyray', count: 4 },
+    offer: 'Sky Rays swim through the clouds just off Skyport\'s edge. Catching one takes a master angler (Fishing 70). Bring me 4 and I will give you my own rod.',
+    done: 'Four sky rays! You fish like an old sky-sailor. The rod is yours.',
+    reward: { xp: 9000, gold: 900, skillXp: { fishing: 2000 }, items: { skyoak_rod: 1 } },
+  },
+
+  // ---------------- Thornwood ----------------
+  {
+    id: 'thorn1', mainQuest: 38, name: 'Mushroom Forager', giver: 'moss', turnIn: 'moss',
+    objective: { type: 'bring', item: 'glowcap', count: 10 },
+    offer: 'Glowcaps light up the Glowcap Hollow, west of the glade. I dye my best cloth with them. Bring me 10.',
+    done: 'Such a lovely blue. This robe was dyed with the last batch; it is yours.',
+    reward: { xp: 10000, gold: 1000, skillXp: { foraging: 2500 }, gear: ['barkskin_robe'] },
+  },
+  {
+    id: 'thorn2', mainQuest: 40, name: 'Pixie Dust', giver: 'wren', turnIn: 'wren',
+    objective: { type: 'defeat', enemy: 'pixie', count: 10 },
+    offer: 'Some pixies are still enchanted, and they keep leading travellers into the thorns. Break the spell on 10 more.',
+    done: 'The glade is safe for travellers again. Here, a heart of green glass, from the pixie queen herself.',
+    reward: { xp: 12000, gold: 1100, gear: ['verdant_heart'] },
+  },
+  {
+    id: 'thorn3', mainQuest: 42, name: 'A Gift for the Elder Mother', giver: 'rowan', turnIn: 'rowan',
+    objective: { type: 'bring', item: 'heartwood_logs', count: 5 },
+    offer: 'Heartwood trees are the Elder Mother\'s children. A master woodcutter (level 80) may take their fallen branches. Bring 5 Heartwood Logs, and we will carve something worthy of you.',
+    done: 'The Elder Mother trembles with joy. Take this: our carvers made it from her own bark.',
+    reward: { xp: 14000, gold: 1300, skillXp: { woodcutting: 3000 }, gear: ['heartwood_staff'] },
+  },
+
+  // ---------------- the Hollow Deep ----------------
+  {
+    id: 'deep1', mainQuest: 45, name: 'Bones for Mott', giver: 'mott', turnIn: 'mott',
+    objective: { type: 'defeat', enemy: 'deathless', count: 10 },
+    offer: 'The Deathless keep wandering into the Refuge at night. I bury them, they dig themselves out. Put 10 of them down properly.',
+    done: 'Ten graves, and all of them staying shut. Here, boots from an old friend who does not need them any more.',
+    reward: { xp: 14000, gold: 1300, gear: ['deepwalker_boots'] },
+  },
+  {
+    id: 'deep2', mainQuest: 46, name: 'Soul Supper', giver: 'mott', turnIn: 'mott',
+    objective: { type: 'bring', item: 'soulfish_stew', count: 3 },
+    offer: 'Soulfish swim in the glowing rivers. Cook them with nightshade (Cooking 85) and the stew warms even a ghost. Bring me 3 bowls for the Refuge.',
+    done: 'Even Sir Aldric smiled. That has not happened in thirty years.',
+    reward: { xp: 16000, gold: 1500, skillXp: { cooking: 4000, fishing: 3000 }, items: { void_draught: 2 } },
+  },
+  {
+    id: 'deep3', mainQuest: 48, name: 'Colossal Problem', giver: 'aldric', turnIn: 'aldric',
+    objective: { type: 'defeat', enemy: 'bone_colossus', count: 2 },
+    offer: 'Two Bone Colossi guard the path north of the Ossuary. They stomp the ground around them, so hit them and step back. Bring them both down.',
+    done: 'The path is clear. Take this sigil. It was mine, before the Hollow took me.',
+    reward: { xp: 18000, gold: 1800, gear: ['deep_sigil'] },
+  },
 ];
 export const SIDE = Object.fromEntries(SIDE_QUESTS.map(q => [q.id, q]));
 

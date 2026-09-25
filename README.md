@@ -52,7 +52,7 @@ Every key can be changed in **Settings → Keys**.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear sets, a bank and a second school:** thirteen gear sets with 2-, 3-, 4- and 6-piece bonuses, the Starfall Bank (plus a vault at your Homestead), and a second school of magic from level 10.
-- **Gear, pets and side quests:** 90 gear pieces (drops, shops and crafting), 12 pets, the Gatherers' Guild quest chain, and a quest journal.
+- **Gear, pets and side quests:** 90 gear pieces (drops, shops and crafting), 12 pets, 19 side quests (the Gatherers' Guild chain plus three in each of the four newest lands), and a quest journal.
 - **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 62 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.

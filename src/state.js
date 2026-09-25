@@ -1,4 +1,4 @@
-// Player progress: stats, deck, gear, pets, quests and save/load.
+// Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
 
 const SAVE_KEY = 'darquest-save-v1';
@@ -11,8 +11,20 @@ export function xpToNext(level) {
   return 50 + 30 * level + 8 * level * level;
 }
 
+// The school's first spell is the free, always-ready basic attack on key 1.
+export function basicSpell(school) {
+  return Object.values(SPELLS).find(s => s.school === school && s.level === 1 && !s.enemy && !s.pet);
+}
+
 // Fill in any fields missing from older saves.
 function upgrade(p) {
+  if (!Array.isArray(p.hotbar)) {
+    // older saves had a card deck: fill the spell bar with their best known spells
+    const basic = basicSpell(p.school).id;
+    const picks = (p.known || []).filter(id => id !== basic && SPELLS[id]).sort((a, b) => SPELLS[b].level - SPELLS[a].level);
+    p.hotbar = [0, 1, 2, 3].map(i => picks[i] || null);
+  }
+  delete p.deck;
   p.inventory ??= [];
   p.equipped ??= {};
   p.pets ??= [];
@@ -23,11 +35,11 @@ function upgrade(p) {
 }
 
 export function newPlayer(name, school, difficulty = 'normal') {
-  const starter = Object.values(SPELLS).find(s => s.school === school && s.level === 1 && !s.enemy && !s.pet);
+  const starter = basicSpell(school);
   const p = upgrade({
-    name, school, difficulty, level: 1, xp: 0, gold: 20, potions: 1, tp: 0,
+    name, school, difficulty, level: 1, xp: 0, gold: 20, potions: 2, tp: 0,
     known: [starter.id, 'minor_mend'],
-    deck: [...Array(6).fill(starter.id), 'minor_mend', 'minor_mend'],
+    hotbar: ['minor_mend', null, null, null],
     quest: { index: 0, state: 'available', progress: 0 },
     pos: null,
   });
@@ -44,6 +56,8 @@ export function recalc(p) {
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
   p.stats = s;
   p.maxHp = baseHpFor(p.school, p.level) + s.hp;
+  p.maxMana = 100 + (p.level - 1) * 6;
+  p.mana = Math.min(p.mana ?? p.maxMana, p.maxMana);
   if (p.hp != null) p.hp = Math.min(p.hp, p.maxHp);
   return s;
 }
@@ -86,6 +100,7 @@ export function gainXp(p, amount) {
   if (gained) {
     recalc(p);
     p.hp = p.maxHp;
+    p.mana = p.maxMana;
   }
   return gained;
 }

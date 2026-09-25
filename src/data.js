@@ -3,17 +3,17 @@
 
 export const SCHOOLS = {
   blaze:   { name: 'Blaze',   color: 0xff6a2b, css: '#ff6a2b', icon: '🔥', acc: 0.75, baseHp: 500,
-             desc: 'Wild fire magic. Big hits and burning damage over time.' },
+             desc: 'Wild fire magic. Big hits and burning damage over time.', role: 'Burst damage' },
   frost:   { name: 'Frost',   color: 0x6fd3ff, css: '#6fd3ff', icon: '❄️', acc: 0.80, baseHp: 620,
-             desc: 'Patient and tough. The most health and the best wards.' },
+             desc: 'Patient and tough. The most health and the best wards.', role: 'Tank' },
   tempest: { name: 'Tempest', color: 0xb46bff, css: '#b46bff', icon: '⚡', acc: 0.70, baseHp: 450,
-             desc: 'Raw lightning. The hardest hitters, but they miss more often.' },
+             desc: 'Raw lightning. The hardest hitters and the most fragile.', role: 'Glass cannon' },
   verdant: { name: 'Verdant', color: 0x5fdc6a, css: '#5fdc6a', icon: '🌿', acc: 0.90, baseHp: 560,
-             desc: 'Life and growth. Powerful healers who rarely miss.' },
+             desc: 'Life and growth. Powerful healers who outlast anything.', role: 'Healer' },
   umbral:  { name: 'Umbral',  color: 0x9a8cff, css: '#9a8cff', icon: '💀', acc: 0.85, baseHp: 520,
-             desc: 'Shadow magic that drains the life from foes to heal yourself.' },
+             desc: 'Shadow magic that drains the life from foes to heal yourself.', role: 'Life drain' },
   arcane:  { name: 'Arcane',  color: 0xf2c14e, css: '#f2c14e', icon: '✨', acc: 0.85, baseHp: 540,
-             desc: 'The balance of all things. Blades, traps and hits on every foe.' },
+             desc: 'The balance of all things. Blades, traps and hits on every foe.', role: 'Crowd control' },
   // Astral spells can be learned by every school.
   astral:  { name: 'Astral',  color: 0xe8e4ff, css: '#e8e4ff', icon: '🌙', acc: 0.95, baseHp: 500,
              desc: 'Universal support magic.', hidden: true },
@@ -142,6 +142,11 @@ export function describe(s) {
 // Which spell types need an enemy target.
 export const OFFENSIVE = new Set(['damage', 'drain', 'dot', 'trap', 'weakness']);
 
+// Real-time combat: the old pip cost becomes mana and a cooldown.
+export function spellCost(s) { return s.pips === 0 ? 10 : s.pips * 12; }
+export function spellCooldown(s) { return s.pips === 0 ? 9 : 1.4 + s.pips * 1.7; }
+export const BASIC_COOLDOWN = 1.1;
+
 
 // Chapter 2 lives far to the east of the academy in the same 3D scene.
 export const EMBER_X = 700;
@@ -239,6 +244,15 @@ export const ENEMIES = {
   },
 };
 for (const [id, e] of Object.entries(ENEMIES)) e.id = id;
+
+// How far away each foe attacks from. Everything else fights up close.
+const RANGED = { frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16 };
+for (const e of Object.values(ENEMIES)) {
+  e.range = RANGED[e.id] ?? 2.6;
+  e.attackRate = e.boss ? 1.9 : 2.4;
+}
+ENEMIES.magma_guard.speed = 2.2;
+ENEMIES.magma_serpent.speed = 0;
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
@@ -413,15 +427,13 @@ export const QUESTS = [
 ];
 
 export const SHOP = {
-  potion: { name: 'Healing Potion', price: 25, desc: 'Restores 50% of your health. Use it in battle or with the H key.' },
-  egg: { name: 'Mystery Pet Egg', price: 150, desc: 'Hatches a random pet that follows you and sometimes casts spells in battle.' },
+  potion: { name: 'Healing Potion', price: 25, desc: 'Restores 50% of your health. Drink one any time with the H key.' },
+  egg: { name: 'Mystery Pet Egg', price: 150, desc: 'Hatches a random pet that follows you and casts spells to help in fights.' },
 };
 
 export const RULES = {
-  handSize: 7,
-  maxPips: 7,
-  deckMax: 24,
-  maxCopies: 6,
+  hotbarSlots: 4,
+  potionCooldown: 8,
   maxPotions: 5,
   hpPerLevel: 50,
   inventoryMax: 30,
@@ -431,23 +443,23 @@ export const RULES = {
 
 export const DIFFICULTIES = {
   normal: {
-    name: 'Normal', icon: '🙂', hp: 1, dmg: 0, acc: 0.05, reward: 1, drop: 1, smart: false, startPips: 0,
+    name: 'Normal', icon: '🙂', hp: 1, dmg: 0, reward: 1, drop: 1, smart: false, speed: 1,
     desc: 'The intended adventure. Fair fights and forgiving enemies.',
   },
   heroic: {
-    name: 'Heroic', icon: '😤', hp: 1.5, dmg: 0.3, acc: 0.1, reward: 1.3, drop: 1.5, smart: true, startPips: 1,
-    desc: 'Enemies have +50% health, hit 30% harder, and play smarter. Better loot.',
+    name: 'Heroic', icon: '😤', hp: 1.5, dmg: 0.3, reward: 1.3, drop: 1.5, smart: true, speed: 1.15,
+    desc: 'Enemies have +50% health, hit 30% harder, attack faster and play smarter. Better loot.',
   },
   legendary: {
-    name: 'Legendary', icon: '💀', hp: 2.2, dmg: 0.6, acc: 0.15, reward: 1.7, drop: 2, smart: true, startPips: 2, noFlee: true,
-    desc: 'For true archmages. Enemies have over double health, hit 60% harder, start with pips, and you can never flee.',
+    name: 'Legendary', icon: '💀', hp: 2.2, dmg: 0.6, reward: 1.7, drop: 2, smart: true, speed: 1.3,
+    desc: 'For true archmages. Enemies have over double health, hit 60% harder and attack much faster.',
   },
 };
 
 // ---------------------------------------------------------------- gear
 
 export const SLOTS = { hat: '🎩 Hat', robe: '👘 Robe', boots: '👢 Boots', wand: '🪄 Wand', amulet: '📿 Amulet' };
-export const STAT_NAMES = { hp: 'Health', dmg: 'Damage', acc: 'Accuracy', resist: 'Resist', pip: 'Power Pip', heal: 'Healing' };
+export const STAT_NAMES = { hp: 'Health', dmg: 'Damage', acc: 'Crit Chance', resist: 'Resist', pip: 'Haste', heal: 'Healing' };
 
 // Stats: hp (flat), dmg / acc / resist / pip / heal (percent).
 // `color` recolours your wizard's hat or robe.

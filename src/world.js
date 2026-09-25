@@ -36,7 +36,7 @@ export class World {
     this.clock = new THREE.Clock();
     this.time = 0;
 
-    this.mode = 'title';      // title | explore | battle | locked
+    this.mode = 'title';      // title | explore | menu | locked
     this.keys = {};
     this.labels = [];
     this.effects = [];
@@ -55,9 +55,11 @@ export class World {
     this.pendingTalk = null;
     this.invulnUntil = 0;
     this.shakeAmt = 0;
-    this.battleView = null;
+    this.dashT = 0;
+    this.dashDir = null;
+    this.targetEntity = null;
 
-    this.onEncounter = null;  // (enemyEntities) => void
+    this.onTargetTap = null;  // (enemyEntity) => void
     this.onInteract = null;   // (npcId) => void
     this.onTick = null;       // (dt) => void
     this.pet = null;
@@ -313,7 +315,7 @@ export class World {
       this.scene.add(model);
       const color = SCHOOLS[def.school].css;
       const label = this.addLabel(model,
-        `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div>`,
+        `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div><div class="ehp"><div class="fill"></div></div><div class="ecast"><div class="fill"></div></div>`,
         'enemy', model.userData.height + 0.5);
       this.enemies.push({
         uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
@@ -353,7 +355,7 @@ export class World {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
       this.keys[e.code] = true;
-      if (this.mode === 'explore' && ['KeyE', 'Enter', 'Space'].includes(e.code)) {
+      if (this.mode === 'explore' && ['KeyE', 'Enter'].includes(e.code)) {
         const near = this.nearestInteractable();
         if (near) { e.preventDefault(); this.onInteract?.(near.id); }
       }
@@ -388,6 +390,14 @@ export class World {
     ray.setFromCamera(ndc, this.camera);
     const hit = new THREE.Vector3();
     if (!ray.ray.intersectPlane(new THREE.Plane(V(0, 1, 0), 0), hit)) return;
+    // tapping an enemy targets it instead of walking there
+    let foe = null, best = 2.8;
+    for (const e of this.enemies) {
+      if (e.state === 'dead' || !e.model.visible) continue;
+      const d = Math.hypot(e.model.position.x - hit.x, e.model.position.z - hit.z) - (e.model.userData.width || 1.6) * 0.3;
+      if (d < best) { best = d; foe = e; }
+    }
+    if (foe) { this.onTargetTap?.(foe); return; }
     const npc = this.interactables().find(n => Math.hypot(n.x - hit.x, n.z - hit.z) < 2.2);
     this.pendingTalk = npc ? npc.id : null;
     this.moveTarget = hit;
@@ -445,7 +455,7 @@ export class World {
     const pet = this.pet;
     if (!pet) return;
     let moving = false;
-    if (this.mode !== 'battle') {
+    {
       // trot along just behind and to the side of the player
       const h = this.heading;
       const want = this.player.position.clone().add(V(-Math.sin(h) * 1.4 + Math.cos(h) * 1.1, 0, -Math.cos(h) * 1.4 - Math.sin(h) * 1.1));
@@ -511,6 +521,12 @@ export class World {
       }
     }
 
+    if (this.dashT > 0) {
+      this.dashT -= dt;
+      const p = this.player.position;
+      const nx = p.x + this.dashDir.x * 22 * dt, nz = p.z + this.dashDir.z * 22 * dt;
+      if (this.walkable(nx, nz)) p.set(nx, 0, nz);
+    }
     const moving = speed !== 0;
     if (moving) {
       const p = this.player.position;
@@ -550,68 +566,41 @@ export class World {
     const yaw = this.heading + this.camYawOffset;
     const p = this.player.position;
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + this.camDist * 0.15, p.z - Math.cos(yaw) * this.camDist),
-      look: V(p.x, 1.7, p.z),
+      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15, p.z - Math.cos(yaw) * this.camDist),
+      // look a little ahead so enemies in front are not hidden behind the hat
+      look: V(p.x + Math.sin(yaw) * 3.5, 1.4, p.z + Math.cos(yaw) * 3.5),
     };
   }
 
   // ------------------------------------------------------------ enemies
 
-  updateEnemies(dt) {
-    const pp = this.player?.position;
+  // Enemy behaviour lives in combat.js; the world only animates and moves them.
+  updateEnemies() {
     for (const e of this.enemies) {
-      e.model.userData.anim?.(this.time, !!e.target && e.wait <= 0);
-      if (e.state === 'dead') {
-        if (this.time > e.respawnAt) this.respawnEnemy(e);
-        continue;
-      }
-      // bystanders never block the view of a duel
-      if (e.state === 'idle') e.model.visible = !this.battleView || e.model.position.distanceTo(this.camera.position) > 9;
-      if (e.state !== 'idle' || this.mode !== 'explore' || !pp) continue;
-
-      const dPlayer = Math.hypot(pp.x - e.model.position.x, pp.z - e.model.position.z);
-      const safe = this.time < this.invulnUntil;
-      if (dPlayer < 1.8 && !safe) { this.engage(e); return; }
-
-      let target = null, speed = e.def.speed;
-      const homeDist = Math.hypot(pp.x - e.home.x, pp.z - e.home.z);
-      if (!safe && dPlayer < e.def.aggro && homeDist < e.def.aggro + e.wanderR + 3 && speed > 0) {
-        target = pp; speed *= 1.35;
-      } else if (e.wanderR > 0) {
-        if (!e.target) {
-          e.wait -= dt;
-          if (e.wait <= 0) {
-            const a = Math.random() * Math.PI * 2, r = Math.random() * e.wanderR;
-            e.target = V(e.home.x + Math.cos(a) * r, 0, e.home.z + Math.sin(a) * r);
-          }
-        }
-        target = e.target;
-      }
-      if (target && speed > 0) {
-        const m = e.model.position;
-        const dx = target.x - m.x, dz = target.z - m.z;
-        const d = Math.hypot(dx, dz);
-        if (d < 0.2) { e.target = null; e.wait = 1 + Math.random() * 3; continue; }
-        const step = Math.min(d, speed * dt);
-        const nx = m.x + (dx / d) * step, nz = m.z + (dz / d) * step;
-        if (this.walkable(nx, nz)) m.set(nx, 0, nz); else { e.target = null; e.wait = 1; }
-        e.model.rotation.y = Math.atan2(dx, dz);
-      }
+      if (e.state !== 'dead') e.model.userData.anim?.(this.time, !!e.moving);
     }
   }
 
-  engage(first) {
-    const pp = this.player.position;
-    const group = [first];
-    const others = this.enemies
-      .filter(e => e !== first && e.state === 'idle')
-      .map(e => ({ e, d: Math.hypot(e.model.position.x - pp.x, e.model.position.z - pp.z) }))
-      .filter(o => o.d < 8)
-      .sort((a, b) => a.d - b.d);
-    for (const o of others) if (group.length < 3) group.push(o.e);
-    for (const e of group) e.state = 'battle';
-    this.moveTarget = null;
-    this.onEncounter?.(group);
+  // Steps an enemy toward a point; returns false if the way is blocked.
+  moveEnemy(e, target, speed, dt, stopAt = 0.2) {
+    const m = e.model.position;
+    const dx = target.x - m.x, dz = target.z - m.z;
+    const d = Math.hypot(dx, dz);
+    e.model.rotation.y = Math.atan2(dx, dz);
+    if (d <= stopAt || speed <= 0) { e.moving = false; return true; }
+    const step = Math.min(d - stopAt, speed * dt);
+    const nx = m.x + (dx / d) * step, nz = m.z + (dz / d) * step;
+    e.moving = true;
+    if (this.walkable(nx, nz)) { m.set(nx, 0, nz); return true; }
+    if (this.walkable(nx, m.z)) { m.x = nx; return true; }
+    if (this.walkable(m.x, nz)) { m.z = nz; return true; }
+    e.moving = false;
+    return false;
+  }
+
+  faceEnemy(e, target) {
+    const m = e.model.position;
+    e.model.rotation.y = Math.atan2(target.x - m.x, target.z - m.z);
   }
 
   respawnEnemy(e) {
@@ -623,112 +612,49 @@ export class World {
     e.target = null;
   }
 
-  // ------------------------------------------------------------ battle staging
-
-  setupBattle(enemyEntities) {
-    const pp = this.player.position.clone();
-    const ep = enemyEntities[0].model.position.clone();
-    let dir = ep.clone().sub(pp).setY(0);
-    if (dir.lengthSq() < 0.01) dir.set(0, 0, 1);
-    dir.normalize();
-    const center = pp.clone().add(ep).multiplyScalar(0.5);
-    const perp = V(dir.z, 0, -dir.x);
-    const big = enemyEntities.some(e => e.def.boss);
-    const R = big ? 4.6 : 3.6;
-    const k = R / 3.6;
-
-    const circle = new THREE.Group();
-    circle.position.set(center.x, 0.06, center.z);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 5.6, 64), new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2;
-    circle.add(ring);
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(5.2, 64), new THREE.MeshBasicMaterial({ color: 0x2a1f5c, transparent: true, opacity: 0.45 }));
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.y = -0.01;
-    circle.add(disc);
-    const inner = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.55, 6), new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.7, side: THREE.DoubleSide }));
-    inner.rotation.x = -Math.PI / 2;
-    circle.add(inner);
-    const sigils = [];
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const s = new THREE.Mesh(new THREE.CircleGeometry(0.7, 6), new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.35 }));
-      s.rotation.x = -Math.PI / 2;
-      s.position.set(Math.cos(a) * 3.6, 0.01, Math.sin(a) * 3.6);
-      circle.add(s);
-      sigils.push(s);
-    }
-    this.scene.add(circle);
-    circle.scale.setScalar(0.01);
-    let t = 0;
-    this.effects.push((dt) => {
-      t += dt;
-      circle.scale.setScalar(Math.min(1, t * 2.5) * k);
-      inner.rotation.z += dt * 0.5;
-      return !!circle.parent;
-    });
-    this.battleCircle = circle;
-
-    // place combatants
-    this.player.position.copy(center.clone().addScaledVector(dir, -R));
-    this.player.rotation.y = Math.atan2(dir.x, dir.z);
-    this.heading = this.player.rotation.y;
-    if (this.pet) {
-      this.pet.position.copy(this.player.position).addScaledVector(perp, -1.6).addScaledVector(dir, 0.6);
-      this.pet.rotation.y = this.heading;
-    }
-    // bosses stand in the middle of their side
-    enemyEntities.sort((a, b) => (a.def.boss ? 1 : 0) - (b.def.boss ? 1 : 0));
-    if (enemyEntities.length === 3 && enemyEntities[2].def.boss) enemyEntities.splice(1, 0, enemyEntities.pop());
-    // line enemies up side by side using their real widths so big models never overlap
-    const widths = enemyEntities.map(e => Math.max(1.4, (e.model.userData.width || 1.6) * 0.8));
-    const total = widths.reduce((a, b) => a + b, 0) + (widths.length - 1) * 0.4;
-    let cursor = -total / 2;
-    const offsets = widths.map(w => { const o = cursor + w / 2; cursor += w + 0.4; return o; });
-    enemyEntities.forEach((e, i) => {
-      const back = e.def.boss && enemyEntities.length > 1 ? 1.2 : 0;
-      e.model.position.copy(center.clone().addScaledVector(dir, R + back).addScaledVector(perp, offsets[i]));
-      e.model.rotation.y = Math.atan2(-dir.x, -dir.z);
-    });
-
-    // try the usual over-the-shoulder spot, then its mirror, and keep whichever
-    // gets furthest back without entering scenery
-    const look = center.clone().addScaledVector(dir, 1.2).setY(big ? 1.8 : 0.8);
-    let bestPos = null, bestDist = -1;
-    for (const side of [1, -1]) {
-      const want = center.clone().addScaledVector(dir, -R - 7.5 * k).addScaledVector(perp, 4.5 * k * side).setY(7 * k);
-      const got = this.safeCam(center.clone().setY(want.y), want);
-      const d = got.distanceTo(center);
-      if (d > bestDist + 0.5) { bestDist = d; bestPos = got; }
-    }
-    this.battleView = { pos: bestPos, look };
-    for (const l of this.labels) l.hiddenForBattle = true;
+  // Sends the player back to the zone's safe spot (after being defeated).
+  respawnPlayer() {
+    const sp = ZONES[zoneAt(this.player.position.x)].spawn;
+    this.player.position.set(sp.x, 0, sp.z);
+    if (this.pet) this.pet.position.set(sp.x + 1, 0, sp.z);
+    this.heading = sp.heading;
+    this.camYawOffset = 0;
+    this.moveTarget = null;
+    this.snapCamera();
+    this.invulnUntil = this.time + 4;
   }
 
-  endBattle({ outcome, enemies }) {
-    if (this.battleCircle) this.scene.remove(this.battleCircle);
-    this.battleCircle = null;
-    this.battleView = null;
-    for (const l of this.labels) l.hiddenForBattle = false;
-    for (const e of enemies) {
-      if (e.hp <= 0 || outcome === 'win') {
-        e.entity.state = 'dead';
-        e.entity.model.visible = false;
-        e.entity.respawnAt = this.time + (e.entity.def.boss ? 60 : 25);
-      } else {
-        e.entity.state = 'idle';
-        e.entity.target = e.entity.home.clone();
-      }
+  // A quick dash in the direction the player is moving (or facing).
+  dash() {
+    if (!this.player || this.dashT > 0) return false;
+    const k = this.keys;
+    const back = (k.KeyS || k.ArrowDown) && !(k.KeyW || k.ArrowUp);
+    const dir = back ? this.heading + Math.PI : this.heading;
+    this.dashDir = V(Math.sin(dir), 0, Math.cos(dir));
+    this.dashT = 0.22;
+    this.invulnUntil = Math.max(this.invulnUntil, this.time + 0.4);
+    for (let i = 0; i < 10; i++) this.particle(this.player.position.clone().add(V(0, 0.6, 0)), 0xe8e4ff, { vel: V((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2), life: 0.5, size: 0.12 });
+    return true;
+  }
+
+  setTargetRing(entity) {
+    if (!this.targetRing) {
+      this.targetRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 40), new THREE.MeshBasicMaterial({ color: 0xff4d6d, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+      this.targetRing.rotation.x = -Math.PI / 2;
+      this.scene.add(this.targetRing);
     }
-    if (outcome === 'lose') {
-      const sp = ZONES[zoneAt(this.player.position.x)].spawn;
-      this.player.position.set(sp.x, 0, sp.z);
-      if (this.pet) this.pet.position.set(sp.x + 1, 0, sp.z);
-      this.heading = sp.heading;
-      this.camYawOffset = 0;
-      this.snapCamera();
-    }
-    this.invulnUntil = this.time + 4;
+    this.targetEntity = entity;
+    this.targetRing.visible = !!entity;
+  }
+
+  updateTargetRing() {
+    const e = this.targetEntity;
+    if (!this.targetRing || !e) return;
+    const w = Math.max(1.2, (e.model.userData.width || 1.6) * 0.55);
+    this.targetRing.position.set(e.model.position.x, 0.07, e.model.position.z);
+    this.targetRing.scale.setScalar(w * (1 + Math.sin(this.time * 6) * 0.05));
+    this.targetRing.rotation.z = this.time;
+    this.targetRing.visible = e.model.visible && e.state !== 'dead';
   }
 
   // ------------------------------------------------------------ labels & floaters
@@ -738,7 +664,7 @@ export class World {
     el.className = 'label ' + cls;
     el.innerHTML = html;
     this.labelRoot.appendChild(el);
-    const l = { obj, el, y, hiddenForBattle: false };
+    const l = { obj, el, y };
     this.labels.push(l);
     return l;
   }
@@ -760,7 +686,7 @@ export class World {
     const tmp = V();
     const showWorld = this.mode === 'explore';
     for (const l of this.labels) {
-      if (!showWorld || l.hiddenForBattle || !l.obj.visible) { l.el.style.display = 'none'; continue; }
+      if (!showWorld || !l.obj.visible) { l.el.style.display = 'none'; continue; }
       l.obj.getWorldPosition(tmp);
       const dist = tmp.distanceTo(this.camera.position);
       tmp.y += l.y;
@@ -837,31 +763,35 @@ export class World {
     return obj.position.clone().add(V(0, (obj.userData.height || 2.4) * 0.5, 0));
   }
 
-  projectile(fromObj, toObj, color, size = 0.3) {
+  // A magic bolt that homes in on `toObj` (or flies to a fixed point) and resolves on impact.
+  projectile(fromObj, toObj, color, size = 0.3, speed = 18) {
     return new Promise((resolve) => {
       const start = this.chest(fromObj).add(V(0, 0.4, 0));
-      const end = this.chest(toObj);
-      const mid = start.clone().lerp(end, 0.5);
-      mid.y += 2 + start.distanceTo(end) * 0.15;
+      const endNow = () => (toObj.isObject3D ? this.chest(toObj) : toObj.clone());
+      const dist0 = start.distanceTo(endNow());
+      const dur = 0.15 + dist0 / speed;
       const orb = new THREE.Mesh(this.sphereGeo, new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending }));
       const core = new THREE.Mesh(this.sphereGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
       core.scale.setScalar(0.45);
       orb.add(core);
       orb.scale.setScalar(size);
+      orb.position.copy(start);
       this.scene.add(orb);
-      const dur = 0.5 + start.distanceTo(end) * 0.03;
-      let t = 0;
+      let t = 0, frame = 0;
       this.effects.push((dt) => {
         t = Math.min(1, t + dt / dur);
+        const end = endNow();
+        const mid = start.clone().lerp(end, 0.5);
+        mid.y += 0.6 + dist0 * 0.06;
         const a = start.clone().lerp(mid, t), b = mid.clone().lerp(end, t);
         orb.position.copy(a.lerp(b, t));
         orb.scale.setScalar(size * (1 + Math.sin(this.time * 30) * 0.15));
-        this.particle(orb.position, color, { life: 0.35, size: size * 0.6, vel: V((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)) });
+        if (frame++ % 2 === 0) this.particle(orb.position, color, { life: 0.3, size: size * 0.6, vel: V((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)) });
         if (t >= 1) {
           this.scene.remove(orb);
           orb.material.dispose();
-          this.burst(end, color, 18, 4);
-          resolve();
+          this.burst(end, color, 14, 4);
+          resolve(end);
           return false;
         }
       });
@@ -879,7 +809,8 @@ export class World {
       this.scene.add(rock);
       let t = 0;
       this.effects.push((dt) => {
-        t = Math.min(1, t + dt / 0.75);
+        t = Math.min(1, t + dt / 0.6);
+        end.copy(this.chest(toObj));
         rock.position.lerpVectors(start, end, t * t);
         rock.rotation.x += dt * 8; rock.rotation.y += dt * 5;
         if (Math.random() < 0.8) this.particle(rock.position, color, { life: 0.5, size: 0.35, vel: V((Math.random() - 0.5) * 2, 2, (Math.random() - 0.5) * 2) });
@@ -976,6 +907,7 @@ export class World {
     if (this.mode === 'explore' && this.player) this.movePlayer(dt);
     else if (this.player) this.player.userData.anim(this.time, false);
     this.updateEnemies(dt);
+    this.updateTargetRing();
     for (const o of this.animated) o.userData.anim(this.time);
     for (const n of this.npcs) {
       n.model.userData.anim(this.time, false);
@@ -1002,14 +934,9 @@ export class World {
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
     } else {
-      if (this.battleView) {
-        pos = this.battleView.pos.clone().add(V(Math.sin(this.time * 0.4) * 0.4, 0, 0));
-        look = this.battleView.look;
-      } else {
-        ({ pos, look } = this.followCam());
-        pos = this.safeCam(look, pos);
-      }
-      this.camera.position.lerp(pos, 1 - Math.exp(-(this.battleView ? 3 : 7) * dt));
+      ({ pos, look } = this.followCam());
+      pos = this.safeCam(look, pos);
+      this.camera.position.lerp(pos, 1 - Math.exp(-7 * dt));
       this.camera.lookAt(look);
     }
     if (this.shakeAmt > 0) {

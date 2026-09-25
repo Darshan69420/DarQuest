@@ -75,7 +75,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .quest-title { font: 800 16px var(--display); margin: 2px 0; }
 .quest-goal { font-size: 14px; color: #e3dcff; }
 .hud-buttons { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 10px; }
-#prompt { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--panel); border: 2px solid var(--gold); border-radius: 999px; padding: 8px 18px; font-weight: 800; white-space: nowrap; }
+#prompt { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); background: var(--panel); border: 2px solid var(--gold); border-radius: 999px; padding: 8px 18px; font-weight: 800; white-space: nowrap; }
 
 /* ---------------------------------------------------------------- toasts */
 #toasts { position: fixed; top: 150px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; z-index: 50; width: min(92vw, 460px); }
@@ -140,48 +140,53 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .card-acc { position: absolute; bottom: 4px; right: 7px; font-size: 10px; font-weight: 800; color: var(--muted); }
 .card.locked { filter: grayscale(.8) brightness(.7); }
 
-/* ---------------------------------------------------------------- battle */
-#battle-ui { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
-#battle-ui > * { pointer-events: auto; }
-.b-foes { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; max-width: 96vw; }
-.b-panel { background: var(--panel); border: 2px solid rgba(255,255,255,.25); border-radius: 14px; padding: 8px 12px; width: 220px; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: border-color .2s, transform .2s, opacity .3s; }
-.b-panel.foe.boss { border-color: #c542ff; width: 260px; }
-.b-panel.dead { opacity: .35; }
-.b-panel.targetable { border-color: var(--gold); cursor: pointer; animation: target 0.8s ease-in-out infinite; }
-@keyframes target { 50% { transform: translateY(3px); box-shadow: 0 0 22px rgba(242,193,78,.7); } }
-.b-name { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.b-name small { color: var(--muted); font-weight: 700; }
-.pips { display: flex; gap: 4px; margin-top: 6px; min-height: 14px; }
-.pip { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #d9d3f5 50%, #8f86b8); box-shadow: 0 0 5px rgba(255,255,255,.6); }
-.pip.power { border-radius: 3px; transform: rotate(45deg) scale(.92); background: radial-gradient(circle at 35% 35%, #fff6d0, var(--gold) 55%, #a8741b); box-shadow: 0 0 7px var(--gold); }
-.charms { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; font-size: 14px; min-height: 18px; }
-.b-msg { position: absolute; top: 132px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 2px solid rgba(255,255,255,.2); border-radius: 999px; padding: 8px 20px; font-weight: 800; font-size: 16px; white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis; }
-.b-msg:empty { display: none; }
-.b-msg.hint { border-color: var(--gold); }
-.b-msg.warn { border-color: var(--bad); color: #ffd0d6; }
-.b-msg.boss { border-color: #c542ff; color: #e6b8ff; }
-.b-msg.win { border-color: var(--gold); color: var(--gold); font-size: 24px; }
-.b-msg.lose { border-color: var(--bad); color: var(--bad); font-size: 22px; }
-.b-cast { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); pointer-events: none !important; }
-.cast-wrap { animation: castIn 1.3s ease forwards; }
-.cast-wrap .card { transform: scale(1.25); }
-.cast-wrap.theirs .card { filter: hue-rotate(0deg) saturate(.9); }
-@keyframes castIn { 0% { opacity: 0; transform: translateY(40px) scale(.7); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; transform: translateY(-10px); } 100% { opacity: 0; transform: translateY(-40px) scale(.9); } }
-.b-bottom { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 12px 16px 16px; pointer-events: none; }
-.b-bottom > * { pointer-events: auto; }
-.b-hero { position: relative; }
-.b-potions { position: absolute; top: -10px; right: -8px; background: #1a1240; border: 2px solid #ff5fa2; border-radius: 999px; padding: 1px 8px; font-weight: 800; font-size: 13px; }
-.b-hand { flex: 1; display: flex; justify-content: center; align-items: flex-end; min-height: 180px; }
-.hand-slot { margin: 0 -6px; transform: rotate(var(--r)) translateY(var(--y)); animation: deal .35s ease backwards; animation-delay: calc(var(--i) * 50ms); }
-@keyframes deal { from { opacity: 0; transform: translateY(80px); } }
-.card.playable { cursor: pointer; }
-.card.playable:hover:not(.disabled) { transform: translateY(-22px) scale(1.07); z-index: 2; box-shadow: 0 10px 30px color-mix(in srgb, var(--sc) 60%, transparent); }
-.card.disabled { filter: grayscale(.85) brightness(.6); cursor: not-allowed; }
-.card.selected { transform: translateY(-30px) scale(1.1); box-shadow: 0 0 0 3px #fff, 0 0 30px var(--sc); }
-.discard { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ff9fb0; background: #7c1f36; color: #fff; font-size: 11px; font-weight: 800; cursor: pointer; opacity: 0; transition: opacity .15s; padding: 0; }
-.card:hover .discard, .card.selected .discard { opacity: 1; }
-.card-key { position: absolute; bottom: 4px; left: 8px; font-size: 10px; font-weight: 800; color: rgba(255,255,255,.45); }
-.b-actions { display: flex; flex-direction: column; gap: 8px; }
+/* ---------------------------------------------------------------- real-time combat */
+.bar.mp { height: 12px; }
+.bar.mp .fill { background: linear-gradient(#8fd0ff, #3a7ae0); }
+.bar.mp span { font-size: 10px; line-height: 11px; }
+#hotbar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; z-index: 15; padding: 8px 10px; background: rgba(24,16,52,.72); border: 2px solid rgba(242,193,78,.45); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.hb { --sc: #f2c14e; position: relative; width: 64px; height: 64px; border-radius: 14px; border: 2px solid var(--sc); cursor: pointer; padding: 0; color: #fff; font-family: var(--body);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--sc) 55%, #1a1240), #150e33 75%); box-shadow: inset 0 0 0 2px rgba(255,255,255,.08); overflow: hidden; transition: transform .08s; }
+.hb:active { transform: scale(.94); }
+.hb.empty { opacity: .45; border-style: dashed; }
+.hb.util { --sc: #8e7ad6; width: 54px; }
+.hb.poor .hb-icon { filter: grayscale(1) brightness(.6); }
+.hb.poor .hb-cost { color: #ff8a9a; }
+.hb-icon { position: absolute; inset: 0; display: grid; place-items: center; font-size: 26px; padding-bottom: 8px; }
+.hb-key { position: absolute; top: 3px; left: 5px; font-size: 11px; font-weight: 800; color: #ffe9a6; text-shadow: 0 1px 2px #000; }
+.hb-cost { position: absolute; top: 3px; right: 5px; font-size: 11px; font-weight: 800; color: #9fd6ff; text-shadow: 0 1px 2px #000; }
+.hb-count { position: absolute; top: 3px; right: 6px; font-size: 12px; font-weight: 800; }
+.hb-name { position: absolute; left: 2px; right: 2px; bottom: 3px; font-size: 9px; font-weight: 800; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+.hb-cd { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 800; text-shadow: 0 2px 3px #000; pointer-events: none; }
+#target-frame { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); width: 300px; background: var(--panel); border: 2px solid #ff4d6d; border-radius: 14px; padding: 8px 12px; z-index: 12; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+#target-frame.boss { border-color: #c542ff; width: 360px; }
+.tf-name { font-weight: 800; font-size: 15px; }
+.tf-name small { color: var(--muted); }
+.tf-cast { margin-top: 4px; font-size: 12px; font-weight: 800; color: #ffb36b; }
+#hurt { position: fixed; inset: 0; pointer-events: none; z-index: 11; box-shadow: inset 0 0 120px 30px rgba(255,40,60,.55); opacity: 0; }
+#hurt.on { animation: hurt .5s ease-out; }
+@keyframes hurt { from { opacity: 1; } to { opacity: 0; } }
+#combat-msg { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); background: var(--panel); border: 2px solid rgba(255,255,255,.2); border-radius: 999px; padding: 7px 18px; font-weight: 800; z-index: 13; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis; }
+#combat-msg.show { opacity: 1; }
+#combat-msg.boss { border-color: #c542ff; color: #e6b8ff; font-size: 18px; }
+.label .ehp, .label .ecast { display: none; width: 90px; height: 7px; margin: 3px auto 0; border-radius: 4px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.3); overflow: hidden; }
+.label.fighting .ehp { display: block; }
+.label .ecast.show { display: block; border-color: #ffb36b; }
+.label .ehp .fill { height: 100%; background: linear-gradient(#ff7a8a, #e8455c); transition: width .2s; }
+.label .ecast .fill { height: 100%; background: #ffb36b; }
+.label.targeted .name { text-decoration: underline; text-decoration-color: #ff4d6d; text-underline-offset: 3px; }
+.floater.crit { color: #ffe14d; font-size: 34px; }
+.floater.dmg.hurt { color: #ff6a7a; }
+.floater.xp { color: #9fd6ff; font-size: 18px; }
+.loadout { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.load-slot { position: relative; background: none; border: 3px solid transparent; border-radius: 16px; padding: 4px; cursor: pointer; }
+.load-slot.basic { cursor: default; opacity: .9; }
+.load-slot.picked { border-color: var(--gold); box-shadow: 0 0 18px rgba(242,193,78,.5); }
+.load-key { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); background: #1a1240; border: 2px solid var(--gold); border-radius: 999px; padding: 0 9px; font-weight: 800; color: var(--gold); z-index: 2; }
+.card.empty { display: grid; place-items: center; border-style: dashed; opacity: .6; }
+.card.equipped { box-shadow: 0 0 0 3px var(--good); }
+.card-slot.pickable { background: none; border: none; cursor: pointer; font-family: var(--body); color: var(--ink); }
+.card-slot.pickable:hover .card { transform: translateY(-4px); }
 
 /* ---------------------------------------------------------------- title */
 #title { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(20,15,56,.35), rgba(20,15,56,.85)); z-index: 70; overflow-y: auto; padding: 20px 16px; }
@@ -242,25 +247,14 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   .hud-player { width: calc(100vw - 134px); max-width: 220px; }
   .btn.round { width: 40px; height: 40px; font-size: 17px; }
   #prompt { bottom: auto; top: 128px; font-size: 13px; }
-  .b-panel { width: 150px; padding: 6px 8px; }
-  .b-panel.foe.boss { width: 180px; }
-  .b-name { font-size: 12px; }
-  .b-foes { gap: 6px; top: 8px; }
-  .b-msg { top: 112px; font-size: 13px; padding: 6px 14px; }
-  .b-bottom { flex-wrap: wrap; padding: 8px; }
-  .b-hero { order: 1; }
-  .b-actions { order: 2; flex-direction: row; }
-  .b-hand { order: 3; flex-basis: 100%; min-height: 125px; }
-  .card { width: 72px; height: 104px; padding: 5px 4px; }
-  .card-icon { font-size: 22px; margin-top: 8px; }
-  .card-name { font-size: 10px; }
-  .card-desc { font-size: 8.5px; }
-  .b-hand .card-desc, .b-hand .card-acc, .b-hand .card-key { display: none; }
-  .card-pips { width: 24px; height: 24px; font-size: 13px; top: -6px; left: -6px; }
-  .hand-slot { margin: 0 -10px; transform: none; }
-  .card.playable:hover:not(.disabled) { transform: translateY(-10px); }
-  .card.selected { transform: translateY(-14px) scale(1.05); }
-  .discard { opacity: 1; }
+  #hotbar { bottom: 8px; gap: 5px; padding: 6px; flex-wrap: wrap; justify-content: center; width: calc(100vw - 20px); max-width: 420px; }
+  .hb { width: 52px; height: 52px; }
+  .hb.util { width: 46px; }
+  .hb-name { display: none; }
+  .hud-quest { bottom: 150px; }
+  .hud-buttons { bottom: 150px; }
+  #target-frame { top: 156px; width: 230px; padding: 6px 10px; }
+  #combat-msg { top: 230px; font-size: 13px; }
   .card-grid .card { width: 100%; height: 150px; }
   .card-grid .card-desc { font-size: 10px; }
 }

@@ -19,6 +19,7 @@
       <div id="hud-name" class="hud-name"></div>
       <div id="hud-school" class="hud-school"></div>
       <div class="bar hp"><div id="hud-hp-fill" class="fill"></div><span id="hud-hp-text"></span></div>
+      <div class="bar mp"><div id="hud-mp-fill" class="fill"></div><span id="hud-mp-text"></span></div>
       <div class="bar xp"><div id="hud-xp-fill" class="fill"></div><span id="hud-xp-text"></span></div>
       <div class="hud-stats">
         <span title="Gold">🪙 <b id="hud-gold"></b></span>
@@ -44,7 +45,10 @@
     <div id="prompt" class="hidden"></div>
   </div>
 
-  <div id="battle-ui" class="hidden"></div>
+  <div id="hurt"></div>
+  <div id="target-frame" class="hidden"></div>
+  <div id="combat-msg"></div>
+  <div id="hotbar" class="hidden"></div>
   <div id="dialog" class="hidden"></div>
   <div id="modal" class="hidden"></div>
   <div id="result" class="hidden"></div>
@@ -55,7 +59,7 @@
   <div id="title">
     <div class="title-box">
       <h1 class="logo">Dar<span>Quest</span></h1>
-      <p class="tagline">A spellcard adventure at Starfall Academy</p>
+      <p class="tagline">A spellcasting adventure at Starfall Academy</p>
       <button id="continue" class="btn primary big hidden"></button>
       <div class="new-game">
         <label for="hero-name">Your wizard's name</label>

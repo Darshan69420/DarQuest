@@ -1,6 +1,6 @@
-// Game bootstrap: title screen, NPC conversations, quests, portals and battle hand-off.
+// Game bootstrap: title screen, NPC conversations, quests, portals and real-time combat.
 import { World } from './world.js';
-import { Battle } from './battle.js';
+import { Combat } from './combat.js';
 import { Minimap } from './minimap.js';
 import * as UI from './ui.js';
 import * as Audio from './audio.js';
@@ -16,7 +16,6 @@ const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
 const minimap = new Minimap($('#minimap'), world);
 let player = null;
-let battle = null;
 let hudTimer = 0;
 let saveTimer = 0;
 
@@ -31,7 +30,7 @@ function buildTitle() {
     return `<button class="school-card" data-school="${id}" style="--sc:${s.css}">
       <div class="sc-icon">${s.icon}</div><div class="sc-name">${s.name}</div>
       <div class="sc-desc">${s.desc}</div>
-      <div class="sc-stats">❤️ ${s.baseHp} · 🎯 ${Math.round(s.acc * 100)}%</div></button>`;
+      <div class="sc-stats">❤️ ${s.baseHp} · ${s.role}</div></button>`;
   }).join('');
   grid.querySelectorAll('.school-card').forEach(b => b.addEventListener('click', () => {
     grid.querySelectorAll('.school-card').forEach(x => x.classList.remove('chosen'));
@@ -76,7 +75,10 @@ function startGame(p, isNew) {
   $('#title').classList.add('hidden');
   world.spawnPlayer(p, isNew ? null : p.pos);
   world.mode = 'explore';
+  combat.setPlayer(p);
+  buildHotbar();
   UI.showHUD(true);
+  UI.showCombatHUD(true);
   updateMuteButton();
   refresh();
   save(player);
@@ -85,7 +87,7 @@ function startGame(p, isNew) {
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
-      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D or the arrow keys, or tap the ground. When you see a "!" above someone's head, talk to them with E. Come and find me in front of the Academy!`,
+      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D or the arrow keys, or tap the ground. Fight with keys 1 to 5 and dodge with Space. When you see a "!" above someone's head, talk to them with E. Come and find me in front of the Academy!`,
       [{ label: 'Let\'s go!', primary: true }, { label: 'How to play', action: UI.openHelp }]), 700);
   }
 }
@@ -109,7 +111,7 @@ function showZoneName(zone) {
 world.onZoneChange = (zone) => {
   if (!player) return;
   showZoneName(zone);
-  if (world.mode !== 'battle') Audio.setMusic(ZONES[zone].music);
+  if (!combat.inCombat) Audio.setMusic(ZONES[zone].music);
 };
 
 // Where the quest tracker's star should point on the minimap.
@@ -245,6 +247,7 @@ function announceLevels(levels) {
 // Called whenever a menu changes the player. `kind` picks a sound and whether to rebuild the model.
 function onChange(kind) {
   if (kind === 'gear' || kind === 'pet') world.spawnPlayer(player);
+  buildHotbar();
   if (kind === 'drink') Audio.sfx('drink');
   else if (kind === 'pet') Audio.sfx('pet');
   else if (kind === 'loot' || kind === 'sell') Audio.sfx('loot');
@@ -253,65 +256,70 @@ function onChange(kind) {
   save(player);
 }
 
-// ------------------------------------------------------------ battles
+// ------------------------------------------------------------ combat
 
 world.onInteract = talk;
 
-world.onEncounter = (entities) => {
-  if (!player || battle) return;
-  world.mode = 'battle';
-  UI.closeDialog();
-  UI.closeModal();
-  UI.setPrompt('');
-  UI.showHUD(false);
-  const boss = entities.some(e => e.def.boss);
-  Audio.setMusic(boss ? 'boss' : 'battle');
-  if (boss) Audio.sfx('boss');
-  battle = new Battle({ world, player, enemies: entities, onEnd: endBattle });
-  battle.run();
-};
+const combat = new Combat({
+  world,
+  onKill: rewardKill,
+  onPlayerDeath: playerDefeated,
+  onHurt: () => UI.flashHurt(),
+  onMessage: (text, cls) => UI.combatMessage(text, cls),
+  onCombatChange: (fighting, boss) => {
+    Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : ZONES[zoneAt(world.player.position.x)].music);
+    if (fighting && boss) Audio.sfx('boss');
+  },
+});
 
-async function endBattle({ outcome, enemies }) {
-  battle = null;
-  world.endBattle({ outcome, enemies });
-  world.mode = 'locked';
+function buildHotbar() {
+  if (!player) return;
+  UI.buildHotbar(player, {
+    onSlot: (i) => inExplore() && combat.castSlot(i),
+    onDodge: () => inExplore() && combat.dodge(),
+    onPotion: () => inExplore() && drinkPotion(),
+    onTarget: () => inExplore() && combat.cycleTarget(),
+  });
+}
+
+// XP, gold, loot and quest progress the moment an enemy falls.
+function rewardKill(e) {
   const diff = DIFFICULTIES[player.difficulty];
-
-  if (outcome === 'win') {
-    let xp = 0, gold = 0;
-    const lines = [];
-    for (const e of enemies) {
-      xp += Math.round(e.def.xp * diff.reward);
-      gold += Math.round((e.def.gold[0] + Math.floor(Math.random() * (e.def.gold[1] - e.def.gold[0] + 1))) * diff.reward);
-      if (recordKill(player, e.def.id)) lines.push(questTrackerText(player).goal);
-    }
-    player.gold += gold;
-    const loot = rollLoot(player, enemies.map(e => e.def));
-    const levels = gainXp(player, xp);
-    if (loot.pets.length) world.setPet(player.activePet);
-    const lootHTML = loot.items.length || loot.pets.length ? `<div class="loot">
-      ${loot.items.map(it => `<div>🎁 <b>${UI.esc(GEAR[it.id].name)}</b> <small>${UI.statsText(GEAR[it.id].stats)}</small>${it.where === 'sold' ? ' (bag full: sold)' : ''}</div>`).join('')}
-      ${loot.pets.map(id => `<div>🐾 New pet: <b>${PETS[id].name}</b>!</div>`).join('')}</div>` : '';
-    if (lootHTML) setTimeout(() => Audio.sfx('loot'), 400);
-    await UI.resultScreen(`<h2 class="win">Victory!</h2>
-      <p class="reward">+${xp} XP &nbsp; · &nbsp; +${gold} 🪙</p>
-      ${lootHTML}
-      ${levels ? `<p class="levelup">⭐ Level up! You are now level ${player.level}.<br>You earned a Training Point.</p>` : ''}
-      ${lines.length ? `<p class="qline">📜 ${[...new Set(lines)].map(UI.esc).join('<br>')}</p>` : ''}
-      ${player.quest.state === 'ready' ? '<p class="qline">Quest ready to turn in!</p>' : ''}
-      ${loot.items.length ? '<p class="tip">Press C to equip new gear.</p>' : ''}`);
-    if (levels) { world.aura(world.player, 0xf2c14e); Audio.sfx('levelup'); }
-  } else if (outcome === 'lose') {
-    player.hp = Math.round(player.maxHp * 0.5);
-    await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-      <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.</p>
-      <p class="tip">Tip: heal at a fountain, learn new spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
-  } else {
-    UI.toast('You escaped the duel!');
+  const def = e.def;
+  const xp = Math.round(def.xp * diff.reward);
+  const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward);
+  player.gold += gold;
+  world.float(e.model, `+${xp} XP`, 'xp');
+  const quest = recordKill(player, def.id);
+  const loot = rollLoot(player, [def]);
+  const levels = gainXp(player, xp);
+  if (quest) {
+    const q = currentQuest(player);
+    UI.toast(player.quest.state === 'ready' ? `📜 <b>${UI.esc(q.name)}</b>: ready to turn in!` : `📜 ${UI.esc(questTrackerText(player).goal)}`, 'quest');
+    Audio.sfx('quest');
   }
+  for (const it of loot.items) UI.toast(`🎁 <b>${UI.esc(GEAR[it.id].name)}</b> ${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, 'good');
+  for (const id of loot.pets) UI.toast(`🐾 New pet: <b>${PETS[id].name}</b>! Press C to summon it.`, 'good');
+  if (loot.items.length || loot.pets.length) Audio.sfx('loot');
+  if (loot.pets.length) world.setPet(player.activePet);
+  if (def.boss) UI.toast(`🏆 <b>${UI.esc(def.name)}</b> is defeated! +${xp} XP · +${gold} gold`, 'good');
+  announceLevels(levels);
+  refresh();
+  save(player);
+}
+
+async function playerDefeated() {
+  world.mode = 'locked';
+  Audio.sfx('defeat');
+  const diff = DIFFICULTIES[player.difficulty];
+  await new Promise(r => setTimeout(r, 900));
+  await UI.resultScreen(`<h2 class="lose">Defeated</h2>
+    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.</p>
+    <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
+  player.hp = Math.round(player.maxHp * 0.5);
+  player.mana = player.maxMana;
+  world.respawnPlayer();
   world.mode = 'explore';
-  Audio.setMusic(ZONES[zoneAt(world.player.position.x)].music);
-  UI.showHUD(true);
   refresh();
   save(player);
 }
@@ -320,14 +328,14 @@ async function endBattle({ outcome, enemies }) {
 
 world.onTick = (dt) => {
   if (!player || world.mode !== 'explore') return;
-  // slow health regeneration while exploring
-  if (player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.008 * dt);
-
+  combat.update(dt);
+  UI.updateHotbar(combat.hotbar());
   minimap.update(dt, questTargetPos());
   hudTimer += dt;
   if (hudTimer > 0.25) {
     hudTimer = 0;
     UI.updateHUD(player);
+    UI.updateTarget(combat.target);
     const near = UI.isDialogOpen() ? null : world.nearestInteractable();
     let text = '';
     if (near) {
@@ -365,6 +373,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyB') UI.openSpellbook(player, onChange);
   if (e.code === 'KeyC' || e.code === 'KeyI') UI.openCharacter(player, onChange);
   if (e.code === 'KeyH') drinkPotion();
+  const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code);
+  if (n >= 0) combat.castSlot(n);
+  if (e.code === 'Space') { e.preventDefault(); combat.dodge(); }
+  if (e.code === 'Tab') { e.preventDefault(); combat.cycleTarget(); }
   if (e.key === '?' || e.code === 'F1') { e.preventDefault(); UI.openHelp(); }
 });
 
@@ -372,12 +384,7 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('click', (e) => { if (e.target.closest('.btn, .school-card, .diff-card')) Audio.sfx('click'); });
 
 function drinkPotion() {
-  if (player.potions < 1) return UI.toast('You have no potions. Madame Fizz sells them!');
-  if (player.hp >= player.maxHp) return UI.toast('You are already at full health.');
-  player.potions--;
-  player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.5);
-  world.aura(world.player, 0xff5fa2);
-  onChange('drink');
+  if (combat.drinkPotion()) { refresh(); save(player); }
 }
 
 const inExplore = () => world.mode === 'explore' && player;
@@ -398,6 +405,6 @@ setInterval(() => {
 }, 100);
 
 // Handy for testing from the browser console.
-window.darquest = { world, get player() { return player; }, get battle() { return battle; } };
+window.darquest = { world, combat, get player() { return player; } };
 
 buildTitle();

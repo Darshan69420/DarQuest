@@ -1,6 +1,6 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
-import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES } from './data.js';
-import { xpToNext, equip, unequip, sellItem, givePet, setActivePet } from './state.js';
+import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell } from './state.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -10,14 +10,17 @@ export function esc(s) {
 
 // ------------------------------------------------------------ cards
 
-export function cardHTML(spell, { extra = '', cls = '', acc = true } = {}) {
+// A spell tile: mana cost in the corner, cooldown at the bottom.
+export function cardHTML(spell, { extra = '', cls = '', basic = false } = {}) {
   const school = SCHOOLS[spell.school];
+  const cost = basic ? 0 : spellCost(spell);
+  const cd = basic ? BASIC_COOLDOWN : spellCooldown(spell);
   return `<div class="card school-${spell.school} ${cls}" style="--sc:${school.css}" data-spell="${spell.id}">
-    <div class="card-pips">${spell.pips === 0 ? '0' : spell.pips}</div>
+    <div class="card-pips" title="Mana cost">${cost}</div>
     <div class="card-icon">${school.icon}</div>
     <div class="card-name">${esc(spell.name)}</div>
     <div class="card-desc">${esc(describe(spell))}</div>
-    ${acc ? `<div class="card-acc">${Math.round(school.acc * 100)}%</div>` : ''}
+    <div class="card-acc">${basic ? 'Basic · ' : ''}${cd.toFixed(1)}s</div>
     ${extra}
   </div>`;
 }
@@ -33,6 +36,8 @@ export function updateHUD(p) {
   $('#hud-school').style.color = school.css;
   $('#hud-hp-fill').style.width = `${(p.hp / p.maxHp) * 100}%`;
   $('#hud-hp-text').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
+  $('#hud-mp-fill').style.width = `${(p.mana / p.maxMana) * 100}%`;
+  $('#hud-mp-text').textContent = `${Math.floor(p.mana)} / ${p.maxMana}`;
   const need = xpToNext(p.level);
   $('#hud-xp-fill').style.width = `${(p.xp / need) * 100}%`;
   $('#hud-xp-text').textContent = `XP ${p.xp} / ${need}`;
@@ -127,7 +132,7 @@ export function openTutor(p, onChange) {
     const list = Object.values(SPELLS)
       .filter(s => !s.enemy && !s.pet && (s.school === p.school || s.school === 'astral'))
       .sort((a, b) => a.level - b.level || a.pips - b.pips);
-    body.innerHTML = `<p class="modal-note">Training Points: <b>${p.tp}</b> · Earn 1 every level. New spells go straight into your deck.</p>
+    body.innerHTML = `<p class="modal-note">Training Points: <b>${p.tp}</b> · Earn 1 every level. New spells go into an empty slot on your spell bar (press B to change it).</p>
       <div class="card-grid">${list.map(s => {
         const known = p.known.includes(s.id);
         const locked = p.level < s.level;
@@ -142,8 +147,8 @@ export function openTutor(p, onChange) {
       if (p.tp < 1 || p.known.includes(id)) return;
       p.tp--;
       p.known.push(id);
-      const copies = SPELLS[id].pips === 0 ? 2 : 3;
-      for (let i = 0; i < copies && p.deck.length < RULES.deckMax; i++) p.deck.push(id);
+      const empty = p.hotbar.indexOf(null);
+      if (empty >= 0) p.hotbar[empty] = id;
       toast(`You learned <b>${esc(SPELLS[id].name)}</b>!`, 'good');
       onChange();
       render(body);
@@ -152,23 +157,115 @@ export function openTutor(p, onChange) {
   openModal('📚 Spell Tutor', '', render);
 }
 
-// Spellbook: choose which cards are in the deck.
+// Spellbook: choose which four spells sit on keys 2-5.
 export function openSpellbook(p, onChange) {
+  let slot = Math.max(0, p.hotbar.indexOf(null));
   const render = (body) => {
-    const count = (id) => p.deck.filter(d => d === id).length;
-    const known = p.known.map(id => SPELLS[id]).sort((a, b) => a.pips - b.pips);
-    body.innerHTML = `<p class="modal-note">Deck: <b>${p.deck.length}</b> / ${RULES.deckMax} cards · Up to ${RULES.maxCopies} copies of each spell. You draw ${RULES.handSize} cards each battle round.</p>
-      <div class="card-grid">${known.map(s => `<div class="card-slot">${cardHTML(s)}
-        <div class="stepper"><button class="btn small" data-rem="${s.id}" ${count(s.id) === 0 ? 'disabled' : ''}>−</button>
-        <span>${count(s.id)}</span>
-        <button class="btn small" data-add="${s.id}" ${count(s.id) >= RULES.maxCopies || p.deck.length >= RULES.deckMax ? 'disabled' : ''}>+</button></div></div>`).join('')}</div>`;
-    body.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { p.deck.push(b.dataset.add); onChange(); render(body); }));
-    body.querySelectorAll('[data-rem]').forEach(b => b.addEventListener('click', () => {
-      if (p.deck.length <= 1) return toast('Your deck needs at least one card.');
-      p.deck.splice(p.deck.indexOf(b.dataset.rem), 1); onChange(); render(body);
+    const basic = basicSpell(p.school);
+    const known = p.known.filter(id => id !== basic.id).map(id => SPELLS[id]).sort((a, b) => a.level - b.level);
+    body.innerHTML = `<p class="modal-note">Pick a slot, then click a spell to put it there. Key <b>1</b> is always your free basic attack, <b>${esc(basic.name)}</b>.</p>
+      <div class="loadout">
+        <div class="load-slot basic"><span class="load-key">1</span>${cardHTML(basic, { basic: true })}</div>
+        ${p.hotbar.map((id, i) => `<button class="load-slot ${i === slot ? 'picked' : ''}" data-slot="${i}"><span class="load-key">${i + 2}</span>
+          ${id ? cardHTML(SPELLS[id]) : '<div class="card empty"><div class="card-name">Empty</div></div>'}</button>`).join('')}
+      </div>
+      <h3 class="sub-h">Known spells</h3>
+      <div class="card-grid">${known.map(s => {
+        const on = p.hotbar.indexOf(s.id);
+        return `<button class="card-slot pickable" data-spell="${s.id}">${cardHTML(s, { cls: on >= 0 ? 'equipped' : '' })}
+          <div class="card-tag ${on >= 0 ? 'ok' : ''}">${on >= 0 ? `On key ${on + 2}` : `Put on key ${slot + 2}`}</div></button>`;
+      }).join('') || '<p class="modal-note">Learn more spells from Mirabel Quill at the Academy.</p>'}</div>`;
+    body.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { slot = +b.dataset.slot; render(body); }));
+    body.querySelectorAll('.pickable').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.spell;
+      const was = p.hotbar.indexOf(id);
+      if (was >= 0) p.hotbar[was] = p.hotbar[slot] === id ? null : p.hotbar[slot];
+      p.hotbar[slot] = was === slot ? null : id;
+      slot = (slot + 1) % RULES.hotbarSlots;
+      onChange();
+      render(body);
     }));
   };
   openModal('📖 Spellbook', '', render);
+}
+
+// ------------------------------------------------------------ combat HUD
+
+let hotbarEls = null;
+export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
+  const el = $('#hotbar');
+  const basic = basicSpell(p.school);
+  const slots = [basic.id, ...p.hotbar];
+  el.innerHTML = slots.map((id, i) => {
+    const s = SPELLS[id];
+    const school = s ? SCHOOLS[s.school] : null;
+    return `<button class="hb ${s ? '' : 'empty'}" data-i="${i}" style="--sc:${school ? school.css : '#555'}" title="${s ? esc(s.name) + ' · ' + esc(describe(s)) : 'Empty slot (press B)'}">
+      <span class="hb-icon">${school ? school.icon : '·'}</span><span class="hb-key">${i + 1}</span>
+      ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
+  }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion (H)"><span class="hb-icon">🧪</span><span class="hb-key">H</span><span class="hb-count"></span><span class="hb-cd"></span></button>
+    <button class="hb util" data-act="dodge" title="Dodge (Space)"><span class="hb-icon">💨</span><span class="hb-key">␣</span><span class="hb-cd"></span></button>
+    <button class="hb util" data-act="target" title="Next target (Tab)"><span class="hb-icon">🎯</span><span class="hb-key">Tab</span></button>`;
+  el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => onSlot(+b.dataset.i)));
+  el.querySelector('[data-act="potion"]').addEventListener('click', onPotion);
+  el.querySelector('[data-act="dodge"]').addEventListener('click', onDodge);
+  el.querySelector('[data-act="target"]').addEventListener('click', onTarget);
+  hotbarEls = {
+    slots: [...el.querySelectorAll('[data-i]')].map(b => ({ b, cd: b.querySelector('.hb-cd') })),
+    potion: el.querySelector('[data-act="potion"]'),
+    dodge: el.querySelector('[data-act="dodge"]'),
+  };
+}
+
+export function showCombatHUD(show) {
+  $('#hotbar').classList.toggle('hidden', !show);
+  if (!show) $('#target-frame').classList.add('hidden');
+}
+
+const cdStyle = (left, total) => left > 0 ? `conic-gradient(rgba(10,6,30,.78) ${(left / total) * 360}deg, transparent 0)` : 'none';
+
+export function updateHotbar(state) {
+  if (!hotbarEls) return;
+  state.slots.forEach((s, i) => {
+    const el = hotbarEls.slots[i];
+    if (!el || !s) return;
+    el.cd.style.background = cdStyle(s.left, s.total);
+    el.cd.textContent = s.left > 0.9 ? Math.ceil(s.left) : '';
+    el.b.classList.toggle('poor', s.poor);
+  });
+  const pc = hotbarEls.potion.querySelector('.hb-cd');
+  pc.style.background = cdStyle(state.potion.left, state.potion.total);
+  pc.textContent = state.potion.left > 0.9 ? Math.ceil(state.potion.left) : '';
+  hotbarEls.potion.querySelector('.hb-count').textContent = state.potion.count;
+  hotbarEls.potion.classList.toggle('poor', state.potion.count < 1);
+  hotbarEls.dodge.querySelector('.hb-cd').style.background = cdStyle(state.dodge.left, state.dodge.total);
+}
+
+export function updateTarget(e) {
+  const el = $('#target-frame');
+  if (!e || e.state === 'dead') { el.classList.add('hidden'); return; }
+  const school = SCHOOLS[e.def.school];
+  el.classList.remove('hidden');
+  el.classList.toggle('boss', !!e.def.boss);
+  el.innerHTML = `<div class="tf-name"><span style="color:${school.css}">${school.icon}</span> ${esc(e.def.name)} <small>Lv ${e.def.level}</small></div>
+    <div class="bar hp"><div class="fill" style="width:${(e.hp / e.maxHp) * 100}%"></div><span>${Math.ceil(e.hp)} / ${e.maxHp}</span></div>
+    ${e.cast ? `<div class="tf-cast">Casting ${esc(e.cast.spell.name)}…</div>` : ''}`;
+}
+
+export function flashHurt() {
+  const el = $('#hurt');
+  el.classList.remove('on');
+  void el.offsetWidth;
+  el.classList.add('on');
+}
+
+let msgTimer = 0;
+export function combatMessage(text, cls = '') {
+  const el = $('#combat-msg');
+  el.className = cls;
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => el.classList.remove('show'), cls === 'boss' ? 3000 : 1400);
 }
 
 export function openShop(p, onChange) {
@@ -228,8 +325,8 @@ export function openCharacter(p, onChange, tab = 'gear') {
       <div class="tabs"><button class="btn small ${tab === 'gear' ? 'primary' : ''}" data-tab="gear">🎒 Gear</button><button class="btn small ${tab === 'pets' ? 'primary' : ''}" data-tab="pets">🐾 Pets (${p.pets.length}/${Object.keys(PETS).length})</button></div>
       <div class="stat-grid">
         <div>❤️ Health <b>${p.maxHp}</b></div><div>⚔️ Damage <b>+${Math.round((p.level - 1) * 2 + (s.dmg || 0))}%</b></div>
-        <div>🎯 Accuracy <b>+${p.level + (s.acc || 0)}%</b></div><div>🛡️ Resist <b>${s.resist || 0}%</b></div>
-        <div>◆ Power Pip <b>${Math.round((0.1 + p.level * 0.02) * 100 + (s.pip || 0))}%</b></div><div>💚 Healing <b>+${s.heal || 0}%</b></div>
+        <div>🎯 Crit Chance <b>${5 + (s.acc || 0)}%</b></div><div>🛡️ Resist <b>${s.resist || 0}%</b></div>
+        <div>⏱️ Haste <b>${s.pip || 0}%</b></div><div>💚 Healing <b>+${s.heal || 0}%</b></div><div>💧 Mana <b>${p.maxMana}</b></div>
         <div>🏅 Difficulty <b>${DIFFICULTIES[p.difficulty].icon} ${DIFFICULTIES[p.difficulty].name}</b></div>
       </div>
       ${tab === 'gear' ? `
@@ -285,16 +382,17 @@ export function openHelp() {
     <h3>Exploring</h3>
     <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
-    <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> drink a potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
+    <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
     <h3>Gear &amp; pets</h3>
-    <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around, and at the start of each battle round they may cast a free spell to help.</p>
-    <h3>Battles</h3>
-    <p>Walk into an enemy to start a duel. Nearby enemies will join in (up to 3).</p>
-    <p>Each round you gain a <b>pip</b> (●). Sometimes it is a <b>power pip</b> (◆), which counts as 2 for spells of your own school. Spells cost pips, shown in the card's corner.</p>
-    <p>Click a card to cast it. If it targets one enemy, click that enemy next. Click the ✕ on a card to discard it so you draw a new one next round. You can also <b>Pass</b> to save up pips.</p>
-    <p>Spells can <b>fizzle</b>. Every school has an accuracy rating shown on its cards. Blades ⚔️ boost your next hit, shields 🛡️ soften the next hit on you, traps 🎯 make an enemy take more, and weaknesses 🔻 make their next hit weaker.</p>
-    <p>Enemies resist their own school, so pick your spells wisely! Bosses have phases, and some fight back when hit by the wrong kind of magic.</p>
+    <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>
+    <h3>Combat</h3>
+    <p>Fights happen right in the world. Get close to an enemy and it will attack. Its friends nearby join in!</p>
+    <p><b>1</b> is your free basic attack. <b>2–5</b> are the spells on your spell bar: they cost mana (💧) and have cooldowns. Change them in your spellbook (<b>B</b>) and learn new ones from Mirabel.</p>
+    <p>Spells lock onto your target (red ring). <b>Tab</b> or clicking an enemy picks a target, otherwise you aim at the nearest one.</p>
+    <p><b>Space</b> dodges. Enemies wind up big attacks (watch the orange cast bar and ⚠️), and a well-timed dodge makes you untouchable for a moment.</p>
+    <p>Blades ⚔️ boost your next hit, shields 🛡️ soften the next hit on you, traps 🎯 make an enemy take more, and weaknesses 🔻 make their next hit weaker. Enemies resist their own school. Bosses have phases, and some fight back when hit by the wrong kind of magic.</p>
+    <p>You regain health and mana quickly when out of combat. <b>H</b> drinks a potion.</p>
     <h3>Difficulty</h3>
     <p>${Object.values(DIFFICULTIES).map(d => `<b>${d.icon} ${d.name}:</b> ${d.desc}`).join('<br>')}</p></div>`);
 }

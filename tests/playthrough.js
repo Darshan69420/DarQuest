@@ -21,7 +21,7 @@ const killAll = async (id, n) => {
   for (const e of w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead')) {
     if (k >= n) break;
     w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
-    for (let t = 0; t < 150 && e.state !== "dead"; t++) { c.setTarget(e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
+    for (let t = 0; t < (e.def.boss ? 900 : 300) && e.state !== "dead"; t++) { c.setTarget(e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
     if (e.state === 'dead') k++;
   }
   return k;

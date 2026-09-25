@@ -1219,12 +1219,13 @@ export class World {
   }
 
   // Freezes the action for a split second on big hits, so they feel heavy.
-  hitStop(sec = 0.06) { this.hitStopT = Math.max(this.hitStopT, sec); }
+  hitStop(sec = 0.06) { if (!settings.reduceMotion) this.hitStopT = Math.max(this.hitStopT, sec); }
 
   // A warning on the ground that fills up, then goes off. Returns a handle you can cancel.
   // spec: { shape: 'circle' | 'cone' | 'line', x, z, r, inner, angle, dir, len, width, dur, color }
   telegraph(spec) {
-    const color = spec.color ?? 0xff4030;
+    // colour-blind mode draws every danger zone in amber, which reads clearly on any ground
+    const color = settings.colorblind ? 0xffb000 : spec.color ?? 0xff4030;
     const g = new THREE.Group();
     g.position.set(spec.x, 0.08 + Math.random() * 0.02, spec.z);
     g.rotation.y = spec.dir || 0;
@@ -1273,7 +1274,7 @@ export class World {
     });
   }
 
-  shake(amount) { this.shakeAmt = Math.max(this.shakeAmt, amount * settings.shake); }
+  shake(amount) { if (!settings.reduceMotion) this.shakeAmt = Math.max(this.shakeAmt, amount * settings.shake); }
 
   // ------------------------------------------------------------ main loop
 

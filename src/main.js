@@ -24,6 +24,7 @@ import {
 import { weekly, isDone as challengeDone, weeklyReward, CHALLENGES } from './challenges.js';
 import { Rift, UPGRADES } from './rift.js';
 import { Undercroft, clock } from './dungeon.js';
+import { makeChest } from './models.js';
 import * as RU from './ui_rift.js';
 import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
@@ -319,6 +320,7 @@ function talk(id) {
   if (npc.service === 'tutor') extra.push({ label: '📚 Learn Spells', action: () => UI.openTutor(player, onChange) });
   if (npc.service === 'shop') extra.push({ label: '🧪 Potions & Pets', action: () => UI.openShop(player, onChange) });
   if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange, npc.stock, `🎩 ${npc.name}`) });
+  if (npc.service === 'bank') extra.push({ label: '🏦 Bank', action: () => UI.openBank(player, onChange) });
   if (npc.service === 'guild') extra.push({ label: '🌾 Tools & Trading', action: () => SK.openGuildShop(player, onChange) });
   for (const svc of extraServices) if (svc.npc === id && (!svc.when || svc.when())) extra.push({ label: svc.label, action: svc.action });
   const side = npcSideQuests(player, id);
@@ -1106,6 +1108,7 @@ function onExtraInteract(id) {
   }
   if (id.startsWith('x:wall:')) { readWall(WORD_WALLS.find(w => 'x:wall:' + w.id === id)); return true; }
   if (id === 'x:riftgate') { Audio.sfx('click'); openRiftKeeper(); return true; }
+  if (id === 'x:vault') { Audio.sfx('click'); UI.openBank(player, onChange); return true; }
   if (id.startsWith('x:rift:')) return rift.interact(id);
   if (id.startsWith('x:uc:')) return undercroft.interact(id);
   return false;
@@ -1407,6 +1410,23 @@ $('#btn-journal').addEventListener('click', () => inExplore() && openJournal(pla
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
 onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });
+
+// Your Homestead's vault chest opens the same bank as Pennywhistle.
+const VAULT = { x: HOME_X + 7, z: 25 };
+{
+  const chest = world.add(makeChest(0x7affd0), VAULT.x, VAULT.z, Math.PI, 0.9);
+  world.addLabel(chest, '<div class="name">🏦 Vault</div><div class="sub">Your bank</div>', 'npc', 1.9);
+}
+world.extraInteractables.push(() => (player ? [{ id: 'x:vault', x: VAULT.x, z: VAULT.z, r: 2.6, label: 'open your vault' }] : []));
+
+// Accessibility: menu size, colour-blind friendly bars and reduced motion.
+function applyAccess() {
+  document.documentElement.style.setProperty('--ui', settings.uiScale || 1);
+  document.body.classList.toggle('cb', !!settings.colorblind);
+  document.body.classList.toggle('reduce-motion', !!settings.reduceMotion);
+}
+applyAccess();
+onSettings((k) => { if (['uiScale', 'colorblind', 'reduceMotion'].includes(k)) applyAccess(); });
 
 // Virtual joystick for phones and tablets.
 {

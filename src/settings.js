@@ -45,6 +45,9 @@ const DEFAULTS = {
   autoCam: true,          // camera drifts behind you while walking forward (modern controls)
   damageNumbers: true,
   worldScaling: false,    // foes everywhere grow with your level (always on in New Game+)
+  uiScale: 1,             // size of menus, the HUD and text
+  colorblind: false,      // danger zones in amber with bold edges instead of red
+  reduceMotion: false,    // no screen shake, hit-pause or lightning flashes
   keys: {},
 };
 

@@ -20,12 +20,12 @@ Built so far (see the README for the full feature list):
 | Phase | Status |
 | --- | --- |
 | 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
-| 2. RPG depth | ✅ Mostly done (talents, gear rarity, crafting). Still to do: a secondary school, set bonuses, a bank |
+| 2. RPG depth | ✅ Talents, gear rarity, crafting, a secondary school, gear set bonuses, a bank |
 | 3. World and story | 🟡 4 of 6 worlds (Stormspire, Thornwood and the Hollow Deep remain) |
 | 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
 | 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
 | 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |
-| 7. Presentation | 🟡 Per-zone music, weather and aurora. Still to do: accessibility options |
+| 7. Presentation | 🟡 Per-zone music, weather, aurora, accessibility (text size, colour-blind mode, reduce motion). Still to do: more animation |
 | 8. Ship it | 🟡 Pages workflow and manifest ready. Turn on Pages in the repo settings |
 | 9. Multiplayer | ⬜ Not started |
 

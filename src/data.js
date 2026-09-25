@@ -578,6 +578,10 @@ export const NPCS = {
     stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
   },
+  pennywhistle: {
+    name: 'Pennywhistle', title: 'Starfall Bank', x: -9, z: -15, robe: 0x2a5a3a, hat: 0x1a3a2a, trim: 0xf2c14e, service: 'bank', hatStyle: 'wizard', glasses: true, beard: true, hair: 0xe8e0d0, skin: 0xf0c8a8,
+    lines: ['Gold, gear, the odd enchanted sock: the Starfall Bank keeps it all safe. There is a vault chest at your Homestead too.'],
+  },
   halvard: {
     name: 'Warden Halvard', title: 'Frostholm Watch', x: 2300 + 6, z: 6, robe: 0x5a6a8a, hat: 0xb8c8e0, trim: 0x9fd6ff, hatStyle: 'helmet', beard: true, hair: 0xe8d8a0, skin: 0xe8c0a0, eyeColor: 0x3a6ea5,
     lines: ['Frostholm has stood in the snow for five hundred years. It has never been this cold.',
@@ -828,6 +832,9 @@ export const RULES = {
   hpPerLevel: 50,
   inventoryMax: 40,
   maxLevel: 50,
+  bankMax: 80,
+  secondSchoolLevel: 10,   // pick a second school at this level
+  secondSpellDelay: 5,     // its spells unlock this many levels later than for its own students
 };
 
 // ---------------------------------------------------------------- difficulty

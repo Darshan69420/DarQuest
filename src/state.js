@@ -84,6 +84,8 @@ function upgrade(p) {
   p.ngplus ??= 0;
   p.storyMax ??= p.quest.index;
   p.weekly ??= null;
+  p.bank = (p.bank || []).map(normalize).filter(Boolean);
+  p.second ??= null;
   if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
 }

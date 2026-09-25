@@ -106,7 +106,56 @@ export function gearTotals(equipped) {
     for (const [k, v] of Object.entries(itemStats(inst))) stats[k] = (stats[k] || 0) + v;
     if (inst.p) for (const [k, v] of Object.entries(LEGENDARY[inst.p].mods)) mods[k] = (mods[k] || 0) + v;
   }
+  for (const s of setProgress(equipped)) {
+    for (const b of s.set.bonus) {
+      if (s.count < b.n) continue;
+      for (const [k, v] of Object.entries(b.stats || {})) stats[k] = (stats[k] || 0) + v;
+      for (const [k, v] of Object.entries(b.mods || {})) mods[k] = (mods[k] || 0) + v;
+    }
+  }
   return { stats, mods };
+}
+
+// ------------------------------------------------------------ gear sets
+// Wearing several pieces of a set unlocks its bonuses.
+export const SETS = {
+  dragonforged: { name: 'Dragonforged', pieces: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
+    bonus: [{ n: 2, stats: { hp: 150 } }, { n: 4, stats: { dmg: 8, resist: 6 } }] },
+  tyrant: { name: 'Sky Tyrant\'s Regalia', pieces: ['crown_of_the_sky', 'tyrant_robe', 'fang_of_vorathrax', 'dragonwing_cloak', 'tyrant_ring', 'eye_of_vorathrax'],
+    bonus: [{ n: 2, stats: { dmg: 6 } }, { n: 4, stats: { hp: 300, resist: 8 }, mods: { burn: 0.3 }, desc: 'Basic attacks also burn for 30% more' }, { n: 6, mods: { comboMeteor: 1 }, desc: 'Combo strikes call down meteors' }] },
+  gladiator: { name: 'Gladiator', pieces: ['gladiator_helm', 'gladiator_robe', 'gladiator_boots', 'champions_orb'],
+    bonus: [{ n: 2, stats: { acc: 5 } }, { n: 4, stats: { hp: 200 }, mods: { thorns: 0.2 }, desc: 'Attackers take 20% of their damage back' }] },
+  reaper: { name: 'Reaper', pieces: ['slayer_helm', 'slayer_band', 'reaper_cloak'],
+    bonus: [{ n: 2, stats: { dmg: 5 } }, { n: 3, mods: { execute: 0.3 }, desc: '+30% damage to foes below 30% health' }] },
+  warden: { name: 'Pale Warden', pieces: ['wardens_cowl', 'wardens_shroud', 'bonebound_boots', 'soulglass_orb'],
+    bonus: [{ n: 2, stats: { resist: 6 } }, { n: 4, stats: { hp: 200 }, mods: { lifesteal: 0.05 }, desc: 'Heal for 5% of the damage you deal' }] },
+  winter: { name: 'Winter\'s Embrace', pieces: ['frostweave_hood', 'glacial_robe', 'rimewalker_boots', 'icicle_staff', 'winterheart'],
+    bonus: [{ n: 2, stats: { resist: 6 } }, { n: 3, stats: { hp: 250 } }, { n: 5, mods: { nova: 1 }, desc: 'Dodging blasts nearby foes with a frost nova' }] },
+  frozen_crown: { name: 'The Frozen Crown', pieces: ['crown_of_winter', 'sylvaras_mirror', 'aurora_cloak'],
+    bonus: [{ n: 2, stats: { dmg: 8, heal: 6 } }, { n: 3, mods: { regen: 0.006 }, desc: 'Regenerate 0.6% health every second' }] },
+};
+for (const [id, s] of Object.entries(SETS)) s.id = id;
+const SET_OF = {};
+for (const s of Object.values(SETS)) for (const id of s.pieces) SET_OF[id] = s;
+export const setOf = (baseId) => SET_OF[baseId] || null;
+
+// Every set with at least one piece worn: [{ set, count, worn: Set(baseIds) }].
+export function setProgress(equipped) {
+  const out = new Map();
+  for (const inst of Object.values(equipped || {})) {
+    const s = inst && SET_OF[inst.b];
+    if (!s) continue;
+    if (!out.has(s.id)) out.set(s.id, { set: s, count: 0, worn: new Set() });
+    const e = out.get(s.id);
+    if (!e.worn.has(inst.b)) { e.worn.add(inst.b); e.count++; }
+  }
+  return [...out.values()];
+}
+
+export function setBonusText(b) {
+  const parts = Object.entries(b.stats || {}).map(([k, v]) => `+${v}${k === 'hp' ? '' : '%'} ${STAT_NAMES[k]}`);
+  if (b.desc) parts.push(b.desc);
+  return parts.join(', ');
 }
 
 // "+20 Health ▲ · −2% Damage ▼" compared with what you wear in that slot now.

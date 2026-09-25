@@ -3,6 +3,7 @@
 // its own weather: rain and thunderstorms, snow and blizzards, ashfall in the volcano.
 import * as THREE from 'three';
 import { ZONES } from './data.js';
+import { settings } from './settings.js';
 
 const DAY = { fog: 0xa8c4e8, top: 0x2a6ad0, mid: 0x86b8f0, bottom: 0xf0e4cc, hemi: 0xffffff };
 const NIGHT = { fog: 0x141a38, top: 0x02030c, mid: 0x0c1230, bottom: 0x2a2250, hemi: 0x6a7ab8 };
@@ -141,7 +142,7 @@ export class Sky {
     this.flash = Math.max(0, this.flash - dt * 4);
     if (wi.lightning && this.weatherK > 0.5) {
       this.nextFlash -= dt;
-      if (this.nextFlash <= 0) { this.nextFlash = 6 + Math.random() * 14; this.flash = 1; setTimeout(() => this.onThunder?.(), 300 + Math.random() * 900); }
+      if (this.nextFlash <= 0) { this.nextFlash = 6 + Math.random() * 14; this.flash = settings.reduceMotion ? 0 : 1; setTimeout(() => this.onThunder?.(), 300 + Math.random() * 900); }
     }
     // sun and moon cross the sky
     const a = (this.time - 0.25) * Math.PI * 2;

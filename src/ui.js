@@ -1,8 +1,8 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
-import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN, PLAYABLE_SCHOOLS } from './data.js';
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, ARCH_XP } from './state.js';
 import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
-import { RARITIES, RARITY_ORDER, LEGENDARY, itemName, itemColor, itemStats, itemValue, compareText, makeItem } from './gear.js';
+import { RARITIES, RARITY_ORDER, LEGENDARY, itemName, itemColor, itemStats, itemValue, compareText, makeItem, setOf, setProgress, setBonusText } from './gear.js';
 import { TALENTS, freePoints, talentPoints, spentPoints, branchSpent, canLearn, respecCost } from './talents.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -139,25 +139,64 @@ export function closeModal() {
 }
 
 // Spell tutor: spend training points on new spells.
+// Second-school spells cost more and unlock later than for that school's own students.
+export const secondCost = 2;
+export const secondLevel = (s) => s.level + RULES.secondSpellDelay;
+export const switchSecondCost = (p) => 500 + p.level * 50;
+
 export function openTutor(p, onChange) {
+  let view = 'main';
   const render = (body) => {
-    const list = Object.values(SPELLS)
-      .filter(s => !s.enemy && !s.pet && (s.school === p.school || s.school === 'astral'))
-      .sort((a, b) => a.level - b.level || a.pips - b.pips);
-    body.innerHTML = `<p class="modal-note">Training Points: <b>${p.tp}</b> · Earn 1 every level. New spells go into an empty slot on your spell bar (press B to change it).</p>
-      <div class="card-grid">${list.map(s => {
-        const known = p.known.includes(s.id);
-        const locked = p.level < s.level;
-        let action;
-        if (known) action = '<div class="card-tag ok">Learned</div>';
-        else if (locked) action = `<div class="card-tag lock">Level ${s.level}</div>`;
-        else action = `<button class="btn small primary" data-learn="${s.id}" ${p.tp < 1 ? 'disabled' : ''}>Learn · 1 TP</button>`;
-        return `<div class="card-slot">${cardHTML(s, { cls: locked ? 'locked' : '' })}${action}</div>`;
-      }).join('')}</div>`;
+    const canSecond = p.level >= RULES.secondSchoolLevel;
+    const sc2 = p.second && SCHOOLS[p.second];
+    const tabs = canSecond ? `<div class="tabs"><button class="btn small ${view === 'main' ? 'primary' : ''}" data-view="main">${SCHOOLS[p.school].icon} ${SCHOOLS[p.school].name} &amp; Astral</button>
+      <button class="btn small ${view === 'second' ? 'primary' : ''}" data-view="second">${sc2 ? `${sc2.icon} ${sc2.name} (second school)` : '➕ Choose a second school'}</button></div>` : '';
+    const note = `<p class="modal-note">Training Points: <b>${p.tp}</b> · Earn 1 every level. New spells go into an empty slot on your spell bar (press B to change it).${canSecond ? '' : ` At level ${RULES.secondSchoolLevel} you can study a <b>second school</b>.`}</p>`;
+    if (view === 'second' && !p.second) {
+      body.innerHTML = `${tabs}<p class="modal-note">Pick a second school. You can learn its spells for <b>${secondCost} TP</b> each, ${RULES.secondSpellDelay} levels later than its own students. Your basic attack stays ${esc(SCHOOLS[p.school].name)}.</p>
+        <div class="school-pick">${PLAYABLE_SCHOOLS.filter(id => id !== p.school).map(id => { const sc = SCHOOLS[id]; return `<button class="school-card" data-second="${id}" style="--c:${sc.css}"><span class="sc-icon">${sc.icon}</span><b>${esc(sc.name)}</b><small>${esc(sc.desc || '')}</small></button>`; }).join('')}</div>`;
+    } else {
+      const second = view === 'second';
+      const list = Object.values(SPELLS)
+        .filter(s => !s.enemy && !s.pet && (second ? s.school === p.second : s.school === p.school || s.school === 'astral'))
+        .sort((a, b) => a.level - b.level || a.pips - b.pips);
+      const cost = second ? secondCost : 1;
+      body.innerHTML = `${tabs}${note}${second ? `<p class="modal-note">Second school: <b>${sc2.icon} ${esc(sc2.name)}</b> · <button class="btn small" id="switch-second" ${p.gold < switchSecondCost(p) ? 'disabled' : ''}>Switch school · 🪙 ${switchSecondCost(p)}</button> <small>(you forget its spells, but get their Training Points back)</small></p>` : ''}
+        <div class="card-grid">${list.map(s => {
+          const known = p.known.includes(s.id);
+          const need = second ? secondLevel(s) : s.level;
+          const locked = p.level < need;
+          let action;
+          if (known) action = '<div class="card-tag ok">Learned</div>';
+          else if (locked) action = `<div class="card-tag lock">Level ${need}</div>`;
+          else action = `<button class="btn small primary" data-learn="${s.id}" data-cost="${cost}" ${p.tp < cost ? 'disabled' : ''}>Learn · ${cost} TP</button>`;
+          return `<div class="card-slot">${cardHTML(s, { cls: locked ? 'locked' : '' })}${action}</div>`;
+        }).join('')}</div>`;
+    }
+    body.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { view = b.dataset.view; render(body); }));
+    body.querySelectorAll('[data-second]').forEach(b => b.addEventListener('click', () => {
+      p.second = b.dataset.second;
+      toast(`${SCHOOLS[p.second].icon} You begin studying <b>${esc(SCHOOLS[p.second].name)}</b> as your second school!`, 'good');
+      onChange();
+      render(body);
+    }));
+    body.querySelector('#switch-second')?.addEventListener('click', () => {
+      if (p.gold < switchSecondCost(p)) return;
+      p.gold -= switchSecondCost(p);
+      const forget = p.known.filter(id => SPELLS[id].school === p.second);
+      p.known = p.known.filter(id => !forget.includes(id));
+      p.hotbar = p.hotbar.map(id => (forget.includes(id) ? null : id));
+      p.tp += forget.length * secondCost;
+      p.second = null;
+      toast(`You set your second school aside${forget.length ? ` and got ${forget.length * secondCost} TP back` : ''}. Choose a new one.`);
+      onChange();
+      render(body);
+    });
     body.querySelectorAll('[data-learn]').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.learn;
-      if (p.tp < 1 || p.known.includes(id)) return;
-      p.tp--;
+      const cost = +b.dataset.cost || 1;
+      if (p.tp < cost || p.known.includes(id)) return;
+      p.tp -= cost;
       p.known.push(id);
       const empty = p.hotbar.indexOf(null);
       if (empty >= 0) p.hotbar[empty] = id;
@@ -337,7 +376,7 @@ function gearRow(g, right, inst = null, extra = '') {
   const r = inst ? RARITIES[inst.r] : null;
   return `<div class="gear-row ${inst ? 'rar-' + inst.r : ''}"><div class="gear-icon">${SLOTS[g.slot].split(' ')[0]}</div>
     <div class="gear-info"><b style="color:${color}">${esc(name)}</b> <small>${r && inst.r !== 'common' ? r.label + ' · ' : ''}Lv ${g.level} ${SLOTS[g.slot].split(' ')[1]}</small><br><span>${statsText(stats)}</span>
-    ${inst?.p ? `<br><span class="legend">✦ ${esc(LEGENDARY[inst.p].desc)}</span>` : ''}${extra}</div>${right}</div>`;
+    ${inst?.p ? `<br><span class="legend">✦ ${esc(LEGENDARY[inst.p].desc)}</span>` : ''}${setOf(g.id) ? `<br><span class="set-tag">🔗 ${esc(setOf(g.id).name)} set</span>` : ''}${extra}</div>${right}</div>`;
 }
 
 export function openCharacter(p, onChange, tab = 'gear') {
@@ -363,6 +402,8 @@ export function openCharacter(p, onChange, tab = 'gear') {
         return inst ? gearRow(GEAR[inst.b], `<button class="btn small" data-unequip="${slot}">Remove</button>`, inst)
           : `<div class="gear-row empty"><div class="gear-icon">${SLOTS[slot].split(' ')[0]}</div><div class="gear-info"><span>No ${SLOTS[slot].split(' ')[1].toLowerCase()}</span></div></div>`;
       }).join('')}</div>
+      ${setProgress(p.equipped).map(({ set, count, worn }) => `<div class="set-box"><b>🔗 ${esc(set.name)}</b> <small>${count}/${set.pieces.length} worn: ${set.pieces.map(id => `<span class="${worn.has(id) ? 'on' : ''}">${esc(GEAR[id].name)}</span>`).join(', ')}</small>
+        ${set.bonus.map(b => `<div class="set-bonus ${count >= b.n ? 'on' : ''}">(${b.n}) ${esc(setBonusText(b))}</div>`).join('')}</div>`).join('')}
       <h3 class="sub-h row">Backpack (${p.inventory.length}/${RULES.inventoryMax})
         <span class="sort">Sort: ${['slot', 'level', 'rarity'].map(k => `<button class="btn small ${sort === k ? 'primary' : ''}" data-sort="${k}">${k}</button>`).join('')}
         ${p.inventory.some(x => x.r === 'common') ? '<button class="btn small" id="sell-common">Sell all common</button>' : ''}</span></h3>
@@ -485,6 +526,8 @@ export function openHelp() {
     <p>In Chapter 3 a new Spiral Door opens to the <b>Dragonspire Peaks</b>. Sage Vaelith awakens your <b>Voice</b>: read <b>Word Walls</b> (Hollow Lane, Emberfall and the Peaks) to learn dragon shouts, and press <b>R</b> to shout. Slaying dragons grants <b>dragon souls</b>, which teach each shout's second and third words (spellbook → Shouts). Unrelenting Force hurls foes back, Fire and Frost Breath scorch or slow, Whirlwind Sprint dashes, Become Ethereal makes you untouchable, and <b>Dragonrend</b> drags a flying dragon out of the sky.</p>
     <h3>Gear, talents &amp; pets</h3>
     <p>Enemies drop gear for 8 slots: hat, robe, cloak, boots, wand, offhand, amulet and ring. Every piece rolls a <b>rarity</b>: <span style="color:#5fdc6a">uncommon</span>, <span style="color:#4d9fff">rare</span>, <span style="color:#c542ff">epic</span> or <span style="color:#ff9a1a">legendary</span>, with bonus stats; legendaries also carry a special power. Bosses, elites, the deep Rift and harder difficulties drop better gear, and a skilled crafter can forge masterwork items. The character screen (C) compares every item with what you wear.</p>
+    <p>Some pieces belong to a <b>gear set</b> (🔗). Wear two or more pieces of the same set for bonus stats and powers; the character screen shows your progress. Store spare gear at the <b>Starfall Bank</b> (Pennywhistle, in the courtyard) or the vault chest at your Homestead.</p>
+    <p>At level 10, Mirabel lets you pick a <b>second school</b>. Its spells cost 2 Training Points and unlock 5 levels later, but you can mix them into your spell bar.</p>
     <p>Each level gives a <b>talent point</b> (C → Talents). Every school has three branches of five talents, ending in a powerful capstone. Pets follow you around and cast spells to help whenever you are fighting.</p>
     <h3>Combat</h3>
     <p>Fights happen right in the world. Get close to an enemy and it will attack. Its friends nearby join in!</p>
@@ -522,7 +565,7 @@ export function openSettings(tab = 'audio', onClose) {
   const choice = (key, label, opts) =>
     `<div class="set-row"><span>${label}</span><div class="set-choice">${opts.map(([v, l]) => `<button class="btn small ${settings[key] === v ? 'primary' : ''}" data-choice="${key}" data-v="${v}">${l}</button>`).join('')}</div></div>`;
   const render = (body) => {
-    const tabs = [['audio', '🔊 Sound'], ['graphics', '🖥️ Graphics'], ['controls', '🎮 Controls'], ['gameplay', '🧭 Gameplay'], ['keys', '⌨️ Keys']];
+    const tabs = [['audio', '🔊 Sound'], ['graphics', '🖥️ Graphics'], ['controls', '🎮 Controls'], ['gameplay', '🧭 Gameplay'], ['access', '♿ Accessibility'], ['keys', '⌨️ Keys']];
     let inner = '';
     if (tab === 'audio') inner = slider('master', 'Master volume') + slider('music', 'Music') + slider('sfx', 'Sound effects');
     if (tab === 'graphics') inner = choice('quality', 'Quality', Object.entries(QUALITY).map(([k, q]) => [k, q.label]))
@@ -533,6 +576,10 @@ export function openSettings(tab = 'audio', onClose) {
       + slider('camSens', 'Camera sensitivity', 0.3, 2, 0.1) + toggle('autoCam', 'Auto camera', 'Camera swings behind you when you tap to walk');
     if (tab === 'gameplay') inner = toggle('worldScaling', 'World scaling', 'Foes in every land grow with your level, so old zones stay a challenge and give more XP and gold')
       + '<p class="modal-note">New Game+ always scales the world, whatever this setting says. The Rift, the Undercroft and the Arena always match your level.</p>';
+    if (tab === 'access') inner = slider('uiScale', 'Text & menu size', 0.8, 1.4, 0.05)
+      + toggle('colorblind', 'Colour-blind friendly', 'Danger zones on the ground turn amber with bright edges, and health bars get stripes')
+      + toggle('reduceMotion', 'Reduce motion', 'No screen shake, hit-pause or lightning flashes')
+      + toggle('damageNumbers', 'Damage numbers');
     if (tab === 'keys') inner = `<p class="modal-note">Click an action, then press the key you want. Arrow keys always move too.</p>
       <div class="keys-grid">${Object.entries(ACTIONS).map(([a, d]) => `<button class="key-row ${listening === a ? 'listening' : ''}" data-bind="${a}"><span>${d.label}</span><kbd>${listening === a ? 'Press a key…' : keyLabel(keyFor(a))}</kbd></button>`).join('')}</div>
       <p><button class="btn small" id="reset-keys">Reset keys</button></p>`;
@@ -540,7 +587,8 @@ export function openSettings(tab = 'audio', onClose) {
       <div class="settings">${inner}</div>
       ${tab !== 'keys' ? '<p><button class="btn small" id="reset-set">Reset to defaults</button></p>' : ''}`;
     body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; listening = null; render(body); }));
-    body.querySelectorAll('[data-set]').forEach(inp => inp.addEventListener('input', () => {
+    // the menu-size slider applies when you let go, so the window doesn't resize under the mouse
+    body.querySelectorAll('[data-set]').forEach(inp => inp.addEventListener(inp.dataset.set === 'uiScale' ? 'change' : 'input', () => {
       setSetting(inp.dataset.set, +inp.value);
       inp.nextElementSibling.textContent = `${Math.round(inp.value * 100)}%`;
     }));
@@ -589,4 +637,41 @@ export function pickFile(accept = '.json,application/json') {
     inp.addEventListener('change', async () => resolve(inp.files[0] ? await inp.files[0].text() : null));
     inp.click();
   });
+}
+
+// ------------------------------------------------------------ the Starfall Bank
+
+export function openBank(p, onChange) {
+  const render = (body) => {
+    const bySlot = (a, b) => Object.keys(SLOTS).indexOf(GEAR[a.inst.b].slot) - Object.keys(SLOTS).indexOf(GEAR[b.inst.b].slot) || GEAR[b.inst.b].level - GEAR[a.inst.b].level;
+    const pack = p.inventory.map((inst, i) => ({ inst, i })).sort(bySlot);
+    const bank = p.bank.map((inst, i) => ({ inst, i })).sort(bySlot);
+    body.innerHTML = `<p class="modal-note">Keep gear safe here. Your backpack holds ${RULES.inventoryMax} items; the bank holds ${RULES.bankMax}. Both the Starfall banker and your Homestead vault open the same bank.</p>
+      <div class="bank-cols">
+        <div><h3 class="sub-h row">🎒 Backpack (${p.inventory.length}/${RULES.inventoryMax}) <span class="sort"><button class="btn small" id="dep-all" ${!p.inventory.length || p.bank.length >= RULES.bankMax ? 'disabled' : ''}>Deposit all</button></span></h3>
+          ${pack.map(({ inst, i }) => gearRow(GEAR[inst.b], `<button class="btn small primary" data-dep="${i}" ${p.bank.length >= RULES.bankMax ? 'disabled' : ''}>Deposit ▶</button>`, inst)).join('') || '<p class="modal-note">Empty.</p>'}</div>
+        <div><h3 class="sub-h">🏦 Bank (${p.bank.length}/${RULES.bankMax})</h3>
+          ${bank.map(({ inst, i }) => gearRow(GEAR[inst.b], `<button class="btn small primary" data-wd="${i}" ${p.inventory.length >= RULES.inventoryMax ? 'disabled' : ''}>◀ Take</button>`, inst)).join('') || '<p class="modal-note">Nothing stored yet.</p>'}</div>
+      </div>`;
+    body.querySelectorAll('[data-dep]').forEach(b => b.addEventListener('click', () => {
+      if (p.bank.length >= RULES.bankMax) return;
+      p.bank.push(...p.inventory.splice(+b.dataset.dep, 1));
+      onChange();
+      render(body);
+    }));
+    body.querySelectorAll('[data-wd]').forEach(b => b.addEventListener('click', () => {
+      if (p.inventory.length >= RULES.inventoryMax) return toast('Your backpack is full!');
+      p.inventory.push(...p.bank.splice(+b.dataset.wd, 1));
+      onChange();
+      render(body);
+    }));
+    body.querySelector('#dep-all')?.addEventListener('click', () => {
+      const n = Math.min(p.inventory.length, RULES.bankMax - p.bank.length);
+      p.bank.push(...p.inventory.splice(0, n));
+      toast(`Deposited ${n} item${n === 1 ? '' : 's'}.`);
+      onChange();
+      render(body);
+    });
+  };
+  openModal('🏦 Starfall Bank', '', render);
 }

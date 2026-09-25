@@ -50,8 +50,9 @@ Every key can be changed in **Settings → Keys**.
 - **The Hollow Undercroft (dungeon):** a hand-built dungeon under Hollow Lane with puzzles (a lever, a rune-plate memory puzzle, a mirror-and-light-beam puzzle), a locked guard hall with elite waves, a swinging-blade gauntlet, and Morvain the Pale Warden, whose ward you break by shattering soul pylons. It scales to your level, has a Heroic mode, best times, and the Warden's gear set.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
-- **Gear, pets and side quests:** 55+ gear pieces (drops, shops and crafting), 9 pets, the Gatherers' Guild quest chain, and a quest journal.
-- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 53 achievements, and titles like "the Dragonborn" or "the Rift Walker".
+- **Gear sets, a bank and a second school:** seven gear sets with 2-, 3-, 4- and 6-piece bonuses, the Starfall Bank (plus a vault at your Homestead), and a second school of magic from level 10.
+- **Gear, pets and side quests:** 60+ gear pieces (drops, shops and crafting), 9 pets, the Gatherers' Guild quest chain, and a quest journal.
+- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 55 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
 - **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
@@ -60,6 +61,7 @@ Every key can be changed in **Settings → Keys**.
 - **Endgame:** a level cap of 50, then up to 100 Archmage ranks; optional **world scaling** (Skyrim style) so every land keeps up with you; **New Game+** that restarts the story with everything you own against tougher, better-paying foes; and three **weekly challenges** every Monday.
 - **Difficulty:** Normal, Heroic or Legendary.
 - **Quality of life:** three save slots with export and import, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, generated music, and a touch joystick on phones.
+- **Accessibility:** a text and menu size slider, a colour-blind friendly mode (amber danger zones, striped health bars), reduce motion (no shake, hit-pause or flashes), and optional damage numbers.
 
 ## Code layout
 

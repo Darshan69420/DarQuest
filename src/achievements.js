@@ -1,6 +1,7 @@
 // The Bestiary (every foe you have met, with lore and hunter bonuses) and Achievements
 // (goals across the whole game that reward gold and titles).
-import { ENEMIES, PETS, WAYSTONES, SLOTS } from './data.js';
+import { ENEMIES, PETS, WAYSTONES, SLOTS, SPELLS } from './data.js';
+import { setProgress } from './gear.js';
 import { SKILLS, skillLevel, totalLevel } from './skills.js';
 import { SIDE_QUESTS } from './sidequests.js';
 import { SHOUTS } from './shouts.js';
@@ -65,6 +66,8 @@ export const ACHIEVEMENTS = [
   A('ngplus', 'Once More, With Feeling', '⭐', 'Begin New Game+', p => (p.ngplus || 0) >= 1, { gold: 1000, title: 'the Returned' }),
   A('ngplus_3', 'Eternal', '♾️', 'Begin New Game+ 3', p => (p.ngplus || 0) >= 3, { gold: 5000, title: 'the Eternal' }),
   A('weekly_all', 'Weekly Warrior', '📅', 'Finish all three weekly challenges in one week', p => (p.stats_log?.weeklyAll || 0) >= 1, { gold: 800 }),
+  A('second_school', 'Dual Scholar', '📚', 'Learn a spell from your second school', p => !!p.second && p.known.some(id => SPELLS[id]?.school === p.second), { gold: 300, title: 'the Versatile' }),
+  A('set_full', 'Dressed for the Part', '🔗', 'Wear every piece of a gear set', p => setProgress(p.equipped).some(s => s.count >= s.set.pieces.length), { gold: 500 }),
   A('combo_50', 'Combo Artist', '🌠', 'Land 50 combo strikes', p => (p.stats_log.combos || 0) >= 50, { gold: 200 }),
   A('night_20', 'Night Watch', '🌙', 'Defeat 20 night spirits', p => (p.stats_log.nightKills || 0) >= 20, { gold: 300, title: 'the Night Stalker' }),
   A('hunter_master', 'Know Thy Enemy', '📖', 'Reach Master hunter rank on any foe (100 defeats)', p => Object.values(p.bestiary || {}).some(n => n >= 100), { gold: 500 }),

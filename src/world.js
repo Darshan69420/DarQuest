@@ -9,6 +9,33 @@ import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier, buildStormspire, buildThornwood, buildHollowDeep } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
+import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from '../lib/addons/postprocessing/ShaderPass.js';
+
+// The last step of the picture: a soft vignette, a touch of saturation and a per-land colour tint.
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, vignette: { value: 0.32 }, saturation: { value: 1.08 }, tint: { value: new THREE.Color(1, 1, 1) } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; uniform float saturation; uniform vec3 tint; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      c.rgb = mix(vec3(l), c.rgb, saturation) * tint;
+      float v = smoothstep(0.95, 0.25, length(vUv - 0.5) * 1.15);
+      c.rgb *= mix(1.0, v, vignette);
+      gl_FragColor = c;
+    }`,
+};
+// Per-land grading: [tint r, g, b, saturation]
+const GRADES = {
+  academy: [1.02, 1.0, 0.98, 1.1], emberfall: [1.06, 0.99, 0.92, 1.12], dragonspire: [0.98, 1.0, 1.03, 1.02],
+  glacier: [0.95, 1.0, 1.06, 1.0], stormspire: [0.98, 0.98, 1.05, 1.06], thornwood: [0.99, 1.04, 0.96, 1.12],
+  hollowdeep: [1.0, 0.95, 1.06, 1.04], undercroft: [0.97, 0.97, 1.03, 0.95], rift: [1.02, 0.96, 1.06, 1.1],
+  homestead: [1.03, 1.01, 0.97, 1.1], arena: [1.05, 1.0, 0.95, 1.1],
+};
 import { Sky } from './sky.js';
 import { buildArena } from './arena.js';
 
@@ -134,7 +161,7 @@ export class World {
     this.skyCycle = new Sky(this);
     this.applyQuality();
     onSettings((k) => {
-      if (k === 'quality' || k === '*') this.applyQuality();
+      if (k === 'quality' || k === 'postfx' || k === '*') this.applyQuality();
       if (k === 'controls' || k === '*') this.camYaw = this.heading + this.camYawOffset;
     });
     this.buildMap();
@@ -156,6 +183,7 @@ export class World {
   applyQuality() {
     const q = QUALITY[settings.quality] || QUALITY.high;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    this.setupPost(q);
     this.sun.castShadow = q.shadows > 0;
     if (q.shadows && this.sun.shadow.mapSize.x !== q.shadows) {
       this.sun.shadow.mapSize.set(q.shadows, q.shadows);
@@ -166,9 +194,27 @@ export class World {
     this.resize();
   }
 
+  // Bloom and grading on Medium and High quality (and when the setting is on).
+  setupPost(q = QUALITY[settings.quality] || QUALITY.high) {
+    if (this.composer) { this.composer.renderTarget1.dispose(); this.composer.renderTarget2.dispose(); this.bloom?.dispose(); }
+    this.composer = null;
+    this.bloom = null;
+    if (!q.bloom || !settings.postfx) return;
+    const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: q.antialias ? 4 : 0 });
+    const c = new EffectComposer(this.renderer, rt);
+    c.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), q.bloom, 0.5, 0.92);
+    c.addPass(this.bloom);
+    c.addPass(new OutputPass());
+    this.grade = new ShaderPass(GradeShader);
+    c.addPass(this.grade);
+    this.composer = c;
+  }
+
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    if (this.composer) { this.composer.setPixelRatio(this.renderer.getPixelRatio()); this.composer.setSize(w, h); }
     this.camera.aspect = w / h;
     this.camera.fov = w < h ? 70 : 55;
     this.camera.updateProjectionMatrix();
@@ -1384,7 +1430,15 @@ export class World {
   frame() {
     const real = Math.min(0.05, this.clock.getDelta());
     this.update(real);
-    this.renderer.render(this.scene, this.camera);
+    if (this.composer) {
+      // ease the grade toward the current land's look
+      const g = GRADES[this.zone] || GRADES.academy, u = this.grade.uniforms, k = Math.min(1, real * 2);
+      u.tint.value.r += (g[0] - u.tint.value.r) * k;
+      u.tint.value.g += (g[1] - u.tint.value.g) * k;
+      u.tint.value.b += (g[2] - u.tint.value.b) * k;
+      u.saturation.value += (g[3] - u.saturation.value) * k;
+      this.composer.render(real);
+    } else this.renderer.render(this.scene, this.camera);
   }
 
   // Runs the game forward without drawing (used by automated tests).

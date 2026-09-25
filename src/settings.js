@@ -44,6 +44,7 @@ const DEFAULTS = {
   showFps: false,
   autoCam: true,          // camera drifts behind you while walking forward (modern controls)
   damageNumbers: true,
+  postfx: true,           // bloom, vignette and colour grading (Medium and High quality)
   worldScaling: false,    // foes everywhere grow with your level (always on in New Game+)
   uiScale: 1,             // size of menus, the HUD and text
   colorblind: false,      // danger zones in amber with bold edges instead of red
@@ -115,7 +116,8 @@ export function keyLabel(code) {
 
 export const QUALITY = {
   // outline: how far away characters and props keep their ink outline
-  low:    { label: 'Low',    pixelRatio: 0.75, shadows: 0,    particles: 0.4, antialias: false, outline: 0 },
-  medium: { label: 'Medium', pixelRatio: 1.25, shadows: 1024, particles: 0.7, antialias: true,  outline: 35 },
-  high:   { label: 'High',   pixelRatio: 2,    shadows: 2048, particles: 1,   antialias: true,  outline: 60 },
+  // bloom: strength of the glow around bright magic (0 = no post-processing at all)
+  low:    { label: 'Low',    pixelRatio: 0.75, shadows: 0,    particles: 0.4, antialias: false, outline: 0,  bloom: 0 },
+  medium: { label: 'Medium', pixelRatio: 1.25, shadows: 1024, particles: 0.7, antialias: true,  outline: 35, bloom: 0.4 },
+  high:   { label: 'High',   pixelRatio: 2,    shadows: 2048, particles: 1,   antialias: true,  outline: 60, bloom: 0.55 },
 };

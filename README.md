@@ -2,6 +2,13 @@
 
 A 3D action RPG that runs in your web browser. You're a new apprentice at **Starfall Academy**. Pick a school of magic, learn spells, and battle through Hollow Lane, the Emberfall Wilds, the dragon-haunted Dragonspire Peaks, frozen Glacierreach, the floating islands of Stormspire, the giant forest of Thornwood and the underworld of the Hollow Deep in real-time fights, all the way to the Pale Magister himself.
 
+| | |
+| --- | --- |
+| ![Title screen](docs/screenshots/title.jpg) | ![Starfall Academy](docs/screenshots/academy.jpg) |
+| ![Vorathrax, the Sky Tyrant](docs/screenshots/dragon.jpg) | ![Fighting Pyrrhon in Emberfall](docs/screenshots/combat.jpg) |
+| ![Queen Sylvara's ice castle at night](docs/screenshots/glacier.jpg) | ![Rope bridges over the clouds of Stormspire](docs/screenshots/stormspire.jpg) |
+| ![Greenhollow in Thornwood](docs/screenshots/thornwood.jpg) | ![The light-beam puzzle in the Hollow Undercroft](docs/screenshots/undercroft.jpg) |
+
 ## Play it
 
 The game uses JavaScript modules, so it needs a tiny local web server. Opening `index.html` directly won't work. From this folder, run one of these:

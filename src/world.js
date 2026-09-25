@@ -7,7 +7,7 @@ import {
 } from './models.js';
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
-import { buildEmberfall, buildMeadow } from './maps.js';
+import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -293,6 +293,7 @@ export class World {
       if (z > 20 && Math.abs(x) < 12) continue;   // leave the south exit open
       if (x > 20 && Math.abs(z) < 11) continue;   // and the east gate to the meadow
       if (Math.hypot(x - 21, z - 17) < 7) continue; // and the Rift Gate
+      if (PORTALS.some(pt => Math.hypot(x - pt.x, z - pt.z) < 5)) continue;
       if (z < -24 && Math.abs(x) < 20) continue;  // academy front
       const tree = i % 2 ? makeTree(0.9 + Math.random() * 0.3) : makeRoundTree(0.9 + Math.random() * 0.3, [0xd36fae, 0xf29a6b, 0xb46bff][i % 3]);
       this.add(tree, x, z, Math.random() * 6, 1.2);
@@ -359,15 +360,14 @@ export class World {
     // Millbrook Meadow (skilling), Chapter 2 zone, and the portals that connect the zones
     buildMeadow(this);
     const ember = buildEmberfall(this);
-    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring };
+    const dragon = buildDragonspire(this);
+    buildWordWalls(this);
+    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
-      const color = pt.id === 'portal_academy' ? 0xff7a3d : 0xb46bff;
-      this.portalModels[pt.id] = this.add(makePortal(color), pt.x, pt.z, pt.id === 'portal_academy' ? Math.PI / 2 : 0);
-      for (const s of [-1, 1]) {
-        const off = pt.id === 'portal_academy' ? [0, s * 2.4] : [s * 2.4, 0];
-        this.colliders.push({ x: pt.x + off[0], z: pt.z + off[1], r: 0.7 });
-      }
+      const rot = pt.rot || 0;
+      this.portalModels[pt.id] = this.add(makePortal(pt.color ?? 0xb46bff), pt.x, pt.z, rot);
+      for (const s of [-1, 1]) this.colliders.push({ x: pt.x + Math.cos(rot) * s * 2.4, z: pt.z - Math.sin(rot) * s * 2.4, r: 0.7 });
     }
   }
 
@@ -956,6 +956,72 @@ export class World {
   }
 
   groundBurst(x, z, color, count = 18, power = 6) { this.burst(V(x, 0.4, z), color, count, power); }
+
+  // Fire (or frost, or force) pouring out in a cone from `origin` along `dir`.
+  breathFx(origin, dir, len, angle, color, n = 50) {
+    const o = V(origin.x, origin.y ?? 1.2, origin.z);
+    if (origin.y === undefined || origin.y < 0.5) o.y = 1.3;
+    n = Math.ceil(n * this.fx);
+    let t = 0, spawned = 0;
+    this.effects.push((dt) => {
+      t += dt;
+      const want = Math.min(n, Math.floor((n * t) / 0.45));
+      for (; spawned < want; spawned++) {
+        const a = dir + (Math.random() - 0.5) * angle;
+        const sp = (len / 0.65) * (0.55 + Math.random() * 0.5);
+        this.particle(o, color, { vel: V(Math.sin(a) * sp, (Math.random() - 0.6) * 3 - (o.y - 0.6) * 1.2, Math.cos(a) * sp), life: 0.65, size: 0.22 + Math.random() * 0.3 });
+      }
+      if (t > 0.5) return false;
+    });
+  }
+
+  // An enemy lunges along a line (drake charges, wyvern dives).
+  dashEnemy(e, dir, len) {
+    const m = e.model.position;
+    const dx = Math.sin(dir), dz = Math.cos(dir);
+    let t = 0, moved = 0;
+    const dur = 0.28;
+    e.model.rotation.y = dir;
+    this.effects.push((dt) => {
+      t += dt;
+      const step = Math.min(len - moved, (len * dt) / dur);
+      moved += step;
+      const nx = m.x + dx * step, nz = m.z + dz * step;
+      if (this.walkable(nx, nz)) m.x = nx, m.z = nz;
+      if (Math.random() < 0.6) this.particle(m.clone().setY(0.4), 0xc8b89a, { vel: V((Math.random() - 0.5) * 2, 1, (Math.random() - 0.5) * 2), life: 0.5, size: 0.2 });
+      if (t >= dur || moved >= len) return false;
+    });
+  }
+
+  // A ghostly shell around the player (Become Ethereal).
+  setGhost(on) {
+    if (!this.player) return;
+    if (!this.ghost) {
+      this.ghost = new THREE.Mesh(new THREE.SphereGeometry(1.1, 18, 12), new THREE.MeshBasicMaterial({ color: 0xb0e8ff, transparent: true, opacity: 0.28, depthWrite: false }));
+      this.ghost.scale.set(1, 1.6, 1);
+      this.ghost.position.y = 1.6;
+    }
+    if (on) this.player.add(this.ghost);
+    else this.ghost.parent?.remove(this.ghost);
+  }
+
+  // A dragon's soul streams out of its body and into you.
+  soulFx(fromObj, color = 0xffd23d) {
+    const start = this.chest(fromObj);
+    let t = 0;
+    this.effects.push((dt) => {
+      t += dt;
+      for (let k = 0; k < Math.ceil(3 * this.fx); k++) {
+        const target = this.chest(this.player);
+        const p = start.clone().lerp(target, Math.random());
+        p.x += Math.sin(t * 8 + k) * 0.8;
+        p.z += Math.cos(t * 8 + k) * 0.8;
+        p.y += Math.sin(t * 5 + k * 2) * 0.6;
+        this.particle(p, [color, 0xffffff, 0xff9a3d][k % 3], { vel: target.clone().sub(p).multiplyScalar(1.5), life: 0.6, size: 0.14 });
+      }
+      if (t > 2.2) { this.aura(this.player, color); return false; }
+    });
+  }
 
   // A little spray of chips, sparks or droplets (gathering, crafting).
   puff(x, y, z, color, n = 6, power = 2) {

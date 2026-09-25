@@ -1160,6 +1160,11 @@ export function makeEnemy(kind) {
     case 'guard': return golem({ lava: true, scale: 1.2, helm: true });
     case 'serpent': return serpent();
     case 'pyrrhon': return pyrrhon();
+    case 'wyrmling': return makeDragon({ color: 0xd9481a, belly: 0xffc060, horn: 0xf0e6d0, wings: 1, size: 0.62, spikes: true });
+    case 'drake_foe': return makeDragon({ color: 0x6a7a3a, belly: 0xd8c890, horn: 0xe8dcc0, wings: 0, size: 1.05, frill: true, eye: 0xff7a1a });
+    case 'wyvern': return makeDragon({ color: 0x3a5a8a, belly: 0x9fd6ff, wing: 0x2a3a6a, horn: 0xdff6ff, legs: 2, wings: 2, hover: 2.2, size: 0.95, eye: 0x4dc8ff });
+    case 'elder_dragon': return makeDragon({ color: 0x8a1a1a, belly: 0xe0a040, wing: 0x4a0a14, horn: 0x2a1a1a, wings: 2, size: 2.6, frill: true, eye: 0xffe040 });
+    case 'cultist': return cultist();
   }
   return sprig();
 }
@@ -2244,4 +2249,237 @@ export function makeTorch() {
   const f = flame(g, 0, 2.55, 0.38, 1.2, [0x9a4dff, 0xc590ff, 0xffffff]);
   g.userData.anim = (t) => f.userData.flicker(t);
   return finish(g, 0.02, 0.1);
+}
+
+// ---------------------------------------------------------------- dragons
+
+// One builder for every dragon: wyrmlings, drakes, wyverns and the elder dragon.
+//   legs: 4 or 2 · wings: 0 (none), 1 (small), 2 (big) · hover: height the body flies at
+export function makeDragon(o = {}) {
+  const {
+    color = 0xc0392b, belly = 0xf2c14e, wing = null, horn = 0xf0e6d0, eye = 0xffd23d,
+    legs = 4, wings = 2, hover = 0, size = 1, spikes = true, frill = false,
+  } = o;
+  const g = new THREE.Group();
+  const root = group(g, 0, hover, 0);
+  const body = group(root);
+  const C = mat(color), C2 = mat(darker(color, 0.75)), B = mat(belly), H = mat(horn), W = mat(wing ?? darker(color, 0.6), { side: THREE.DoubleSide });
+  const legH = legs === 4 ? 1.0 : 1.2;
+  // torso
+  add(body, sph(0.75, 18, 12), C, 0, legH + 0.2, 0, { s: [1, 0.85, 1.55] });
+  add(body, sph(0.62, 16, 10), B, 0, legH + 0.02, 0.15, { s: [0.9, 0.7, 1.4] });
+  // neck + head
+  const neck = group(body, 0, legH + 0.45, 0.85);
+  limb(neck, V3(0, 0, 0), V3(0, 0.75, 0.55), 0.36, 0.26, C, 10);
+  add(neck, sph(0.22, 12, 8), B, 0, 0.3, 0.38, { s: [1, 1.5, 0.6] });
+  const head = group(neck, 0, 0.95, 0.72);
+  add(head, sph(0.38, 16, 12), C, 0, 0, 0, { s: [1, 0.85, 1.1] });
+  add(head, sph(0.28, 14, 10), C, 0, -0.06, 0.42, { s: [0.95, 0.7, 1.45] });
+  for (const s of [-1, 1]) add(head, sph(0.05, 8, 6), basic(0x1a1030), s * 0.1, 0.04, 0.83, { shadow: false });
+  const jaw = group(head, 0, -0.14, 0.12);
+  add(jaw, sph(0.24, 12, 8), B, 0, -0.06, 0.3, { s: [0.85, 0.45, 1.45] });
+  for (let k = 0; k < 4; k++) for (const s of [-1, 1]) add(jaw, new THREE.ConeGeometry(0.035, 0.1, 4), basic(0xffffff), s * (0.12 - k * 0.015), 0.02, 0.22 + k * 0.11, { shadow: false, noOutline: true });
+  const mouth = new THREE.Object3D();
+  mouth.position.set(0, -0.1, 0.8);
+  head.add(mouth);
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.085, { glow: eye });
+    e.position.set(s * 0.22, 0.12, 0.3);
+    head.add(e);
+    add(head, new THREE.BoxGeometry(0.2, 0.05, 0.06), C2, s * 0.22, 0.22, 0.3, { rz: s * 0.35 });
+    add(head, new THREE.ConeGeometry(0.09, 0.6, 7), H, s * 0.2, 0.32, -0.2, { rx: -1.1, rz: s * 0.25 });
+    add(head, new THREE.ConeGeometry(0.05, 0.3, 6), H, s * 0.3, 0.05, -0.25, { rx: -1.3, rz: s * 0.8 });
+  }
+  if (frill) for (let k = -2; k <= 2; k++) add(head, new THREE.ConeGeometry(0.06, 0.4, 5), mat(belly), k * 0.08, 0.35, -0.3, { rx: -0.8, rz: k * 0.25 });
+  // back spikes
+  if (spikes) for (let k = 0; k < 6; k++) add(body, new THREE.ConeGeometry(0.1 - k * 0.008, 0.36, 5), H, 0, legH + 0.82 - k * 0.04, 0.7 - k * 0.32, { rx: -0.35 });
+  // legs
+  const legGroups = [];
+  const legAt = legs === 4 ? [[0.5, 0.55], [-0.5, 0.55], [0.5, -0.6], [-0.5, -0.6]] : [[0.45, -0.25], [-0.45, -0.25]];
+  for (const [x, z] of legAt) {
+    const lg = group(body, x, legH + 0.1, z);
+    limb(lg, V3(0, 0, 0), V3(x * 0.2, -legH * 0.55, z > 0 ? 0.15 : -0.1), 0.2, 0.15, C, 8);
+    limb(lg, V3(x * 0.2, -legH * 0.55, z > 0 ? 0.15 : -0.1), V3(x * 0.15, -legH - 0.05, 0.1), 0.14, 0.1, C2, 8);
+    add(lg, sph(0.14, 10, 8), C2, x * 0.15, -legH - 0.02, 0.18, { s: [1, 0.5, 1.4] });
+    for (const c of [-1, 0, 1]) add(lg, new THREE.ConeGeometry(0.035, 0.14, 4), H, x * 0.15 + c * 0.07, -legH - 0.02, 0.36, { rx: Math.PI / 2 });
+    legGroups.push(lg);
+  }
+  // wings: bone struts plus a membrane
+  const wingGroups = [];
+  if (wings) {
+    const span = wings === 2 ? 2.6 : 1.1;
+    for (const s of [-1, 1]) {
+      const wg = group(body, s * 0.45, legH + 0.7, 0.35);
+      wg.scale.x = s;
+      limb(wg, V3(0, 0, 0), V3(span * 0.45, 0.45, -0.1), 0.08, 0.06, C2, 6);
+      limb(wg, V3(span * 0.45, 0.45, -0.1), V3(span, 0.2, -0.4), 0.06, 0.03, C2, 6);
+      for (const [x, z] of [[span * 0.55, -0.9], [span * 0.8, -1.1], [span, -0.8]]) limb(wg, V3(span * 0.45, 0.45, -0.1), V3(x, 0.05, z - 0.2), 0.03, 0.015, C2, 4);
+      const mem = add(wg, batWingGeo(span, span * 0.62), W, 0, 0.35, -0.15, { rx: -Math.PI / 2 - 0.05, noOutline: true });
+      mem.scale.set(1, 1.15, 1);
+      add(wg, new THREE.ConeGeometry(0.05, 0.22, 5), H, span * 0.45, 0.55, -0.1);
+      wingGroups.push(wg);
+    }
+  }
+  // tail: nested segments so it can wave
+  const tailSegs = [];
+  let parent = group(body, 0, legH + 0.15, -1.05);
+  for (let k = 0; k < 5; k++) {
+    const r0 = 0.3 - k * 0.055, r1 = r0 - 0.05;
+    limb(parent, V3(0, 0, 0), V3(0, -0.04, -0.55), Math.max(0.04, r0), Math.max(0.03, r1), C, 8);
+    if (spikes && k < 4) add(parent, new THREE.ConeGeometry(0.06, 0.2, 4), H, 0, r0 + 0.02, -0.25, { rx: -0.4 });
+    tailSegs.push(parent);
+    parent = group(parent, 0, -0.04, -0.55);
+  }
+  add(parent, new THREE.ConeGeometry(0.16, 0.4, 4), H, 0, 0, -0.1, { rx: -Math.PI / 2, s: [1.4, 1, 0.4] });
+
+  g.scale.setScalar(size);
+  let flap = 0, breath = 0, roar = 0;
+  g.userData.mouth = mouth;
+  g.userData.hover = hover;
+  g.userData.setFlying = (f) => { flap = f ? 1 : 0; };
+  g.userData.breathe = (sec = 1) => { breath = sec; };
+  g.userData.roar = () => { roar = 1; };
+  let last = 0;
+  g.userData.anim = (t, moving) => {
+    const dt = Math.min(0.1, Math.max(0, t - last));
+    last = t;
+    breath = Math.max(0, breath - dt);
+    roar = Math.max(0, roar - dt);
+    const gait = moving ? t * 9 : t * 1.3;
+    body.position.y = moving ? Math.abs(Math.sin(gait)) * 0.08 : Math.sin(t * 1.6) * 0.03;
+    if (hover) root.position.y = hover + Math.sin(t * 2.2) * 0.25;
+    legGroups.forEach((lg, i) => { lg.rotation.x = moving ? Math.sin(gait + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.55 : 0; });
+    const fast = flap || hover ? 1 : 0;
+    wingGroups.forEach((wg) => {
+      wg.rotation.z = fast ? Math.sin(t * (flap ? 9 : 6)) * 0.7 - 0.1 : -0.55 + Math.sin(t * 1.2) * 0.05;
+      wg.rotation.y = fast ? 0 : 0.9;
+    });
+    tailSegs.forEach((s, i) => { s.rotation.y = Math.sin(t * (moving ? 5 : 1.8) - i * 0.7) * (0.18 + i * 0.03); s.rotation.x = 0.05; });
+    neck.rotation.x = (breath > 0 ? 0.25 : roar > 0 ? -0.35 : Math.sin(t * 1.1) * 0.06);
+    head.rotation.y = breath > 0 ? 0 : Math.sin(t * 0.8) * 0.2;
+    jaw.rotation.x = breath > 0 || roar > 0 ? 0.55 : Math.max(0, Math.sin(t * 0.7)) * 0.08;
+  };
+  return finish(g, 0.028 / size + 0.004, 0.06);
+}
+
+// The Scaled Cult: a hooded wizard with dragon horns and a bone mask.
+function cultist() {
+  const g = makeWizard({ robe: 0x3a0a14, hat: 0x1a0a0a, trim: 0xc0392b, gem: 0xff5a1a, hatStyle: 'hood', skin: 0x8a7a70, eyeColor: 0xff3a2a, hair: 0x1a1010 });
+  const head = g.userData.head;
+  for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.07, 0.5, 6), mat(0xf0e6d0), s * 0.28, 0.45, -0.1, { rz: s * 0.6, rx: -0.3 });
+  add(head, sph(0.27, 14, 10), mat(0xe8dcc0), 0, 0.06, 0.3, { s: [1.1, 0.8, 0.45] });
+  for (const s of [-1, 1]) add(head, sph(0.045, 8, 6), basic(0xff3a2a), s * 0.11, 0.1, 0.43, { shadow: false });
+  return g;
+}
+
+// ---------------------------------------------------------------- Dragonspire scenery
+
+// A curved stone wall carved with glowing dragon runes.
+export function makeWordWall(color = 0x4dc8ff) {
+  const g = new THREE.Group();
+  const stone = mat(0x6a6a78), stone2 = mat(0x55556a);
+  for (let i = -3; i <= 3; i++) {
+    const a = i * 0.2;
+    const h = 4.2 - Math.abs(i) * 0.4 + rnd(-0.2, 0.2);
+    add(g, new THREE.BoxGeometry(1.25, h, 0.6), i % 2 ? stone : stone2, Math.sin(a) * 6, h / 2, Math.cos(a) * 6 - 6, { ry: a });
+  }
+  add(g, new THREE.BoxGeometry(9, 0.4, 1.4), stone2, 0, 0.2, -0.3);
+  const runes = ownMat(darker(color, 0.4), { emissive: color, emissiveIntensity: 1.2 });
+  for (let r = 0; r < 3; r++) for (let i = -2; i <= 2; i++) {
+    const a = i * 0.2;
+    add(g, new THREE.BoxGeometry(0.5, 0.08, 0.05), runes, Math.sin(a) * 5.68, 1.2 + r * 0.8, Math.cos(a) * 5.68 - 6, { ry: a, rz: (i + r) % 2 ? 0.6 : -0.4, shadow: false, noOutline: true });
+    add(g, new THREE.BoxGeometry(0.08, 0.4, 0.05), runes, Math.sin(a) * 5.68 + 0.15, 1.25 + r * 0.8, Math.cos(a) * 5.68 - 6, { ry: a, shadow: false, noOutline: true });
+  }
+  const motes = [0, 1, 2, 3, 4].map(() => dyn(add(g, sph(0.06, 6, 4), basic(color), 0, 0, 0, { shadow: false })));
+  let learned = false;
+  g.userData.setLearned = (v) => { learned = v; runes.emissiveIntensity = v ? 0.25 : 1.2; };
+  g.userData.anim = (t) => {
+    if (!learned) runes.emissiveIntensity = 0.9 + Math.sin(t * 2) * 0.4;
+    motes.forEach((m, i) => {
+      const k = (t * 0.25 + i / 5) % 1;
+      m.visible = !learned;
+      m.position.set(Math.sin(i * 1.3) * 3, 0.5 + k * 4, -0.5 + Math.cos(i * 2) * 0.5);
+    });
+  };
+  return finish(g, 0.04, 0.2);
+}
+
+export function makeBones(big = false) {
+  const g = new THREE.Group();
+  const bone = mat(0xe8dcc0);
+  const n = big ? 7 : 4, s = big ? 2.2 : 1;
+  for (let i = 0; i < n; i++) {
+    const z = (i - n / 2) * 0.9 * s;
+    add(g, new THREE.TorusGeometry(1.4 * s, 0.1 * s, 6, 16, Math.PI * 0.8), bone, 0, 0, z, { rz: Math.PI * 0.1, ry: Math.PI / 2, rx: 0 });
+  }
+  limb(g, V3(0, 0.1 * s, -n / 2 * 0.9 * s - 0.5), V3(0, 0.1 * s, n / 2 * 0.9 * s + 0.3), 0.14 * s, 0.1 * s, bone, 6);
+  if (big) {
+    const skull = group(g, 0.4, 0.8, n / 2 * 0.9 * s + 2);
+    add(skull, sph(1, 12, 10), bone, 0, 0, 0, { s: [1, 0.8, 1.2] });
+    add(skull, sph(0.7, 12, 10), bone, 0, -0.2, 1.1, { s: [0.9, 0.6, 1.4] });
+    for (const d of [-1, 1]) {
+      add(skull, sph(0.22, 10, 8), basic(0x1a1030), d * 0.45, 0.2, 0.75, { shadow: false });
+      add(skull, new THREE.ConeGeometry(0.2, 1.4, 7), bone, d * 0.5, 0.7, -0.6, { rx: -1.1, rz: d * 0.3 });
+    }
+    skull.rotation.set(0.3, 0.4, 0.2);
+  }
+  return finish(g, 0.035, 0.2, true);
+}
+
+export function makeNest(eggs = 3) {
+  const g = new THREE.Group();
+  const twig = mat(0x6a4a2a), twig2 = mat(0x5a3a1a);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    add(g, new THREE.CylinderGeometry(0.08, 0.08, 1.8, 5), i % 2 ? twig : twig2, Math.cos(a) * 1.3, 0.35, Math.sin(a) * 1.3, { rz: Math.PI / 2, ry: -a + 0.4, rx: 0.3 });
+  }
+  add(g, new THREE.CylinderGeometry(1.2, 0.9, 0.3, 14), mat(0x4a3a2a), 0, 0.15, 0);
+  const colors = [0xc0392b, 0x4dc8ff, 0x6a7a3a, 0xf2c14e];
+  for (let i = 0; i < eggs; i++) {
+    const a = (i / eggs) * Math.PI * 2;
+    add(g, sph(0.3, 12, 10), mat(colors[i % 4], { emissive: colors[i % 4], emissiveIntensity: 0.2 }), Math.cos(a) * 0.4, 0.55, Math.sin(a) * 0.4, { s: [1, 1.35, 1] });
+  }
+  return finish(g, 0.03, 0.15, true);
+}
+
+export function makeSnowPine(scale = 1) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.22, 0.34, 1.6, 8), mat(0x4a3a2a), 0, 0.8, 0);
+  const tiers = [[1.7, 2.3, 2.3], [1.35, 2.0, 3.35], [0.95, 1.7, 4.3], [0.55, 1.2, 5.1]];
+  tiers.forEach(([r, h, y], i) => {
+    add(g, new THREE.ConeGeometry(r, h, 12), mat(i % 2 ? 0x2a5a4a : 0x346a58), 0, y, 0, { ry: i * 0.4 });
+    add(g, new THREE.ConeGeometry(r * 0.75, h * 0.45, 12), mat(0xf0f4ff), 0, y + h * 0.28, 0, { ry: i * 0.4 });
+  });
+  g.scale.setScalar(scale);
+  return finish(g, 0.04, 0.4, true);
+}
+
+export function makePeak(r = 30, h = 60, snow = true) {
+  const g = new THREE.Group();
+  add(g, new THREE.ConeGeometry(r, h, 7), mat(0x4a5060), 0, h / 2, 0, { shadow: false });
+  if (snow) add(g, new THREE.ConeGeometry(r * 0.42, h * 0.42, 7), mat(0xf0f4ff), 0, h * 0.79, 0, { shadow: false });
+  add(g, new THREE.ConeGeometry(r * 0.5, h * 0.6, 6), mat(0x3a4050), r * 0.55, h * 0.3, r * 0.2, { shadow: false });
+  return finish(g, 0.1, 5, true);
+}
+
+export function makeFloatingRock(scale = 1) {
+  const g = new THREE.Group();
+  const isle = group(g, 0, 6 * scale, 0);
+  add(isle, new THREE.ConeGeometry(2 * scale, 3.5 * scale, 7), mat(0x5a5a6a), 0, -1.75 * scale, 0, { rx: Math.PI });
+  add(isle, new THREE.CylinderGeometry(2.1 * scale, 2 * scale, 0.5 * scale, 7), mat(0x6a8a5a), 0, 0.2 * scale, 0);
+  add(isle, new THREE.ConeGeometry(0.6 * scale, 1.6 * scale, 8), mat(0x2a5a4a), 0.5 * scale, 1.2 * scale, 0);
+  dyn(isle);
+  const seed = Math.random() * 10;
+  g.userData.anim = (t) => { isle.position.y = 6 * scale + Math.sin(t * 0.6 + seed) * 0.6; isle.rotation.y = t * 0.05 + seed; };
+  return finish(g, 0.05, 0.3);
+}
+
+export function makeBanner(color = 0xc0392b) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.07, 0.09, 4, 6), mat(0x5a3a20), 0, 2, 0);
+  add(g, new THREE.BoxGeometry(1.1, 0.08, 0.08), mat(0x5a3a20), 0, 3.8, 0);
+  const cloth = dyn(add(g, new THREE.PlaneGeometry(1, 1.8, 1, 4), mat(color, { side: THREE.DoubleSide }), 0, 2.85, 0.05));
+  add(g, new THREE.CircleGeometry(0.25, 12), mat(0xf2c14e, { side: THREE.DoubleSide }), 0, 3, 0.07, { noOutline: true });
+  g.userData.anim = (t) => { cloth.rotation.y = Math.sin(t * 2 + color) * 0.25; };
+  return finish(g, 0.03, 0.2);
 }

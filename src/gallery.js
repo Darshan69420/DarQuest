@@ -30,6 +30,20 @@ const GROUPS = {
     items: [['imp', 'Lava Imp'], ['hound', 'Cinderhound'], ['shaman', 'Ashen Shaman'], ['golem', 'Obsidian Golem'], ['serpent', 'Magma Serpent'], ['guard', 'Magma Guard'], ['pyrrhon', 'Pyrrhon']]
       .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
   },
+  dragons: {
+    title: 'Dragonspire foes',
+    items: [['wyrmling', 'Wyrmling'], ['drake_foe', 'Bone Drake'], ['cultist', 'Scaled Cultist'], ['wyvern', 'Stormwing Wyvern'], ['elder_dragon', 'Vorathrax']]
+      .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
+  },
+  skilling: {
+    title: 'Skilling & Rift',
+    items: [
+      ['ore', 'Ore rock', () => M.makeOreRock(0xd4803a)], ['oak', 'Oak', () => M.makeOak(0.8)], ['willow', 'Willow', () => M.makeWillow(0.8)],
+      ['elder', 'Elder tree', () => M.makeElder(0.8)], ['dragonwood', 'Dragonwood', () => M.makeDragonwood(0.8)], ['furnace', 'Furnace', () => M.makeFurnace()],
+      ['anvil', 'Anvil', () => M.makeAnvil()], ['alchemy', 'Alchemy table', () => M.makeAlchemyTable()], ['chest', 'Rift chest', () => M.makeChest()],
+      ['shrine', 'Boon shrine', () => M.makeShrine()], ['wordwall', 'Word Wall', () => M.makeWordWall()], ['nest', 'Dragon nest', () => M.makeNest()],
+    ].map(([id, name, build]) => ({ id, name, build })),
+  },
   pets: {
     title: 'Pets',
     items: Object.values(PETS).map(p => ({ id: 'pet_' + p.kind, name: p.name, build: () => M.makePet(p.kind, p.color) })),

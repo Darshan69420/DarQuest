@@ -277,6 +277,9 @@ kbd { font: 800 13px var(--body); background: #1a1240; border: 2px solid #8e7ad6
 .label .marker.side { color: #7fd8ff; }
 .label.station .name { font-size: 12px; color: #ffe9c4; }
 .floater.gain { color: #c8ffb0; font-size: 17px; }
+.floater.shout { font: 800 34px var(--display); color: #fff; letter-spacing: .08em; text-shadow: 0 0 14px #ffd23d, 0 3px 0 #3b2d7a; }
+.label.wordwall .name { color: #ffe9a6; }
+.label.wordwall.learned .sub::after { content: ' · learned'; }
 .chip { --c: #888; position: relative; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; font-size: 18px; line-height: 1;
   background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--c) 70%, #fff 10%), color-mix(in srgb, var(--c) 45%, #150e33)); border: 1px solid color-mix(in srgb, var(--c) 80%, #fff 20%); vertical-align: middle; flex: none; }
 .chip b { position: absolute; right: -5px; bottom: -6px; font-size: 11px; background: #1a1240; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 0 5px; line-height: 15px; color: #fff; }
@@ -360,6 +363,19 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 .boon-rarity { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--rc); font-weight: 800; }
 .boon-desc { font-size: 13px; color: #e3dcff; line-height: 1.35; }
 .boon .btn { margin-top: auto; }
+
+/* ---------------------------------------------------------------- dragon shouts */
+.hb.shout { --sc: #ffd23d; }
+.shout-list { display: flex; flex-direction: column; gap: 8px; }
+.shout-card { display: flex; align-items: center; gap: 14px; background: rgba(0,0,0,.25); border: 2px solid rgba(255,210,61,.35); border-radius: 14px; padding: 10px 14px; }
+.shout-card.locked { opacity: .55; border-style: dashed; }
+.shout-card.equipped { border-color: #ffd23d; box-shadow: 0 0 16px rgba(255,210,61,.35); }
+.shout-icon { font-size: 34px; }
+.shout-info { flex: 1; min-width: 0; }
+.shout-info > span { font-size: 13px; color: #d8d0f0; }
+.shout-words { display: flex; gap: 8px; margin: 3px 0; }
+.shout-words span { font: 800 16px var(--display); letter-spacing: .08em; color: #5a5270; }
+.shout-words span.on { color: #ffd23d; text-shadow: 0 0 10px rgba(255,210,61,.7); }
 
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {

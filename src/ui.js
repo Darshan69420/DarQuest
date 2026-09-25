@@ -5,6 +5,9 @@ import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey
 
 const $ = (sel) => document.querySelector(sel);
 
+// Hooks other windows register, so ui.js doesn't need to import them.
+export const uiHooks = {};
+
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -168,7 +171,8 @@ export function openSpellbook(p, onChange) {
   const render = (body) => {
     const basic = basicSpell(p.school);
     const known = p.known.filter(id => id !== basic.id).map(id => SPELLS[id]).sort((a, b) => a.level - b.level);
-    body.innerHTML = `<p class="modal-note">Pick a slot, then click a spell to put it there. Key <b>1</b> is always your free basic attack, <b>${esc(basic.name)}</b>.</p>
+    body.innerHTML = `${p.dragon?.voice ? '<div class="tabs"><button class="btn small primary">📖 Spells</button><button class="btn small" id="to-shouts">🐉 Shouts</button></div>' : ''}
+      <p class="modal-note">Pick a slot, then click a spell to put it there. Key <b>1</b> is always your free basic attack, <b>${esc(basic.name)}</b>.</p>
       <div class="loadout">
         <div class="load-slot basic"><span class="load-key">1</span>${cardHTML(basic, { basic: true })}</div>
         ${p.hotbar.map((id, i) => `<button class="load-slot ${i === slot ? 'picked' : ''}" data-slot="${i}"><span class="load-key">${i + 2}</span>
@@ -180,6 +184,7 @@ export function openSpellbook(p, onChange) {
         return `<button class="card-slot pickable" data-spell="${s.id}">${cardHTML(s, { cls: on >= 0 ? 'equipped' : '' })}
           <div class="card-tag ${on >= 0 ? 'ok' : ''}">${on >= 0 ? `On key ${on + 2}` : `Put on key ${slot + 2}`}</div></button>`;
       }).join('') || '<p class="modal-note">Learn more spells from Mirabel Quill at the Academy.</p>'}</div>`;
+    body.querySelector('#to-shouts')?.addEventListener('click', () => uiHooks.openShouts?.());
     body.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { slot = +b.dataset.slot; render(body); }));
     body.querySelectorAll('.pickable').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.spell;
@@ -197,7 +202,7 @@ export function openSpellbook(p, onChange) {
 // ------------------------------------------------------------ combat HUD
 
 let hotbarEls = null;
-export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
+export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget, onShout }) {
   const el = $('#hotbar');
   const basic = basicSpell(p.school);
   const slots = [basic.id, ...p.hotbar];
@@ -209,16 +214,19 @@ export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
       ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}${i === 0 ? '<span class="hb-combo"><i></i><i></i></span>' : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
   }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion"><span class="hb-icon">🧪</span><span class="hb-key">${keyLabel(keyFor('potion'))}</span><span class="hb-count"></span><span class="hb-cd"></span></button>
     <button class="hb util" data-act="dodge" title="Dodge"><span class="hb-icon">💨</span><span class="hb-key">${keyFor('dodge') === 'Space' ? '␣' : keyLabel(keyFor('dodge'))}</span><span class="hb-cd"></span></button>
-    <button class="hb util" data-act="target" title="Next target"><span class="hb-icon">🎯</span><span class="hb-key">${keyLabel(keyFor('target'))}</span></button>`;
+    <button class="hb util" data-act="target" title="Next target"><span class="hb-icon">🎯</span><span class="hb-key">${keyLabel(keyFor('target'))}</span></button>
+    ${p.dragon?.equipped ? `<button class="hb util shout" data-act="shout" title="Dragon shout"><span class="hb-icon">${uiHooks.shoutIcon?.(p.dragon.equipped) || '🐉'}</span><span class="hb-key">${keyLabel(keyFor('shout'))}</span><span class="hb-cd"></span></button>` : ''}`;
   el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => onSlot(+b.dataset.i)));
   el.querySelector('[data-act="potion"]').addEventListener('click', onPotion);
   el.querySelector('[data-act="dodge"]').addEventListener('click', onDodge);
   el.querySelector('[data-act="target"]').addEventListener('click', onTarget);
+  el.querySelector('[data-act="shout"]')?.addEventListener('click', () => onShout?.());
   hotbarEls = {
     combo: el.querySelector('.hb-combo'),
     slots: [...el.querySelectorAll('[data-i]')].map(b => ({ b, cd: b.querySelector('.hb-cd') })),
     potion: el.querySelector('[data-act="potion"]'),
     dodge: el.querySelector('[data-act="dodge"]'),
+    shout: el.querySelector('[data-act="shout"]'),
   };
 }
 
@@ -245,6 +253,11 @@ export function updateHotbar(state) {
   hotbarEls.potion.classList.toggle('poor', state.potion.count < 1);
   hotbarEls.dodge.querySelector('.hb-cd').style.background = cdStyle(state.dodge.left, state.dodge.total);
   if (hotbarEls.combo) hotbarEls.combo.dataset.n = state.combo || 0;
+  if (hotbarEls.shout && state.shout) {
+    const c = hotbarEls.shout.querySelector('.hb-cd');
+    c.style.background = cdStyle(state.shout.left, state.shout.total);
+    c.textContent = state.shout.left > 0.9 ? Math.ceil(state.shout.left) : '';
+  }
 }
 
 export function updateTarget(e) {
@@ -364,10 +377,10 @@ export function openCharacter(p, onChange, tab = 'gear') {
   openModal(`🧙 ${esc(p.name)}`, '', render);
 }
 
-export function openGearShop(p, onChange) {
+export function openGearShop(p, onChange, stock = GEAR_SHOP, title = '🎩 Tumblewick\'s Outfitters') {
   const render = (body) => {
     body.innerHTML = `<p class="modal-note">Gold: <b>🪙 ${p.gold}</b> · Anything you buy goes into your backpack. Open your character screen (C) to equip it.</p>
-      ${GEAR_SHOP.map(id => {
+      ${stock.map(id => {
         const g = GEAR[id];
         return gearRow(g, `<button class="btn small primary" data-buy="${id}" ${p.gold < g.price || p.inventory.length >= RULES.inventoryMax ? 'disabled' : ''}>Buy 🪙${g.price}</button>`);
       }).join('')}`;
@@ -381,7 +394,7 @@ export function openGearShop(p, onChange) {
       render(body);
     }));
   };
-  openModal('🎩 Tumblewick\'s Outfitters', '', render);
+  openModal(title, '', render);
 }
 
 export function openHelp() {
@@ -397,6 +410,8 @@ export function openHelp() {
     <p>Use the <b>crafting stations</b> to smelt bars and forge tools and jewellery, cook food, brew potions and elixirs, and carve rods, wands and staffs. <b>I</b> opens your materials bag, <b>F</b> eats food, and <b>J</b> opens your quest journal. Forewoman Brisa of the Gatherers' Guild has side quests (blue <b style="color:#7fd8ff">!</b>), sells tools and buys materials.</p>
     <h3>The Endless Rift</h3>
     <p>The swirling <b>Rift Gate</b> in the courtyard leads to a dungeon that is different every time. Clear rooms, open chests, pray at shrines for <b>boons</b> that last the whole run, and find the Rift Portal to go deeper. A guardian boss waits every 5 floors. If you fall you keep half your <b>Rift Shards</b>; escape through a Rift Exit to keep them all. Warden Nyx trades shards for permanent upgrades.</p>
+    <h3>Dragons &amp; shouts</h3>
+    <p>In Chapter 3 a new Spiral Door opens to the <b>Dragonspire Peaks</b>. Sage Vaelith awakens your <b>Voice</b>: read <b>Word Walls</b> (Hollow Lane, Emberfall and the Peaks) to learn dragon shouts, and press <b>R</b> to shout. Slaying dragons grants <b>dragon souls</b>, which teach each shout's second and third words (spellbook → Shouts). Unrelenting Force hurls foes back, Fire and Frost Breath scorch or slow, Whirlwind Sprint dashes, Become Ethereal makes you untouchable, and <b>Dragonrend</b> drags a flying dragon out of the sky.</p>
     <h3>Gear &amp; pets</h3>
     <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>
     <h3>Combat</h3>

@@ -4,9 +4,31 @@ import * as THREE from 'three';
 import {
   makeFountain, makeTent, makeCampfire, makeLavaPool, makeSpire, makeFireTree, makeCliff,
   makeThrone, makeRock, makeLamp, glowMat, makeGate, makeTree, makePond, makeFence, makeWindmill,
-  makeSignpost, makeHayBale, makeFlowers, makeRoundTree,
+  makeSignpost, makeHayBale, makeFlowers, makeRoundTree, makeWordWall, makeBones, makeNest, makeSnowPine,
+  makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire,
 } from './models.js';
-import { EMBER_X as X, NPCS } from './data.js';
+import { EMBER_X as X, DRAGON_X as D, NPCS } from './data.js';
+
+// Word Walls: each teaches the first word of a dragon shout.
+export const WORD_WALLS = [
+  { id: 'wall_sprint', shout: 'sprint', x: 7.2, z: 136, rot: -Math.PI / 2, color: 0xe8e4ff },
+  { id: 'wall_fire', shout: 'fire', x: 707.4, z: 150, rot: -Math.PI / 2, color: 0xff6a2b },
+  { id: 'wall_force', shout: 'force', x: D - 16.5, z: 2, rot: Math.PI / 2, color: 0x9fd6ff },
+  { id: 'wall_frost', shout: 'frost', x: D - 17.5, z: 100, rot: Math.PI / 2, color: 0x9fe6ff },
+  { id: 'wall_ethereal', shout: 'ethereal', x: D + 99, z: 108, rot: -Math.PI / 2, color: 0xb0e8ff },
+  { id: 'wall_rend', shout: 'rend', x: D + 89.6, z: 160, rot: -Math.PI / 2, color: 0xffd23d },
+];
+
+// Builds every Word Wall (and its colliders) into the world.
+export function buildWordWalls(world) {
+  for (const w of WORD_WALLS) {
+    const m = makeWordWall(w.color);
+    world.add(m, w.x, w.z, w.rot);
+    w.model = m;
+    for (const k of [-2.6, 0, 2.6]) world.colliders.push({ x: w.x + Math.cos(w.rot) * k, z: w.z - Math.sin(w.rot) * k, r: 1.2 });
+    w.label = world.addLabel(m, '<div class="name">🐉 Word Wall</div><div class="sub">Ancient dragon runes</div>', 'npc wordwall', 5);
+  }
+}
 
 function flatPlane(scene, geo, color, x, z, y = 0.02) {
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 1 }));
@@ -98,6 +120,119 @@ export function buildMeadow(world) {
     const z = side === 0 ? -50 - Math.random() * 16 : side === 1 ? -60 + Math.random() * 120 : 50 + Math.random() * 16;
     world.add(Math.random() < 0.8 ? makeTree(1.2 + Math.random() * 1.1, 0x2f6b3c) : makeRoundTree(1.1, 0xf29a6b), x, z, Math.random() * 6);
   }
+}
+
+// ------------------------------------------------------------ Dragonspire Peaks
+
+export function buildDragonspire(world) {
+  const scene = world.scene;
+  flatPlane(scene, new THREE.PlaneGeometry(700, 700), 0x6a7080, D + 60, 90, 0);
+  // packed snow on the walkable ground, and drifts all around
+  flatPlane(scene, new THREE.CircleGeometry(23, 40), 0xdfe6f0, D, 0, 0.02);
+  flatPlane(scene, new THREE.PlaneGeometry(17, 78), 0xc8d0dc, D, 54, 0.021);
+  flatPlane(scene, new THREE.CircleGeometry(23, 40), 0x9a9080, D, 105, 0.022);
+  flatPlane(scene, new THREE.PlaneGeometry(58, 17), 0xc8d0dc, D + 42, 105, 0.023);
+  flatPlane(scene, new THREE.CircleGeometry(20, 40), 0xdfe6f0, D + 84, 105, 0.024);
+  flatPlane(scene, new THREE.PlaneGeometry(15, 56), 0xc8d0dc, D + 84, 145, 0.025);
+  flatPlane(scene, new THREE.CircleGeometry(27, 44), 0x4a3a3a, D + 84, 192, 0.026);
+  flatPlane(scene, new THREE.RingGeometry(24, 25.5, 44), 0xff5a10, D + 84, 192, 0.03);
+  for (let i = 0; i < 40; i++) {
+    const m = flatPlane(scene, new THREE.CircleGeometry(4 + Math.random() * 10, 16), 0xeef2fa, D - 60 + Math.random() * 220, -40 + Math.random() * 280, 0.015);
+    m.scale.set(1, 0.6 + Math.random() * 0.6, 1);
+  }
+
+  // Skyhold Camp
+  const spring = makeFountain();
+  spring.scale.setScalar(0.8);
+  world.add(spring, D - 9, 12, 0, 2.9);
+  world.add(campfire(), D + 3, 3, 0, 1.3);
+  world.addStation('range', D + 3, 3, 0, false);
+  world.addStation('anvil', D + 15, -3, -0.8);
+  world.add(tent(0x5a2a2a), D + 15, 9, -0.9, 2.4);
+  world.add(tent(0x3a4a6a), D - 15, -11, 0.8, 2.4);
+  world.add(tent(0x6a5a3a), D + 12, -15, -2.3, 2.4);
+  for (const [dx, dz] of [[-6, 17], [6, 17], [-19, 5], [19, 2]]) world.add(makeBanner(0x8a1a1a), D + dx, dz, 0, 0.3);
+  for (const [dx, dz] of [[-10, -17], [10, 15]]) world.add(makeLamp(0xffb070), D + dx, dz, 0, 0.4);
+  world.add(makeBones(true), D + 30, -24, 0.6);
+
+  // the mountain path and the Bone Field
+  for (let z = 20; z <= 88; z += 8) {
+    for (const s of [-1, 1]) world.add(makeCliff(6 + Math.random() * 3, 7 + Math.random() * 8, 7, [0x5a5a6a, 0x6a6a7a, 0x4a4a5a][Math.floor(Math.random() * 3)]), D + s * (12 + Math.random() * 3), z, Math.random());
+  }
+  for (let k = 0; k < 10; k++) world.add(makeSnowPine(1 + Math.random() * 0.6), D + (k % 2 ? 1 : -1) * (19 + Math.random() * 8), 20 + k * 7);
+  world.add(makeBones(true), D + 10, 96, -0.8);
+  world.add(makeBones(true), D - 12, 118, 2.2);
+  for (const [dx, dz, r] of [[-6, 92, 0.3], [14, 118, 1.2], [3, 124, 2]]) world.add(makeBones(false), D + dx, dz, r);
+  for (const [dx, dz, n] of [[-14, 108, 3], [8, 124, 4], [16, 100, 2]]) world.add(makeNest(n), D + dx, dz, Math.random() * 6, 1.6);
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    if (Math.abs(a - Math.PI / 2) < 0.4 || Math.abs(a - Math.PI * 1.5) < 0.35 || Math.abs(a) < 0.35) continue;
+    world.add(makeCliff(8, 10 + Math.random() * 10, 8, 0x5a5a6a), D + Math.sin(a) * 27, 105 + Math.cos(a) * 27, Math.random());
+  }
+
+  // the cult ridge (east) and Wyvern Cliffs
+  for (let x = D + 20; x <= D + 66; x += 9) {
+    for (const s of [-1, 1]) world.add(makeCliff(6, 8 + Math.random() * 6, 6, 0x5a5060), x + Math.random() * 3, 105 + s * (12 + Math.random() * 2), Math.random());
+  }
+  for (const [dx, dz] of [[24, 99], [44, 111], [58, 99]]) { world.add(makeBanner(0x3a0a14), D + dx, dz, 0, 0.3); world.add(campfire(), D + dx + 3, dz + (dz > 105 ? -2 : 2), 0, 1.2); }
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    if (Math.abs(Math.sin(a) + 1) < 0.35 || Math.cos(a) > 0.8) continue;
+    world.add(makeCliff(8, 12 + Math.random() * 12, 8, 0x4a4a5a), D + 84 + Math.sin(a) * 24, 105 + Math.cos(a) * 24, Math.random());
+  }
+  for (const [dx, dz, s] of [[70, 88, 1.2], [100, 92, 1], [96, 124, 1.4], [66, 126, 0.9], [110, 110, 1.1]]) world.add(makeFloatingRock(s), D + dx, dz, Math.random() * 6);
+  world.add(makeNest(2), D + 92, 99, 0, 1.6);
+
+  // the climb to the Roost, and the Roost itself
+  for (let z = 122; z <= 168; z += 8) for (const s of [-1, 1]) world.add(makeCliff(6, 10 + Math.random() * 8, 6, 0x4a4a5a), D + 84 + s * (11 + Math.random() * 2), z, Math.random());
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    if (Math.cos(a) < -0.85) continue;  // the way in from the south
+    world.add(makeCliff(9, 14 + Math.random() * 14, 9, 0x3a3038), D + 84 + Math.sin(a) * 31, 192 + Math.cos(a) * 31, Math.random());
+  }
+  world.add(makeBones(true), D + 70, 200, 1.4);
+  world.add(makeBones(true), D + 98, 182, -0.6);
+  world.add(makeNest(5), D + 84, 212, 0, 2);
+  for (const [dx, dz] of [[-15, 185], [15, 200], [-10, 208]]) { world.add(makeLavaPool(2.2), D + 84 + dx, dz, 0, 2); }
+
+  // skilling on the mountain
+  for (const [dx, dz] of [[-15, 96], [15, 112], [-9, 124]]) world.addNode('dragonite_rock', D + dx, dz);
+  world.addNode('dragonite_rock', D + 95, 185);
+  world.addNode('dragonite_rock', D + 73, 180);
+  world.addNode('starmetal_rock', D + 17, 96);
+  world.addNode('starmetal_rock', D - 5, 22);
+  for (const [dx, dz] of [[76, 90], [96, 118], [-18, -4]]) world.addNode('dragonwood', D + dx, dz);
+  world.addNode('elder', D + 18, 15);
+  for (const [dx, dz] of [[92, 94], [74, 117], [86, 124]]) world.addNode('herb_dragons_tongue', D + dx, dz);
+  for (const [dx, dz] of [[-6, -17], [17, -10], [-7, 28]]) world.addNode('herb_frostbloom', D + dx, dz);
+  for (const [dx, dz] of [[-15, 185], [15, 200]]) world.addNode('fish_eel', D + 84 + dx, dz);
+  const ice = new THREE.Mesh(new THREE.CircleGeometry(3.2, 24), new THREE.MeshStandardMaterial({ color: 0xbfe8ff, roughness: 0.3, emissive: 0x204060, emissiveIntensity: 0.3 }));
+  ice.rotation.x = -Math.PI / 2;
+  ice.position.set(D + 7, 0.04, -15);
+  scene.add(ice);
+  world.colliders.push({ x: D + 7, z: -15, r: 2.8 });
+  world.addNode('fish_frost', D + 7, -15);
+
+  // mountains all around
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * Math.PI * 2;
+    world.add(makePeak(35 + Math.random() * 25, 70 + Math.random() * 60), D + 40 + Math.sin(a) * 175, 100 + Math.cos(a) * 190, Math.random());
+  }
+  for (let i = 0; i < 50; i++) {
+    const x = D - 50 + Math.random() * 200, z = -40 + Math.random() * 280;
+    if (world.walkable(x, z) || world.walkable(x + 4, z) || world.walkable(x - 4, z) || world.walkable(x, z + 4) || world.walkable(x, z - 4)) continue;
+    world.add(makeSnowPine(1.1 + Math.random() * 0.9), x, z, Math.random() * 6);
+  }
+  // falling snow
+  for (let k = 0; k < 80; k++) {
+    const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    m.scale.setScalar(0.06);
+    m.userData.base = new THREE.Vector3(D - 20 + Math.random() * 130, 1 + Math.random() * 8, -20 + Math.random() * 230);
+    m.userData.phase = Math.random() * 10;
+    scene.add(m);
+    world.motes.push(m);
+  }
+  return { spring };
 }
 
 // ------------------------------------------------------------ Emberfall Wilds

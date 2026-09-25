@@ -1,6 +1,7 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
-import { BUFFS } from './items.js';
+import { BUFFS, addItem } from './items.js';
+import { SHOUTS } from './shouts.js';
 
 // Three save slots. Slot 1 keeps the original key so older saves still load.
 export const SLOT_KEYS = ['darquest-save-v1', 'darquest-save-slot2', 'darquest-save-slot3'];
@@ -49,6 +50,8 @@ function upgrade(p) {
   p.stats_log ??= { kills: 0, gathered: 0, crafted: 0, deaths: 0 };
   // the Endless Rift: shards, records and permanent upgrades
   p.rift ??= { shards: 0, best: 0, runs: 0, upgrades: {}, run: null };
+  // dragon shouts and souls (Chapter 3)
+  p.dragon ??= { voice: false, souls: 0, shouts: {}, equipped: null };
   return p;
 }
 
@@ -204,10 +207,11 @@ export function setActivePet(p, id) {
 // Rolls drops for a list of defeated enemy definitions.
 export function rollLoot(p, defs) {
   const mult = DIFFICULTIES[p.difficulty].drop;
-  const loot = { items: [], pets: [] };
+  const loot = { items: [], pets: [], mats: [] };
   for (const def of defs) {
     for (const d of def.drops || []) {
       if (Math.random() >= Math.min(1, d.chance * mult)) continue;
+      if (d.mat) { addItem(p, d.mat, d.n || 1); loot.mats.push({ id: d.mat, n: d.n || 1 }); }
       if (d.item) loot.items.push({ id: d.item, where: giveItem(p, d.item) });
       if (d.pet && givePet(p, d.pet)) loot.pets.push(d.pet);
     }
@@ -242,23 +246,33 @@ export function recordKill(p, enemyId) {
   return true;
 }
 
-// Where the quest wants you to go: { npc } or { enemy }.
+// A shout objective is done the moment you learn that shout.
+export function recordShout(p, shoutId) {
+  const q = currentQuest(p);
+  if (!q || p.quest.state !== 'active' || q.objective.type !== 'shout' || q.objective.shout !== shoutId) return false;
+  p.quest.state = 'ready';
+  return true;
+}
+
+// Where the quest wants you to go: { npc }, { enemy } or { shout } (a Word Wall).
 export function questTarget(p) {
   const q = currentQuest(p);
   if (!q) return null;
   if (p.quest.state === 'available') return { npc: q.giver };
   if (p.quest.state === 'ready') return { npc: q.turnIn };
   if (q.objective.type === 'talk') return { npc: q.objective.npc };
+  if (q.objective.type === 'shout') return { shout: q.objective.shout };
   return { enemy: q.objective.enemy };
 }
 
 export function questTrackerText(p) {
   const q = currentQuest(p);
-  if (!q) return { title: 'Chapter 2 complete!', goal: 'You are a legend of Starfall. More worlds are coming…' };
+  if (!q) return { title: 'Main story complete!', goal: 'You are a legend of Starfall. More worlds are coming…' };
   const npc = (id) => NPCS[id].name;
   if (p.quest.state === 'available') return { title: q.name, goal: `Talk to ${npc(q.giver)}` };
   if (p.quest.state === 'ready') return { title: q.name, goal: `Return to ${npc(q.turnIn)}` };
   if (q.objective.type === 'talk') return { title: q.name, goal: `Talk to ${npc(q.objective.npc)}` };
+  if (q.objective.type === 'shout') return { title: q.name, goal: `Learn ${SHOUTS[q.objective.shout].name} at its Word Wall` };
   const e = ENEMIES[q.objective.enemy];
   const plural = q.objective.count > 1 ? 's' : '';
   return { title: q.name, goal: `Defeat ${q.objective.count} ${e.name}${plural} (${p.quest.progress}/${q.objective.count})` };
@@ -269,6 +283,7 @@ export function applyReward(p, reward) {
   p.gold += reward.gold || 0;
   p.tp += reward.tp || 0;
   p.potions = Math.min(RULES.maxPotions, p.potions + (reward.potions || 0));
+  if (reward.voice) p.dragon.voice = true;
   const pet = reward.pet && givePet(p, reward.pet) ? reward.pet : null;
   return { levels, pet };
 }

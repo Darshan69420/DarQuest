@@ -1,5 +1,5 @@
 // Real-time combat: enemy AI, player spells on a hotbar, dodging, damage and rewards.
-import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, ENEMIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { basicSpell } from './state.js';
 import { sfx } from './audio.js';
 import { insideShape } from './world.js';
@@ -34,6 +34,8 @@ export class Combat {
     this.tickTimer = 0;
     this.combo = 0;
     this.lastBasic = -9;
+    this.pending = [];       // area attacks waiting to go off (flying dragons)
+    this.etherealUntil = 0;  // Become Ethereal: can't attack, can't be hurt
     this.runMods = null;     // boons from an Endless Rift run
     this.onRevive = null;    // () => 'phoenix' | 'secondwind' | null
     world.onTargetTap = (e) => this.setTarget(e);
@@ -58,6 +60,9 @@ export class Combat {
     e.cast = null;
     e.phasesDone = new Set();
     e.nextAttack = 0;
+    e.fly = null;
+    e.flyPending = null;
+    e.stunUntil = e.rendUntil = e.slowUntil = 0;
     e.state = e.state === 'dead' ? 'dead' : 'idle';
     this.updateBar(e);
   }
@@ -105,6 +110,7 @@ export class Combat {
     const spell = this.slotSpell(slot);
     if (!spell || this.p.hp <= 0) return;
     const t = this.now;
+    if (t < this.etherealUntil) return this.onMessage?.('You are ethereal and cannot attack');
     const basic = slot === 0;
     const cost = basic ? 0 : Math.round(spellCost(spell) * (1 + this.rm('cost')));
     if (t < this.gcd) return;
@@ -188,6 +194,7 @@ export class Combat {
       slots,
       dodge: { left: Math.max(0, this.dodgeReady - t), total: DODGE_COOLDOWN },
       combo: t - this.lastBasic < BASIC_COOLDOWN + 1.5 ? this.combo : 0,
+      shout: { left: Math.max(0, (this.shoutReady || 0) - t), total: this.shoutTotal || 1 },
       potion: { left: Math.max(0, this.potionReady - t), total: RULES.potionCooldown, count: this.p?.potions || 0 },
     };
   }
@@ -346,6 +353,8 @@ export class Combat {
     for (const s of e.mods.shields) m *= 1 - s;
     e.mods.traps = [];
     e.mods.shields = [];
+    if (e.rendUntil > this.now) m *= 1 + (e.rendAmt || 0.3);
+    if (e.fly && !e.fly.forced) m *= 0.4;   // hard to hurt a dragon in the sky
     const dealt = Math.max(1, Math.round(amount * m));
     e.hp = Math.max(0, e.hp - dealt);
     this.world.float(e.model, crit ? `${dealt}!` : `${dealt}`, crit ? 'dmg crit' : 'dmg');
@@ -420,6 +429,7 @@ export class Combat {
   kill(e) {
     e.state = 'dead';
     this.clearCast(e);
+    if (e.fly) { e.fly = null; e.model.userData.setFlying?.(false); }
     e.mods = mods();
     e.respawnAt = this.now + (e.def.boss ? 60 : 20);
     this.world.defeat(e.model);
@@ -456,7 +466,80 @@ export class Combat {
       if (ph.heal) { e.hp = Math.min(e.maxHp, e.hp + ph.heal); this.world.float(e.model, `+${ph.heal}`, 'heal'); }
       if (ph.pips) e.nextAttack = this.now + 0.5;
       if (ph.cast) setTimeout(() => { if (e.state === 'aggro') this.enemySpell(e, SPELLS[ph.cast]); }, 900);
+      if (ph.fly) this.startFlight(e, ph.fly);
+      if (ph.summon) {
+        for (const id of ph.summon) {
+          const a = Math.random() * Math.PI * 2;
+          const add = this.world.addEnemy(ENEMIES[id], e.model.position.x + Math.cos(a) * 5, e.model.position.z + Math.sin(a) * 5, 3);
+          this.initEnemy(add);
+          add.state = 'aggro';
+          add.nextAttack = this.now + 1.5;
+          this.world.aura(add.model, 0xff6a2b);
+        }
+      }
     }
+  }
+
+  // ------------------------------------------------------------ flying dragons
+
+  startFlight(e, cfg) {
+    if (e.rendUntil > this.now) { e.flyPending = cfg; return; }
+    this.clearCast(e);
+    const m = e.model.position;
+    e.fly = { t: 0, dur: cfg.dur, radius: cfg.radius, angle: Math.atan2(m.z - e.home.z, m.x - e.home.x), next: 2.4, forced: false };
+    e.model.userData.setFlying?.(true);
+    e.model.userData.roar?.();
+    sfx('roar');
+    this.world.shake(0.5);
+    this.onMessage?.(`${e.def.name} takes to the sky! Use Dragonrend to bring her down.`, 'boss');
+  }
+
+  updateFlight(e, dt) {
+    const f = e.fly, m = e.model.position, w = this.world;
+    f.t += dt;
+    if (f.forced && f.t < f.dur - 1.2) f.t = f.dur - 1.2;
+    const up = Math.min(1, f.t / 1.5), down = Math.max(0, Math.min(1, (f.dur - f.t) / 1.2));
+    f.angle += dt * 0.55;
+    const tx = e.home.x + Math.cos(f.angle) * f.radius, tz = e.home.z + Math.sin(f.angle) * f.radius;
+    const k = Math.min(1, dt * 1.4);
+    const nx = m.x + (tx - m.x) * k, nz = m.z + (tz - m.z) * k;
+    if (Math.abs(nx - m.x) + Math.abs(nz - m.z) > 0.001) e.model.rotation.y = Math.atan2(nx - m.x, nz - m.z);
+    m.set(nx, 10 * Math.min(up, down), nz);
+    e.moving = true;
+    if (Math.random() < dt * 1.5) sfx('flap');
+    if (f.t >= f.next && f.t < f.dur - 2 && !f.forced) {
+      f.next = f.t + 1.8 / this.diff.speed;
+      const a = e.def.aoe?.sky_fire || { shape: 'circle', r: 3.4, count: 4, spread: 7, dur: 1.4 };
+      this.queueAoe(e, SPELLS.sky_fire, this.aoeShapes(e, a), a.dur / Math.sqrt(this.diff.speed));
+      w.breathFx(this.mouthPos(e), Math.atan2(w.player.position.x - m.x, w.player.position.z - m.z), 6, 0.5, 0xff7a1a, 20);
+    }
+    if (f.t >= f.dur) {
+      e.fly = null;
+      m.y = 0;
+      e.model.userData.setFlying?.(false);
+      sfx('bighit');
+      w.shake(0.7);
+      w.groundBurst(m.x, m.z, 0xc8a878, 30, 6);
+      const quake = e.def.aoe?.landing_quake;
+      if (quake) this.queueAoe(e, SPELLS.landing_quake, [{ ...quake, x: m.x, z: m.z }], quake.dur);
+      if (f.forced) { e.stunUntil = this.now + 3.5; w.float(e.model, '💫 Grounded!', 'status'); }
+      e.nextAttack = this.now + 1.5;
+    }
+  }
+
+  mouthPos(e) {
+    const mouth = e.model.userData.mouth;
+    if (!mouth) return e.model.position.clone().setY(e.model.position.y + 2);
+    const v = e.model.position.clone();
+    mouth.getWorldPosition(v);
+    return v;
+  }
+
+  // An area attack that goes off after `dur` seconds, not tied to a wind-up.
+  queueAoe(e, spell, shapes, dur) {
+    for (const sp of shapes) this.world.telegraph({ ...sp, dur });
+    this.pending.push({ at: this.now + dur, e, spell, shapes });
+    sfx('warn');
   }
 
   chooseSpell(e) {
@@ -477,7 +560,7 @@ export class Combat {
   startAttack(e) {
     const spell = this.chooseSpell(e);
     const speed = this.diff.speed;
-    e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15);
+    e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15) * (e.slowUntil > this.now ? 1 + e.slowAmt : 1);
     if (!spell) return;
     e.cd[spell.id] = this.now + (1 + spell.pips * 2.4) / speed;
     // big area attacks are drawn on the ground first: step out of them!
@@ -487,6 +570,7 @@ export class Combat {
       const shapes = this.aoeShapes(e, aoe);
       e.cast = { spell, t: 0, dur, aoe: shapes, tele: shapes.map(sp => this.world.telegraph({ ...sp, dur })) };
       sfx('warn');
+      if (aoe.breath) { e.model.userData.roar?.(); sfx('roar'); }
       return;
     }
     const windup = (e.def.range > 3 ? 0.35 + spell.pips * 0.2 : 0.45) / Math.sqrt(speed);
@@ -514,6 +598,12 @@ export class Combat {
     const color = SCHOOLS[spell.school].color;
     w.castPose(e.model);
     for (const sp of c.aoe) {
+      if (sp.breath) {
+        e.model.userData.breathe?.(0.9);
+        w.breathFx(this.mouthPos(e), sp.dir, sp.r, sp.angle, color, 70);
+      }
+      if (sp.charge && e.state !== 'dead') w.dashEnemy(e, sp.dir, sp.len - 1);
+      if (sp.breath) continue;
       if (sp.shape === 'line') {
         for (let d = 1; d <= sp.len; d += 3) w.groundBurst(sp.x + Math.sin(sp.dir) * d, sp.z + Math.cos(sp.dir) * d, color, 6, 4);
       } else if (sp.shape === 'cone') {
@@ -614,16 +704,25 @@ export class Combat {
       for (const e of w.enemies) if (e.state !== 'dead') this.tickEnemy(e);
     }
 
+    // queued area attacks go off
+    if (this.pending.length) {
+      const due = this.pending.filter(q => t >= q.at);
+      this.pending = this.pending.filter(q => t < q.at);
+      for (const q of due) if (q.e.state !== 'dead') this.resolveAoe(q.e, { spell: q.spell, aoe: q.shapes });
+    }
+
     let fighting = false, boss = false;
+    const gone = [];
     for (const e of w.enemies) {
       if (e.hp === undefined) this.initEnemy(e);
       if (e.state === 'dead') {
         if (!e.noRespawn && t > e.respawnAt) { w.respawnEnemy(e); this.initEnemy(e); }
+        else if (e.noRespawn && !e.def.rift && t > e.respawnAt - 15) gone.push(e);
         continue;
       }
       const d = flat(e.model.position, pp);
       if (e.state === 'idle' && d > 90) { e.moving = false; continue; }  // far away: asleep
-      const speed = e.def.speed * this.diff.speed;
+      const speed = e.def.speed * this.diff.speed * (e.slowUntil > t ? 1 - e.slowAmt : 1);
       if (e.state === 'idle') {
         this.wander(e, dt);
         if (alivePlayer && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
@@ -637,7 +736,15 @@ export class Combat {
         fighting = true;
         if (e.def.boss) boss = true;
         const leash = e.def.boss ? 40 : 26;
-        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; this.clearCast(e); continue; }
+        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) {
+          e.state = 'return';
+          this.clearCast(e);
+          if (e.fly) { e.fly = null; e.model.position.y = 0; e.model.userData.setFlying?.(false); }
+          continue;
+        }
+        if (e.fly) { this.updateFlight(e, dt); this.updateBar(e); continue; }
+        if (e.stunUntil > t) { e.moving = false; this.updateBar(e); continue; }
+        if (e.flyPending && !(e.rendUntil > t)) { const cfg = e.flyPending; e.flyPending = null; this.startFlight(e, cfg); continue; }
         const range = e.def.speed <= 0 ? Math.max(e.def.range, 26) : e.def.range;
         if (e.cast) {
           e.cast.t += dt;
@@ -661,6 +768,8 @@ export class Combat {
       }
       this.updateBar(e);
     }
+
+    for (const e of gone) w.removeEnemy(e);
 
     // pets join the fight
     if (fighting && alivePlayer && w.pet && PETS[p.activePet]) {

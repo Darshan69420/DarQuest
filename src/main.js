@@ -10,10 +10,13 @@ import {
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
-  setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem, setRunHp, givePet,
+  setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem, setRunHp, givePet, recordShout,
 } from './state.js';
 import { Rift, UPGRADES } from './rift.js';
 import * as RU from './ui_rift.js';
+import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
+import { WORD_WALLS } from './maps.js';
+import { openShouts } from './ui_dragon.js';
 import { settings, actionOf, onSettings, keyFor, keyLabel } from './settings.js';
 import { Gatherer } from './skilling.js';
 import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
@@ -191,6 +194,11 @@ function refresh() {
     world.setNpcMarker(id, marker, side);
   }
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
+  for (const w of WORD_WALLS) {
+    const known = shoutWords(player, w.shout) > 0;
+    w.model?.userData.setLearned?.(known);
+    w.label?.el.classList.toggle('learned', known);
+  }
   SK.updateBuffs(player);
 }
 
@@ -216,26 +224,29 @@ function checkArea() {
 function questTargetPos() {
   const t = questTarget(player);
   if (!t) return null;
+  const here = zoneAt(world.player.position.x);
+  // the target is in another zone: point at the portal that leads there (or home first)
+  const via = (x) => {
+    const zone = zoneAt(x);
+    if (zone === here) return null;
+    const pt = PORTALS.find(pt => zoneAt(pt.x) === here && zoneAt(pt.to.x) === zone) || PORTALS.find(pt => zoneAt(pt.x) === here);
+    return pt ? { x: pt.x, z: pt.z } : null;
+  };
+  if (t.shout) {
+    const w = WORD_WALLS.find(x => x.shout === t.shout);
+    return via(w.x) || { x: w.x, z: w.z };
+  }
   if (t.npc) {
     const n = world.npcs.find(x => x.id === t.npc);
     if (!n) return null;
     const pos = n.model.position;
-    // pointing across zones? point to the portal instead
-    if (zoneAt(pos.x) !== zoneAt(world.player.position.x)) {
-      const pt = PORTALS.find(pt => zoneAt(pt.x) === zoneAt(world.player.position.x));
-      return pt ? { x: pt.x, z: pt.z } : null;
-    }
-    return { x: pos.x, z: pos.z };
+    return via(pos.x) || { x: pos.x, z: pos.z };
   }
-  const here = zoneAt(world.player.position.x);
   const p = world.player.position;
   let best = null, bestD = Infinity;
   for (const e of world.enemies) {
     if (e.def.id !== t.enemy) continue;
-    if (zoneAt(e.home.x) !== here) {
-      const pt = PORTALS.find(pt => zoneAt(pt.x) === here);
-      return pt ? { x: pt.x, z: pt.z } : null;
-    }
+    if (zoneAt(e.home.x) !== here) return via(e.home.x);
     const d = Math.hypot(e.home.x - p.x, e.home.z - p.z);
     if (d < bestD) { bestD = d; best = { x: e.home.x, z: e.home.z }; }
   }
@@ -287,7 +298,7 @@ function talk(id) {
   const extra = [];
   if (npc.service === 'tutor') extra.push({ label: '📚 Learn Spells', action: () => UI.openTutor(player, onChange) });
   if (npc.service === 'shop') extra.push({ label: '🧪 Potions & Pets', action: () => UI.openShop(player, onChange) });
-  if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange) });
+  if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange, npc.stock, `🎩 ${npc.name}`) });
   if (npc.service === 'guild') extra.push({ label: '🌾 Tools & Trading', action: () => SK.openGuildShop(player, onChange) });
   for (const svc of extraServices) if (svc.npc === id) extra.push({ label: svc.label, action: svc.action });
   const side = npcSideQuests(player, id);
@@ -359,7 +370,9 @@ function completeQuest(q) {
   announceLevels(levels);
   player.quest = { index: player.quest.index + 1, state: 'available', progress: 0 };
   if (player.quest.index === 7) setTimeout(() => UI.toast('🌀 The <b>Spiral Door</b> in the courtyard has awakened…', 'good'), 1200);
-  if (!QUESTS[player.quest.index]) setTimeout(() => UI.toast('🏆 <b>Chapter 2 complete!</b> You are a legend of Starfall!', 'good'), 1200);
+  if (player.quest.index === 14) setTimeout(() => UI.toast('🐉 <b>Chapter 3: Wings of Ruin.</b> A new Spiral Door has opened in the courtyard: the Dragonspire Peaks await.', 'good'), 1800);
+  if (q.reward.voice) setTimeout(() => UI.toast('🗣️ You have the <b>Voice</b>. Read Word Walls to learn dragon shouts!', 'good'), 1200);
+  if (!QUESTS[player.quest.index]) setTimeout(() => UI.toast('🏆 <b>Main story complete!</b> You are a legend of Starfall, and dragonborn besides!', 'good'), 1200);
   refresh();
   save(player);
 }
@@ -605,7 +618,49 @@ function openRiftKeeper() {
 extraServices.push({ npc: 'nyx', label: '🌀 The Endless Rift', action: openRiftKeeper });
 world.extraInteractables = [...(world.extraInteractables || []), () => (player && !rift.active ? [{ id: 'x:riftgate', x: 21, z: 17, r: 4, label: 'enter the Endless Rift' }] : [])];
 
+// ------------------------------------------------------------ dragon shouts
+
+world.extraInteractables.push(() => WORD_WALLS.map(w => ({ id: 'x:wall:' + w.id, x: w.x, z: w.z, r: 4.6, label: 'read the Word Wall' })));
+
+function readWall(w) {
+  const s = SHOUTS[w.shout];
+  if (!player.dragon.voice) return UI.dialog('Word Wall', 'Ancient runes', 'The claw-marked runes glow faintly, but their meaning slips away from you. Perhaps someone in the Dragonspire Peaks can teach you to hear the Voice in the stone.');
+  if (shoutWords(player, w.shout) > 0) return UI.dialog('Word Wall', s.name, `The wall is quiet. You already know ${s.words[0]} (${s.meaning[0]}). Dragon souls can teach you its deeper words.`);
+  learnWord(player, w.shout);
+  world.soulFx(w.model, s.color);
+  Audio.sfx('shout');
+  world.float(world.player, s.words[0], 'shout');
+  UI.toast(`🐉 Word of Power: <b>${s.words[0]}</b> (${s.meaning[0]})<br>You learned <b>${s.name}</b>! Press ${keyLabel(keyFor('shout'))} to shout.`, 'good');
+  if (recordShout(player, w.shout)) {
+    UI.toast(`📜 <b>${UI.esc(currentQuest(player).name)}</b>: ready to hand in!`, 'quest');
+    Audio.sfx('quest');
+  }
+  buildHotbar();
+  refresh();
+  save(player);
+}
+
+function doShout() {
+  if (!inExplore()) return;
+  const id = player.dragon.equipped;
+  if (!id) return UI.combatMessage(player.dragon.voice ? 'Learn a shout at a Word Wall first.' : 'You do not have the Voice... yet.');
+  const t = world.time;
+  if (t < (combat.shoutReady || 0)) return UI.combatMessage('Your voice needs to rest');
+  if (t < combat.etherealUntil) return;
+  gatherer.stop();
+  const tg = combat.target;
+  if (tg && tg.state !== 'dead' && id !== 'sprint') combat.faceTarget(tg);
+  if (castShout(player, { world, combat })) {
+    combat.shoutTotal = SHOUTS[id].cooldown[shoutWords(player, id) - 1];
+    combat.shoutReady = t + combat.shoutTotal;
+  }
+}
+
+UI.uiHooks.openShouts = () => openShouts(player, { onChange: () => { buildHotbar(); save(player); } });
+UI.uiHooks.shoutIcon = (id) => SHOUTS[id]?.icon;
+
 function onExtraInteract(id) {
+  if (id.startsWith('x:wall:')) { readWall(WORD_WALLS.find(w => 'x:wall:' + w.id === id)); return true; }
   if (id === 'x:riftgate') { Audio.sfx('click'); openRiftKeeper(); return true; }
   if (id.startsWith('x:rift:')) return rift.interact(id);
   return false;
@@ -618,6 +673,7 @@ function buildHotbar() {
     onDodge: () => inExplore() && combat.dodge(),
     onPotion: () => inExplore() && drinkPotion(),
     onTarget: () => inExplore() && combat.cycleTarget(),
+    onShout: () => doShout(),
   });
 }
 
@@ -646,6 +702,17 @@ function rewardKill(e) {
   }
   for (const it of loot.items) UI.toast(`🎁 <b>${UI.esc(GEAR[it.id].name)}</b> ${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, 'good');
   for (const id of loot.pets) UI.toast(`🐾 New pet: <b>${PETS[id].name}</b>! Press C to summon it.`, 'good');
+  if (loot.mats.length) UI.toast(loot.mats.map(m => `${ITEMS[m.id].icon} ${m.n > 1 ? m.n + '× ' : ''}<b>${ITEMS[m.id].name}</b>`).join(' · '), 'good');
+  // dragons give up their souls to those with the Voice
+  if (def.dragon && player.dragon.voice) {
+    const n = def.souls || (Math.random() < (def.soul || 0) ? 1 : 0);
+    if (n) {
+      player.dragon.souls += n;
+      world.soulFx(e.model);
+      Audio.sfx('shrine');
+      setTimeout(() => UI.toast(`🐉 You absorbed ${n > 1 ? `<b>${n} dragon souls</b>` : 'a <b>dragon soul</b>'}! Spend souls on deeper shout words (B → Shouts).`, 'good'), 1600);
+    }
+  }
   if (loot.items.length || loot.pets.length) Audio.sfx('loot');
   if (loot.pets.length) world.setPet(player.activePet);
   if (def.boss) UI.toast(`🏆 <b>${UI.esc(def.name)}</b> is defeated! +${xp} XP · +${gold} gold`, 'good');
@@ -793,6 +860,7 @@ window.addEventListener('keydown', (e) => {
     case 'bag': SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }); break;
     case 'journal': SK.openJournal(player); break;
     case 'eat': eat(); break;
+    case 'shout': doShout(); break;
     default: onAction?.(act, e);
   }
 });

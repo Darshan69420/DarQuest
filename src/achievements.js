@@ -31,6 +31,7 @@ export const LORE = {
   yeti: 'Shaggy giants from the high peaks. Surprisingly gentle, when nobody is watching.',
   ice_golem: 'Rime Golems, carved by the Queen herself. A pale crystal beats where a heart should be.',
   frost_drake: 'Dragons of the far north, with breath so cold it freezes spells in the air.',
+  pale_warden: 'Morvain kept the Pale Magister\'s vault for a hundred years, and forgot how to do anything else.',
   sylvara: 'The Queen of the Frozen Crown. Once kind. Then the Pale Magister came to court.',
 };
 
@@ -56,6 +57,9 @@ export const ACHIEVEMENTS = [
   A('vorathrax', 'Dragonslayer', '🐉', 'Slay Vorathrax, the Sky Tyrant', p => bossKilled(p, 'vorathrax'), { title: 'the Dragonborn' }),
   A('sylvara', 'Winter\'s End', '👑', 'Free Queen Sylvara from the Magister\'s spell', p => bossKilled(p, 'sylvara'), { gold: 1000, title: 'the Thaw' }),
   A('frost_dragons', 'Wings of Winter', '❄️', 'Slay 10 Frost Dragons', p => (p.bestiary?.frost_drake || 0) >= 10, { gold: 600, title: 'Frostwing' }),
+  A('undercroft', 'Into the Undercroft', '⚰️', 'Conquer the Hollow Undercroft', p => (p.undercroft?.clears || 0) + (p.undercroft?.heroicClears || 0) >= 1, { gold: 400 }),
+  A('undercroft_heroic', 'Heroic Delver', '🗝️', 'Conquer the Hollow Undercroft on Heroic', p => (p.undercroft?.heroicClears || 0) >= 1, { gold: 1200, title: 'the Tomb Breaker' }),
+  A('undercroft_fast', 'Speed Delver', '⏱️', 'Clear the Undercroft in under 6 minutes', p => [p.undercroft?.best, p.undercroft?.bestHeroic].some(t => t && t < 360), { gold: 600 }),
   A('combo_50', 'Combo Artist', '🌠', 'Land 50 combo strikes', p => (p.stats_log.combos || 0) >= 50, { gold: 200 }),
   A('night_20', 'Night Watch', '🌙', 'Defeat 20 night spirits', p => (p.stats_log.nightKills || 0) >= 20, { gold: 300, title: 'the Night Stalker' }),
   A('hunter_master', 'Know Thy Enemy', '📖', 'Reach Master hunter rank on any foe (100 defeats)', p => Object.values(p.bestiary || {}).some(n => n >= 100), { gold: 500 }),

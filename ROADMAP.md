@@ -22,7 +22,7 @@ Built so far (see the README for the full feature list):
 | 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
 | 2. RPG depth | ✅ Mostly done (talents, gear rarity, crafting). Still to do: a secondary school, set bonuses, a bank |
 | 3. World and story | 🟡 4 of 6 worlds (Stormspire, Thornwood and the Hollow Deep remain) |
-| 4. Dungeons and bosses | 🟡 The Endless Rift and boss mechanics. Still to do: hand-built dungeons with puzzles |
+| 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
 | 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
 | 6. Endgame | 🟡 Arena and Slayer done. Still to do: level cap 50, weekly challenges, New Game+ |
 | 7. Presentation | 🟡 Per-zone music, weather and aurora. Still to do: accessibility options |

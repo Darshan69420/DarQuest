@@ -140,6 +140,12 @@ export const SPELLS = {
   frozen_tomb:    { name: 'Frozen Tomb',     school: 'frost',   pips: 0, type: 'shield', pct: 0.6, enemy: true },
   winters_mend:   { name: 'Winter\'s Mend',  school: 'frost',   pips: 3, type: 'heal', amount: 1600, enemy: true },
 
+  // ---------- the Hollow Undercroft ----------
+  soul_rend:      { name: 'Soul Rend',       school: 'umbral',  pips: 3, type: 'damage', min: 150, max: 190, target: 'one', enemy: true },
+  bone_storm:     { name: 'Bone Storm',      school: 'umbral',  pips: 4, type: 'damage', min: 170, max: 210, target: 'one', enemy: true },
+  grave_nova:     { name: 'Grave Nova',      school: 'umbral',  pips: 4, type: 'damage', min: 190, max: 230, target: 'one', enemy: true },
+  warden_mend:    { name: 'Warden\'s Mend',  school: 'umbral',  pips: 3, type: 'heal', amount: 500, enemy: true },
+
   // ---------- Pet spells (cast for free when a pet "may-casts") ----------
   pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
   pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
@@ -315,6 +321,14 @@ export const ENEMIES = {
     speed: 3.4, aggro: 9,
     drops: [{ mat: 'dragon_scale', chance: 0.5 }, { item: 'wyvern_wing_boots', chance: 0.06 }, { item: 'wyvern_cape', chance: 0.05 }, { item: 'storm_orb', chance: 0.04 }, { pet: 'stormwing', chance: 0.02 }],
   },
+  // ---------------- the Hollow Undercroft (scaled to your level when you enter) ----------------
+  pale_warden: {
+    name: 'Morvain, the Pale Warden', school: 'umbral', level: 12, hp: 2600, xp: 1500, gold: [200, 260], model: 'pale_warden', boss: true, dungeon: true,
+    spells: ['soul_rend', 'bone_storm', 'soul_rend', 'grave_nova', 'wither', 'warden_mend'],
+    resist: { umbral: 0.4 }, boost: { arcane: 0.2 }, speed: 1.6, aggro: 16, powerPipChance: 0.5,
+    drops: [],
+  },
+
   // ---------------- Chapter 4: Glacierreach ----------------
   snow_wolf: {
     name: 'Snowfang Wolf', school: 'frost', level: 22, hp: 1900, xp: 620, gold: [40, 60], model: 'snow_wolf',
@@ -394,6 +408,11 @@ const AOE = {
   ice_golem:       { glacier_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, ice_lance: { shape: 'line', len: 14, width: 2, dur: 1 } },
   frost_wraith:    { ice_lance: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
   frost_drake:     { frost_breath: { shape: 'cone', r: 12, angle: 0.9, dur: 1.3, breath: true }, glacier_slam: { shape: 'circle', at: 'self', r: 6, dur: 1.2 } },
+  pale_warden: {
+    soul_rend: { shape: 'line', len: 18, width: 2.4, dur: 1.1 },
+    bone_storm: { shape: 'circle', r: 3, count: 5, spread: 8, dur: 1.4 },
+    grave_nova: { shape: 'circle', at: 'self', inner: 5, r: 16, dur: 1.8 },
+  },
   sylvara: {
     ice_lance: { shape: 'line', len: 22, width: 2.4, dur: 1.1 },
     blizzard_storm: { shape: 'circle', r: 3.4, count: 6, spread: 9, dur: 1.6 },
@@ -416,7 +435,7 @@ const AOE = {
 for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
+const RANGED = { pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
@@ -870,6 +889,13 @@ export const GEAR = {
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
 
+  // ---------- the Hollow Undercroft (Warden's set) ----------
+  wardens_cowl:      { name: 'Warden\'s Cowl',      slot: 'hat',     level: 14, stats: { hp: 200, dmg: 9, resist: 5 }, color: 0x2a2438 },
+  wardens_shroud:    { name: 'Warden\'s Shroud',    slot: 'robe',    level: 15, stats: { hp: 380, resist: 12, heal: 6 }, color: 0x2a2438 },
+  bonebound_boots:   { name: 'Bonebound Boots',     slot: 'boots',   level: 14, stats: { hp: 160, acc: 6, pip: 4 } },
+  soulglass_orb:     { name: 'Soulglass Orb',       slot: 'offhand', level: 16, stats: { dmg: 12, acc: 5, heal: 6 }, color: 0x7affd0 },
+  morvains_crown:    { name: 'Morvain\'s Bone Crown', slot: 'hat',   level: 20, stats: { hp: 320, dmg: 14, pip: 8, acc: 5 }, color: 0xf0e6d0 },
+
   // ---------- frost gear (Chapter 4) ----------
   frostweave_hood:   { name: 'Frostweave Hood',     slot: 'hat',     level: 22, stats: { hp: 300, dmg: 11, resist: 6 }, color: 0x9fd6ff, price: 2400 },
   glacial_robe:      { name: 'Glacial Robe',        slot: 'robe',    level: 23, stats: { hp: 560, resist: 16, heal: 8 }, color: 0xdff6ff, price: 2800 },
@@ -954,6 +980,21 @@ for (const [id, p] of Object.entries(PETS)) p.id = id;
 // ---------------------------------------------------------------- zones
 
 // Walkable regions for each zone (also drawn on the minimap).
+// The Hollow Undercroft: a hand-built dungeon beneath Hollow Lane's crypt (see dungeon.js).
+// Rooms in local coordinates (x relative to UNDER_X).
+export const UNDER_X = -6000;
+export const UNDER_ROOMS = [
+  { id: 'entry',    type: 'rect', x0: -8,  x1: 8,  z0: 0,   z1: 16 },
+  { id: 'c1',       type: 'rect', x0: -2,  x1: 2,  z0: 16,  z1: 24 },
+  { id: 'plates',   type: 'rect', x0: -10, x1: 10, z0: 24,  z1: 44 },
+  { id: 'c2',       type: 'rect', x0: -2,  x1: 2,  z0: 44,  z1: 52 },
+  { id: 'beam',     type: 'rect', x0: -12, x1: 12, z0: 52,  z1: 76 },
+  { id: 'c3',       type: 'rect', x0: -2,  x1: 2,  z0: 76,  z1: 84 },
+  { id: 'guard',    type: 'rect', x0: -12, x1: 12, z0: 84,  z1: 104 },
+  { id: 'gauntlet', type: 'rect', x0: -3,  x1: 3,  z0: 104, z1: 137 },
+  { id: 'boss',     type: 'circle', x: 0, z: 152, r: 18 },
+];
+
 export const ZONES = {
   academy: {
     name: 'Starfall Academy',
@@ -1023,6 +1064,15 @@ export const ZONES = {
     atmosphere: { fog: 0x8ab0d8, top: 0x0a1a40, mid: 0x4a7ab8, bottom: 0xc8e8ff, hemi: 0xe0f0ff, fogNear: 40, fogFar: 190 },
     music: 'frost',
   },
+  undercroft: {
+    name: 'The Hollow Undercroft',
+    regions: UNDER_ROOMS.map(r => r.type === 'circle' ? { ...r, x: UNDER_X + r.x } : { ...r, x0: UNDER_X + r.x0, x1: UNDER_X + r.x1 }),
+    walk: 'underWalk',
+    freeCam: true,
+    spawn: { x: UNDER_X, z: 5, heading: 0 },
+    atmosphere: { fog: 0x12101c, top: 0x040308, mid: 0x1a1428, bottom: 0x2a2238, hemi: 0xa8b8d8, fogNear: 20, fogFar: 78, hemiI: 1.05, sunI: 1.1 },
+    music: 'crypt',
+  },
   // the Endless Rift is rebuilt for every floor (see rift.js)
   rift: {
     name: 'The Endless Rift',
@@ -1037,7 +1087,7 @@ export const ZONES = {
 };
 export const DRAGON_X = 1400;
 export const GLACIER_X = 2300;
-export function zoneAt(x) { return x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [

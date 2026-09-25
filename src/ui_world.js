@@ -3,6 +3,7 @@ import { MOUNTS, WAYSTONES, ZONES, SCHOOLS, GEAR } from './data.js';
 import { openModal, closeModal, esc, toast, statsText } from './ui.js';
 import { COMPANIONS } from './companions.js';
 import { ARENA_RANKS, ARENA_SHOP, rivalFor, arenaRewards } from './arena.js';
+import { clock, WARDEN_SET } from './dungeon.js';
 
 // Where each land sits on the atlas (percent of the map) and how the Spiral Doors join them.
 const LANDS = {
@@ -118,4 +119,21 @@ export function openArena(p, { onFight, onBuy }) {
     }));
   };
   openModal('🏟️ Arena of Stars', '', render);
+}
+
+// ------------------------------------------------------------ the Hollow Undercroft
+
+export function openUndercroft(p, { level, onEnter }) {
+  const u = p.undercroft;
+  const heroicOpen = u.clears + u.heroicClears > 0;
+  openModal('⚰️ The Hollow Undercroft', `<p class="modal-note">Beneath Hollowmere's crypt lies a vault built for the <b>Pale Magister</b>. Its gates open only for those who solve its rooms: a lever, a rune puzzle, a mirror-and-light puzzle, a guard hall, a blade gauntlet, and <b>Morvain, the Pale Warden</b>.</p>
+    <div class="journal-q main"><b>Guardians match your level (${level}).</b><br><span>Cleared ${u.clears}× · Heroic ${u.heroicClears}× · Best ${u.best ? clock(u.best) : '—'} · Heroic best ${u.bestHeroic ? clock(u.bestHeroic) : '—'}</span>
+      <br><small>Rewards: gold, XP, two rare or epic gear pieces, a chance at the Warden's set (${WARDEN_SET.map(id => esc(GEAR[id].name)).join(', ')}) and Morvain's Bone Crown.</small></div>
+    <p><button class="btn primary big" id="uc-normal">⚰️ Descend</button>
+      <button class="btn big ${heroicOpen ? '' : 'disabled'}" id="uc-heroic" ${heroicOpen ? '' : 'disabled'}>💀 Heroic${heroicOpen ? '' : ' (clear it once first)'}</button></p>
+    <p class="modal-note">Heroic: guardians are 3 levels higher, with more health and harder hits. Loot is epic or legendary, and a Warden's set piece is guaranteed. Falling or leaving resets the Undercroft.</p>`,
+  (body) => {
+    body.querySelector('#uc-normal').addEventListener('click', () => { closeModal(); onEnter(false); });
+    body.querySelector('#uc-heroic').addEventListener('click', () => { if (!heroicOpen) return; closeModal(); onEnter(true); });
+  });
 }

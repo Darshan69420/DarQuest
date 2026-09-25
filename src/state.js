@@ -70,6 +70,7 @@ function upgrade(p) {
   p.companion ??= null;
   p.companionMode ??= 'fight';
   p.arena ??= { rank: 0, duel: 0, tokens: 0, wins: 0, champion: false };
+  p.undercroft ??= { clears: 0, heroicClears: 0, best: null, bestHeroic: null };
   return p;
 }
 

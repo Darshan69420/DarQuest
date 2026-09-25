@@ -8,7 +8,7 @@ import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
   ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS,
 } from './data.js';
-import { openAtlas, openStable, openInn, openArena } from './ui_world.js';
+import { openAtlas, openStable, openInn, openArena, openUndercroft } from './ui_world.js';
 import { Companion, COMPANIONS } from './companions.js';
 import { ARENA_X, ARENA_RANKS, arenaRewards } from './arena.js';
 import { checkAchievements, hunterBonus, displayName } from './achievements.js';
@@ -21,6 +21,7 @@ import {
   setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem, setRunHp, givePet, recordShout,
 } from './state.js';
 import { Rift, UPGRADES } from './rift.js';
+import { Undercroft, clock } from './dungeon.js';
 import * as RU from './ui_rift.js';
 import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
@@ -161,7 +162,7 @@ function buildTitle() {
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
-  if (p.pos && (zoneAt(p.pos.x) === 'rift' || zoneAt(p.pos.x) === 'arena')) p.pos = null;
+  if (p.pos && ['rift', 'arena', 'undercroft'].includes(zoneAt(p.pos.x))) p.pos = null;
   if (p.rift?.run) {
     const kept = Math.floor((p.rift.run.shards || 0) / 2);
     p.rift.shards += kept;
@@ -605,6 +606,69 @@ const rift = new Rift({
   },
 });
 
+// ------------------------------------------------------------ the Hollow Undercroft (dungeon)
+
+const LANE_END = { x: 2.4, z: 118, heading: Math.PI };
+const undercroft = new Undercroft({
+  world, combat,
+  getPlayer: () => player,
+  hooks: {
+    toast: (t, c) => UI.toast(t, c),
+    message: (t) => UI.combatMessage(t),
+    sfx: (n) => Audio.sfx(n),
+    giveGear: (id, rarity) => { const r = giveItem(player, id, rarity); return `<span style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</span>${r.where === 'sold' ? ' (bag full: sold)' : ''}`; },
+    openEntrance: () => openUndercroftDoor(),
+    leave: () => fadeThen(() => {
+      undercroft.end('leave');
+      world.teleport(LANE_END);
+      area = null;
+      checkArea();
+      save(player);
+      UI.toast('You climb back up the crypt stair. The Undercroft resets behind you.');
+    }),
+    onClear: (summary, lines) => {
+      const u = player.undercroft;
+      const key = summary.heroic ? 'bestHeroic' : 'best';
+      const newBest = !u[key] || summary.time < u[key];
+      if (newBest) u[key] = Math.round(summary.time);
+      if (summary.heroic) u.heroicClears++; else u.clears++;
+      const xp = Math.round((summary.heroic ? 1.6 : 1) * (300 + player.level * 90));
+      const levels = gainXp(player, xp);
+      Audio.sfx('chest');
+      fadeThen(() => {
+        world.teleport(LANE_END);
+        area = null;
+        checkArea();
+        save(player);
+        setTimeout(() => UI.resultScreen(`<h2 class="win">🏆 The Undercroft is conquered!</h2>
+          <p>${summary.heroic ? '<b>Heroic</b> clear' : 'Cleared'} in <b>${clock(summary.time)}</b>${newBest ? ' · <b>new best time!</b>' : ''} · ${summary.kills} foes defeated</p>
+          <p>+${xp} XP · ${lines.join(' · ')}</p>
+          ${summary.heroic ? '' : '<p class="tip">Heroic mode is now open: tougher guardians, better loot (epic and legendary).</p>'}`).then(() => { announceLevels(levels); refresh(); }), 400);
+      });
+    },
+  },
+});
+
+function undercroftUnlocked() { return player.quest.index >= 7 || player.level >= 10; }
+
+function openUndercroftDoor() {
+  if (!undercroftUnlocked()) { UI.combatMessage('The crypt door is sealed with Hollowmere\'s mark. Defeat Lord Hollowmere first.'); Audio.sfx('fail'); return; }
+  Audio.sfx('click');
+  openUndercroft(player, {
+    level: Math.max(10, player.level),
+    onEnter: (heroic) => fadeThen(() => {
+      gatherer.stop();
+      if (world.mounted) world.dismount?.();
+      undercroft.start(heroic);
+      area = null;
+      checkArea();
+      showZoneName(heroic ? 'The Hollow Undercroft · Heroic' : 'The Hollow Undercroft');
+      refresh();
+      save(player);
+    }),
+  });
+}
+
 combat.onRevive = () => {
   if (!rift.active) return null;
   const m = rift.mods();
@@ -731,7 +795,7 @@ function openWorldAtlas() {
   openAtlas(player, {
     here: zoneAt(world.player.position.x),
     questZone: questZone(),
-    canTravel: !combat.inCombat && !rift.active,
+    canTravel: !combat.inCombat && !rift.active && !undercroft.active,
     onTravel: (ws) => fadeThen(() => {
       gatherer.stop();
       world.teleport({ x: ws.x + 2.5, z: ws.z + 2.5, heading: world.heading });
@@ -942,6 +1006,7 @@ function onExtraInteract(id) {
   if (id.startsWith('x:wall:')) { readWall(WORD_WALLS.find(w => 'x:wall:' + w.id === id)); return true; }
   if (id === 'x:riftgate') { Audio.sfx('click'); openRiftKeeper(); return true; }
   if (id.startsWith('x:rift:')) return rift.interact(id);
+  if (id.startsWith('x:uc:')) return undercroft.interact(id);
   return false;
 }
 
@@ -1030,6 +1095,21 @@ async function playerDefeated() {
     save(player);
     return;
   }
+  if (undercroft.active) {
+    const summary = undercroft.end('death');
+    world.teleport(LANE_END);
+    await UI.resultScreen(`<h2 class="lose">Defeated in the Undercroft</h2><p>You wake up at the crypt door after ${clock(summary.time)} below, with half your health. The Undercroft resets, so the puzzles and gates start over.</p>
+      <p class="tip">Tip: read the rune tablet (E) before stepping on the plates, dodge through the blades just after one swings past, and shatter both Soul Pylons to break the Warden's ward.</p>`);
+    player.hp = Math.round(player.maxHp * 0.5);
+    player.mana = player.maxMana;
+    player.stats_log.deaths++;
+    world.mode = 'explore';
+    area = null;
+    checkArea();
+    refresh();
+    save(player);
+    return;
+  }
   if (rift.active) {
     const summary = rift.end('death');
     world.teleport({ x: 17, z: 12, heading: Math.PI });
@@ -1073,6 +1153,7 @@ world.onTick = (dt) => {
   if (buffsChanged) recalc(player);
   world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed') + (world.mounted ? MOUNTS[player.activeMount]?.speed || 0 : 0);
   rift.update(dt);
+  undercroft.update(dt);
   companion.update(dt);
   if (inHomestead()) {
     homestead.update(dt);
@@ -1130,7 +1211,7 @@ world.onTick = (dt) => {
   if (saveTimer > 5) {
     saveTimer = 0;
     player.clock = world.skyCycle.time;
-    if (!rift.active && !duel) player.pos = { x: world.player.position.x, z: world.player.position.z };
+    if (!rift.active && !duel && !undercroft.active) player.pos = { x: world.player.position.x, z: world.player.position.z };
     save(player);
   }
 };
@@ -1154,11 +1235,12 @@ function openGameMenu() {
       save(player);
       setTimeout(() => UI.resultScreen(RU.runSummaryHTML(summary)).then(() => refresh()), 400);
     }) }] : []),
+    ...(undercroft.active ? [{ label: '🏳️ Leave the Undercroft', action: () => undercroft.hooks.leave() }] : []),
     { label: '⚙️ Settings', action: () => UI.openSettings() },
     { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
     { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
-    { label: '🏠 Save & quit to title', action: () => { if (!rift.active) player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
+    { label: '🏠 Save & quit to title', action: () => { if (!rift.active && !undercroft.active) player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
   ]);
 }
 
@@ -1254,7 +1336,7 @@ setInterval(() => {
 
 // Handy for testing from the browser console.
 window.darquest = {
-  world, combat, UI, rift, homestead,
+  world, combat, UI, rift, homestead, undercroft,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

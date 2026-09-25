@@ -47,10 +47,11 @@ Every key can be changed in **Settings → Keys**.
 - **Four chapters of story (30 quests):** Hollow Lane (Lord Hollowmere), the Emberfall Wilds (Pyrrhon, the Molten King), the **Dragonspire Peaks**, where Vorathrax the Sky Tyrant flies above the battlefield and rains fire until you shout her down, and **Glacierreach**: the snowy town of Frostholm, the frozen Mirror Lake, the Rime Caverns and Queen Sylvara's ice castle under the northern lights.
 - **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
 - **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking and Slayer, each from level 1 to 99. Gather in Millbrook Meadow and beyond, then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations.
+- **The Hollow Undercroft (dungeon):** a hand-built dungeon under Hollow Lane with puzzles (a lever, a rune-plate memory puzzle, a mirror-and-light-beam puzzle), a locked guard hall with elite waves, a swinging-blade gauntlet, and Morvain the Pale Warden, whose ward you break by shattering soul pylons. It scales to your level, has a Heroic mode, best times, and the Warden's gear set.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear, pets and side quests:** 55+ gear pieces (drops, shops and crafting), 9 pets, the Gatherers' Guild quest chain, and a quest journal.
-- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 45 achievements, and titles like "the Dragonborn" or "the Rift Walker".
+- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 48 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
 - **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
@@ -69,6 +70,7 @@ src/items.js      materials, food, potions and tools
 src/skills.js     the 8 gathering/crafting skills, resource nodes and recipes
 src/sidequests.js side quests (the Gatherers' Guild and more)
 src/rift.js       the Endless Rift: floor generation, boons, upgrades
+src/dungeon.js    the Hollow Undercroft: puzzles, gates, traps and the Pale Warden
 src/shouts.js     dragon shouts
 src/homestead.js  building with blocks on your floating island
 src/gear.js       item rarities, bonus stats and legendary powers

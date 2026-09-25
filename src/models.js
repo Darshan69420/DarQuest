@@ -1184,6 +1184,7 @@ export function makeEnemy(kind) {
     case 'yeti': return yeti();
     case 'frost_drake': return makeDragon({ color: 0x9fd6ff, belly: 0xffffff, wing: 0x4d7ab0, horn: 0xdff6ff, wings: 2, size: 1.35, eye: 0x4dc8ff, frill: true });
     case 'frost_queen': return frostQueen();
+    case 'pale_warden': return paleWarden();
     case 'shade': return shade();
     case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
   }
@@ -2815,4 +2816,186 @@ export function makeAurora(world, width = 320, height = 30) {
     }
   };
   return g;
+}
+
+// ------------------------------------------------------------ the Hollow Undercroft (dungeon)
+
+const cryptStone = () => mat(0x5a5468);
+
+// A floor lever that swings over when pulled.
+export function makeLever() {
+  const g = new THREE.Group();
+  add(g, new THREE.BoxGeometry(1.1, 0.8, 0.9), cryptStone(), 0, 0.4, 0);
+  add(g, new THREE.BoxGeometry(0.5, 0.2, 0.7), mat(0x2b2733), 0, 0.85, 0);
+  const arm = dyn(group(g, 0, 0.85, 0));
+  add(arm, new THREE.CylinderGeometry(0.06, 0.07, 1.3, 8), mat(0x3a3644), 0, 0.65, 0);
+  add(arm, sph(0.16, 12, 10), mat(0xc0392b), 0, 1.3, 0);
+  let on = false, k = 0;
+  g.userData.set = (v) => { on = v; };
+  g.userData.anim = () => { k += ((on ? 1 : 0) - k) * 0.15; arm.rotation.x = -0.7 + k * 1.4; };
+  return finish(g, 0.03, 0.1);
+}
+
+// A pressure plate carved with a coloured rune that glows when stepped on.
+export function makePlate(color) {
+  const g = new THREE.Group();
+  add(g, new THREE.BoxGeometry(2.6, 0.22, 2.6), mat(0x4a4458), 0, 0.11, 0);
+  const rune = ownMat(darker(color, 0.45), { emissive: color, emissiveIntensity: 0.15 });
+  add(g, new THREE.TorusGeometry(0.75, 0.09, 6, 24), rune, 0, 0.24, 0, { rx: -Math.PI / 2, noOutline: true });
+  add(g, new THREE.OctahedronGeometry(0.4), rune, 0, 0.24, 0, { s: [1, 0.15, 1], noOutline: true });
+  g.userData.set = (state) => { rune.emissiveIntensity = state === 'lit' ? 1.4 : state === 'wrong' ? 0 : 0.15; };
+  return finish(g, 0.03, 0.1);
+}
+
+// A stone tablet with four sockets that flash the order of the runes.
+export function makeRuneTablet() {
+  const g = new THREE.Group();
+  add(g, new THREE.BoxGeometry(4.6, 3.4, 0.6), cryptStone(), 0, 1.9, 0);
+  add(g, new THREE.BoxGeometry(5, 0.35, 0.8), mat(0x6a6478), 0, 3.7, 0);
+  add(g, new THREE.BoxGeometry(5, 0.35, 0.8), mat(0x6a6478), 0, 0.2, 0);
+  const gems = [];
+  for (let i = 0; i < 4; i++) {
+    const m = ownMat(0x2a2438, { emissive: 0x000000, emissiveIntensity: 1.3 });
+    add(g, new THREE.CylinderGeometry(0.38, 0.38, 0.14, 18), m, -1.65 + i * 1.1, 2, 0.32, { rx: Math.PI / 2, noOutline: true });
+    gems.push(m);
+  }
+  g.userData.setGem = (i, color) => gems[i].emissive.set(color ?? 0x000000);
+  return finish(g, 0.03, 0.1);
+}
+
+// A mirror on a turning stand. Angle is set from outside.
+export function makeMirror() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.7, 0.85, 0.5, 10), cryptStone(), 0, 0.25, 0);
+  const turn = dyn(group(g, 0, 0.5, 0));
+  const frame = mat(0xb08a3a);
+  add(turn, new THREE.BoxGeometry(2, 0.14, 0.2), frame, 0, 0.1, 0);
+  add(turn, new THREE.BoxGeometry(2, 0.14, 0.2), frame, 0, 2.1, 0);
+  for (const s of [-1, 1]) add(turn, new THREE.BoxGeometry(0.14, 2.1, 0.2), frame, s * 0.95, 1.1, 0);
+  add(turn, new THREE.PlaneGeometry(1.8, 1.9), mat(0xdff6ff, { emissive: 0x6fb8ff, emissiveIntensity: 0.35, side: THREE.DoubleSide }), 0, 1.1, 0, { noOutline: true });
+  let want = 0;
+  g.userData.setAngle = (a) => { want = a; };
+  g.userData.anim = () => { turn.rotation.y += (want - turn.rotation.y) * 0.2; };
+  return finish(g, 0.03, 0.1);
+}
+
+// The crystal that shines the light beam.
+export function makeEmitter(color = 0xfff0a0) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.6, 0.8, 1.2, 8), cryptStone(), 0, 0.6, 0);
+  const c = dyn(add(g, new THREE.OctahedronGeometry(0.45), glowMat(color, 2.6), 0, 1.75, 0, { s: [1, 1.4, 1] }));
+  g.userData.anim = (t) => { c.rotation.y = t * 1.5; c.position.y = 1.75 + Math.sin(t * 2) * 0.08; };
+  return finish(g, 0.03, 0.1);
+}
+
+// The crystal socket the beam must reach. Lights up when it does.
+export function makeReceiver() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.6, 0.8, 1.2, 8), cryptStone(), 0, 0.6, 0);
+  add(g, new THREE.TorusGeometry(0.5, 0.08, 6, 16), mat(0xb08a3a), 0, 1.75, 0);
+  const m = ownMat(0x3a3448, { emissive: 0x000000, emissiveIntensity: 1.3 });
+  add(g, sph(0.34, 14, 10), m, 0, 1.75, 0);
+  g.userData.set = (on) => m.emissive.set(on ? 0xfff0a0 : 0x000000);
+  return finish(g, 0.03, 0.1);
+}
+
+// An iron gate that rises into its arch when opened.
+export function makePortcullis(width = 4) {
+  const g = new THREE.Group();
+  const stone = cryptStone(), iron = mat(0x2b2733);
+  for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.9, 4.6, 1), stone, s * (width / 2 + 0.45), 2.3, 0);
+  add(g, new THREE.BoxGeometry(width + 1.8, 0.9, 1), stone, 0, 4.8, 0);
+  add(g, new THREE.OctahedronGeometry(0.3), glowMat(0x7affd0, 2), 0, 4.8, 0.55, { s: [1, 1, 0.3] });
+  const bars = dyn(group(g, 0, 0, 0));
+  for (let x = -width / 2 + 0.3; x <= width / 2 - 0.25; x += 0.5) {
+    add(bars, new THREE.CylinderGeometry(0.06, 0.06, 4.1, 6), iron, x, 2.2, 0);
+    add(bars, new THREE.ConeGeometry(0.09, 0.3, 6), iron, x, 0.05, 0, { rx: Math.PI });
+  }
+  for (const y of [1.1, 2.5, 3.8]) add(bars, new THREE.BoxGeometry(width - 0.2, 0.1, 0.12), iron, 0, y, 0);
+  let open = false, k = 0;
+  g.userData.set = (v) => { open = v; };
+  g.userData.snap = (v) => { open = v; k = v ? 1 : 0; bars.position.y = k * 3.9; };
+  g.userData.anim = () => { k += ((open ? 1 : 0) - k) * 0.08; bars.position.y = k * 3.9; };
+  return finish(g, 0.03, 0.1);
+}
+
+// A great blade that swings across a corridor.
+export function makePendulum(width = 6) {
+  const g = new THREE.Group();
+  const stone = mat(0x4a4458), iron = mat(0x3a3644), steel = mat(0xc8ccd8);
+  for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.7, 5.8, 0.8), stone, s * (width / 2 + 0.35), 2.9, 0);
+  add(g, new THREE.BoxGeometry(width + 1.4, 0.6, 0.9), stone, 0, 5.8, 0);
+  const pivot = dyn(group(g, 0, 5.4, 0));
+  add(pivot, new THREE.CylinderGeometry(0.07, 0.07, 3.6, 6), iron, 0, -1.8, 0);
+  add(pivot, new THREE.TorusGeometry(1.2, 0.16, 4, 18, Math.PI), steel, 0, -3.5, 0, { rz: Math.PI, s: [1, 0.9, 0.25] });
+  add(pivot, new THREE.BoxGeometry(0.5, 0.5, 0.3), iron, 0, -3.5, 0);
+  g.userData.setAngle = (a) => { pivot.rotation.z = a; };
+  return finish(g, 0.03, 0.1);
+}
+
+// A soul pylon: an obelisk that feeds the Warden's ward until you shatter its crystal.
+export function makePylon() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.9, 1.1, 0.6, 6), cryptStone(), 0, 0.3, 0);
+  add(g, new THREE.CylinderGeometry(0.35, 0.6, 3.4, 6), mat(0x3a3448), 0, 2.2, 0);
+  const m = ownMat(0x2a4a40, { emissive: 0x7affd0, emissiveIntensity: 1.2 });
+  const crystal = dyn(add(g, new THREE.OctahedronGeometry(0.55), m, 0, 4.6, 0, { s: [1, 1.5, 1] }));
+  let on = true;
+  g.userData.set = (v) => { on = v; m.emissiveIntensity = v ? 1.2 : 0; crystal.visible = v; };
+  g.userData.anim = (t) => { if (on) { crystal.rotation.y = t * 2; crystal.position.y = 4.6 + Math.sin(t * 3) * 0.15; } };
+  return finish(g, 0.03, 0.1);
+}
+
+export function makeSarcophagus() {
+  const g = new THREE.Group();
+  const stone = mat(0x6a6478), dark = mat(0x4a4458);
+  add(g, new THREE.BoxGeometry(1.6, 0.9, 3), dark, 0, 0.45, 0);
+  add(g, new THREE.BoxGeometry(1.8, 0.3, 3.2), stone, 0, 1.05, 0);
+  add(g, sph(0.35, 12, 8), stone, 0, 1.3, -1, { s: [1, 0.6, 1.1] });
+  add(g, new THREE.BoxGeometry(0.9, 0.2, 1.6), stone, 0, 1.28, 0.2);
+  return finish(g, 0.03, 0.1, true);
+}
+
+// Morvain, the Pale Warden: a lich in a bone crown with skulls circling him.
+function paleWarden() {
+  const g = makeWizard({ robe: 0x2a2438, hat: 0x1a1428, trim: 0x7affd0, gem: 0x7affd0, hatStyle: 'hood', skin: 0xd8dce8, eyeColor: 0x7affd0, hair: 0xe8e8f0, beard: true });
+  const head = g.userData.head;
+  for (let i = 0; i < 5; i++) {
+    const a = -0.8 + (i / 4) * 1.6;
+    add(head, new THREE.ConeGeometry(0.06, 0.4 + (i === 2 ? 0.2 : 0), 5), mat(0xf0e6d0), Math.sin(a) * 0.4, 0.62, Math.cos(a) * 0.1 - 0.05, { rz: -a * 0.3 });
+  }
+  const skulls = [];
+  for (let i = 0; i < 4; i++) {
+    const s = dyn(group(g, 0, 2, 0));
+    add(s, sph(0.22, 12, 10), mat(0xf0e6d0), 0, 0, 0, { s: [1, 0.95, 1.1] });
+    for (const x of [-1, 1]) add(s, sph(0.05, 8, 6), basic(0x7affd0), x * 0.08, 0.02, 0.2, { shadow: false });
+    skulls.push(s);
+  }
+  const base = g.userData.anim;
+  g.userData.anim = (t, moving) => {
+    base(t, moving);
+    skulls.forEach((s, i) => {
+      const a = t * 1.1 + (i / 4) * Math.PI * 2;
+      s.position.set(Math.cos(a) * 1.2, 1.7 + Math.sin(t * 2.5 + i) * 0.25, Math.sin(a) * 1.2);
+      s.rotation.y = -a;
+    });
+  };
+  g.scale.setScalar(1.6);
+  return g;
+}
+
+// A stone stairwell leading down under Hollow Lane.
+export function makeCryptStair() {
+  const g = new THREE.Group();
+  const stone = mat(0x6a6478), dark = basic(0x07060c);
+  add(g, new THREE.BoxGeometry(3.6, 0.3, 4), stone, 0, 0.15, 0);
+  add(g, new THREE.BoxGeometry(2.6, 0.32, 3.2), dark, 0, 0.17, 0, { noOutline: true });
+  for (let k = 0; k < 4; k++) add(g, new THREE.BoxGeometry(2.5, 0.04, 0.5), mat(darker(0x6a6478, 0.8 - k * 0.17)), 0, 0.34, 1.2 - k * 0.6, { noOutline: true, shadow: false });
+  for (const s of [-1, 1]) {
+    add(g, new THREE.BoxGeometry(0.6, 3.4, 0.6), stone, s * 1.7, 1.7, -1.6);
+    add(g, sph(0.3, 10, 8), mat(0xf0e6d0), s * 1.7, 3.6, -1.6, { s: [1, 0.9, 1.1] });
+  }
+  add(g, new THREE.BoxGeometry(4.2, 0.5, 0.7), stone, 0, 3.3, -1.6);
+  add(g, new THREE.OctahedronGeometry(0.28), glowMat(0x7affd0, 2.2), 0, 3.3, -1.2, { s: [1, 1, 0.3] });
+  return finish(g, 0.03, 0.1, true);
 }

@@ -16,6 +16,7 @@ export const WEATHER_BY_ZONE = {
   homestead: ['clear', 'clear', 'cloudy', 'rain'],
   rift: ['clear'],
   arena: ['clear'],
+  undercroft: ['clear'],
 };
 export const WEATHER_INFO = {
   clear: { icon: '', name: 'Clear' },
@@ -100,7 +101,7 @@ export class Sky {
   target(zoneId) {
     const z = ZONES[zoneId].atmosphere;
     const out = {};
-    const fixed = zoneId === 'rift';
+    const fixed = zoneId === 'rift' || zoneId === 'undercroft';
     const dk = fixed ? 0 : this.dayK, nk = fixed ? 0 : this.nightK, uk = 1 - dk - nk;
     for (const k of KEYS) {
       tmpA.set(z[k]);
@@ -148,11 +149,11 @@ export class Sky {
     const light = this.nightK > 0.5 ? dir.clone().negate() : dir;
     w.sun.position.set(focus.x + light.x * 50, Math.max(12, light.y * 60), focus.z + light.z * 50 + 10);
     this.sunDisc.position.copy(dir).multiplyScalar(290);
-    this.sunDisc.visible = dir.y > -0.1 && zoneId !== 'rift';
+    this.sunDisc.visible = dir.y > -0.1 && zoneId !== 'rift' && zoneId !== 'undercroft';
     if (this.moon) { this.moon.position.copy(dir).multiplyScalar(-280); this.moon.visible = this.nightK > 0.02 || this.sunHeight < 0.2; }
     if (this.stars) this.stars.material.opacity = Math.min(1, this.nightK + (1 - this.dayK) * 0.25);
     // the player's lantern
-    this.lantern.intensity = zoneId === 'rift' ? 1.2 : this.nightK * 2.2;
+    this.lantern.intensity = zoneId === 'rift' || zoneId === 'undercroft' ? 1.4 : this.nightK * 2.2;
     this.lantern.position.set(focus.x, 3, focus.z);
     // weather particles follow the camera
     const cam = camera.position;

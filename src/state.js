@@ -330,7 +330,7 @@ export function questTarget(p) {
 
 export function questTrackerText(p) {
   const q = currentQuest(p);
-  if (!q) return { title: 'Main story complete!', goal: 'You are a legend of Starfall. More worlds are coming…' };
+  if (!q) return { title: 'The Chronicle is complete!', goal: 'Try New Game+ (Orvyn), the Rift, the Arena, the Undercroft and weekly challenges' };
   const npc = (id) => NPCS[id].name;
   if (p.quest.state === 'available') return { title: q.name, goal: `Talk to ${npc(q.giver)}` };
   if (p.quest.state === 'ready') return { title: q.name, goal: `Return to ${npc(q.turnIn)}` };

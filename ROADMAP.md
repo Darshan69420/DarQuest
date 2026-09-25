@@ -6,28 +6,28 @@ The plan to take DarQuest from a two-chapter demo to a full RPG. Each phase ends
 
 Built so far (see the README for the full feature list):
 
-- **Seven story chapters, 51 main quests, 9 bosses and an ending:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax), Glacierreach (Queen Sylvara), Stormspire (Voltaris), Thornwood (the Thornmother) and the Hollow Deep (Malvoren, the Pale Magister, with echoes of earlier bosses), plus the Hollow Undercroft dungeon.
-- **Real-time combat:** 6 schools, 100+ spells, dodging, combos, ground telegraphs, flying and summoning bosses, and six dragon shouts.
-- **RPG depth:** talent trees (3 branches per school), gear rarities with random bonus stats and legendary powers, 8 gear slots, 9 pets, companions.
-- **RuneScape-style skills:** 9 skills from 1 to 99, gathering nodes, crafting stations and recipes.
-- **Roguelike and endgame:** the Endless Rift with boons and permanent upgrades, the Arena of Stars, Slayer tasks.
-- **World systems:** day/night with weather, mounts, waystones and fast travel, a Minecraft-style Homestead, a bestiary, 45 achievements and titles.
-- **Shipping:** save slots, settings and rebindable keys, a GitHub Pages workflow and an installable web manifest.
-- **Still to tune:** balance. It has only been tested in a slow headless browser, not played by hand.
+- **Seven lands, 51 main quests, an ending:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks, Glacierreach, Stormspire, Thornwood and the Hollow Deep, ending with Malvoren, the Pale Magister. Conversation topics and three story choices that change the ending, plus 19 side quests.
+- **Combat:** 6 schools with 11 spells each up to level 48, Astral support spells, dodging, combos, ground telegraphs, flying and summoning bosses, wards, and six dragon shouts.
+- **RPG depth:** talent trees, a second school, gear rarities, legendary powers and 13 gear sets, 8 gear slots, a bank, 12 pets that level up, 6 companions, 7 mounts.
+- **RuneScape-style skills:** 9 skills from 1 to 99 with content up to level 95.
+- **Dungeons and endgame:** the Endless Rift (roguelike), the Hollow Undercroft (puzzle dungeon with Heroic mode), the Arena of Stars, Slayer, level cap 50 with Archmage ranks, world scaling, New Game+ and weekly challenges.
+- **World systems:** day/night with weather, fast travel, a Minecraft-style Homestead, a bestiary, 60+ achievements and titles.
+- **Polish:** accessibility options, a phone layout, a loading screen, fog culling and outline level of detail, and a GitHub Pages workflow.
+- **Tested:** every main quest has been played through by a script, and fights were balanced with a simulated best-geared wizard. It still needs real players.
 
 ### Progress by phase
 
 | Phase | Status |
 | --- | --- |
-| 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
-| 2. RPG depth | ✅ Talents, gear rarity, crafting, a secondary school, gear set bonuses, a bank |
-| 3. World and story | ✅ Seven lands, 51 main quests, conversation topics, three story choices that change the ending, a finale. Possible extras: more side quests |
-| 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
-| 5. Companions and systems | ✅ Companions, mounts, pets that level up and learn tricks, bestiary, achievements, titles, housing (Homestead) |
-| 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |
-| 7. Presentation | 🟡 Per-zone music, weather, aurora, accessibility, a loading screen, and a performance pass (fog culling, outline level of detail, instanced motes: about half the draw calls). Still to do: more animation |
-| 8. Ship it | 🟡 Pages workflow and manifest ready. Turn on Pages in the repo settings |
-| 9. Multiplayer | ⬜ Not started |
+| 1. Solid foundation | ✅ Done |
+| 2. RPG depth | ✅ Done |
+| 3. World and story | ✅ Done |
+| 4. Dungeons and bosses | ✅ Done |
+| 5. Companions and systems | ✅ Done |
+| 6. Endgame | ✅ Done |
+| 7. Presentation | ✅ Mostly done. Still possible: hand-made 3D art in glTF, more animation |
+| 8. Ship it | 🟡 Workflow ready: merge to main and turn on Pages (Settings → Pages → GitHub Actions). Then playtest with friends |
+| 9. Multiplayer | ⬜ Not started (needs a server) |
 
 ## The vision
 

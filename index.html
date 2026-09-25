@@ -40,7 +40,7 @@
       <button class="btn round" id="btn-potion" title="Drink potion (H)">🧪</button>
       <button class="btn round" id="btn-mute" title="Sound on/off (M)">🔊</button>
       <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
-      <button class="btn round" id="btn-reset" title="Start over">↺</button>
+      <button class="btn round" id="btn-menu" title="Menu &amp; settings (Esc)">☰</button>
     </div>
     <div id="prompt" class="hidden"></div>
   </div>
@@ -54,14 +54,21 @@
   <div id="result" class="hidden"></div>
   <div id="toasts"></div>
   <div id="fade"></div>
+  <div id="fps" class="hidden"></div>
+  <div id="joystick" class="hidden"><div class="knob"></div></div>
 
   <!-- Title screen -->
   <div id="title">
     <div class="title-box">
       <h1 class="logo">Dar<span>Quest</span></h1>
       <p class="tagline">A spellcasting adventure at Starfall Academy</p>
-      <button id="continue" class="btn primary big hidden"></button>
-      <div class="new-game">
+      <div id="slots"></div>
+      <div class="title-actions">
+        <button class="btn" id="title-settings">⚙️ Settings</button>
+        <button class="btn" id="title-import">📥 Import save</button>
+      </div>
+      <div class="new-game hidden">
+        <div class="ng-head">New adventure · <span id="ng-slot"></span></div>
         <label for="hero-name">Your wizard's name</label>
         <input id="hero-name" maxlength="24" autocomplete="off">
         <div class="pick-label">Choose your school of magic</div>
@@ -69,6 +76,7 @@
         <div class="pick-label">Difficulty</div>
         <div id="difficulty-grid"></div>
         <button id="begin" class="btn primary big" disabled>Begin your adventure</button>
+        <button id="ng-cancel" class="btn">Back</button>
       </div>
     </div>
   </div>

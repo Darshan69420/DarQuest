@@ -1,4 +1,6 @@
 // Sound effects and music generated with the Web Audio API, so there are no audio files.
+import { settings, onSettings } from './settings.js';
+
 let ctx = null;
 let master, sfxBus, musicBus;
 let muted = false;
@@ -15,13 +17,11 @@ export function initAudio() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.55;
   master.connect(ctx.destination);
   sfxBus = ctx.createGain();
-  sfxBus.gain.value = 0.9;
   sfxBus.connect(master);
   musicBus = ctx.createGain();
-  musicBus.gain.value = 0.22;
+  applyVolumes();
   // a little echo makes the music feel magical
   const delay = ctx.createDelay();
   delay.delayTime.value = 0.33;
@@ -37,10 +37,20 @@ export function initAudio() {
 
 export function isMuted() { return muted; }
 
+// Master, music and effects volumes come from the settings menu.
+export function applyVolumes() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  master.gain.setTargetAtTime(muted ? 0 : 0.7 * settings.master, t, 0.05);
+  sfxBus.gain.setTargetAtTime(settings.sfx, t, 0.05);
+  musicBus.gain.setTargetAtTime(0.36 * settings.music, t, 0.05);
+}
+onSettings(() => applyVolumes());
+
 export function toggleMute() {
   muted = !muted;
   try { localStorage.setItem('darquest-muted', muted ? '1' : '0'); } catch { /* ignore */ }
-  if (master) master.gain.setTargetAtTime(muted ? 0 : 0.55, ctx.currentTime, 0.05);
+  applyVolumes();
   return muted;
 }
 
@@ -135,6 +145,35 @@ export function sfx(name, school = 'arcane') {
       noise(1.2, { vol: 0.3, freq: 300, sweep: 0.3 });
       break;
     case 'pet': tone(1200, 0.15, { type: 'triangle', vol: 0.1, slide: 1.6 }); tone(1500, 0.15, { type: 'triangle', vol: 0.08, when: 0.1, slide: 1.4 }); break;
+    case 'dodge': noise(0.25, { vol: 0.2, freq: 1800, sweep: 0.4, type: 'bandpass' }); break;
+    case 'warn': tone(660, 0.12, { type: 'square', vol: 0.05 }); tone(660, 0.12, { type: 'square', vol: 0.05, when: 0.16 }); break;
+    case 'crit': tone(1320, 0.18, { type: 'triangle', vol: 0.1, slide: 1.5 }); noise(0.2, { vol: 0.2, freq: 3000, type: 'highpass' }); break;
+    case 'combo': [0, 7, 12, 19].forEach((s, i) => tone(note(root * 2, s), 0.18, { type: 'triangle', vol: 0.08, when: i * 0.04 })); break;
+    case 'chop': noise(0.12, { vol: 0.35, freq: 700, sweep: 0.5 }); tone(160, 0.1, { type: 'square', vol: 0.06, slide: 0.6 }); break;
+    case 'mine': tone(1800, 0.12, { type: 'square', vol: 0.05, slide: 0.7 }); noise(0.15, { vol: 0.25, freq: 2500, type: 'highpass' }); break;
+    case 'splash': noise(0.5, { vol: 0.25, freq: 900, sweep: 2.5, type: 'bandpass' }); break;
+    case 'pick': [0, 5].forEach((s, i) => tone(note(880, s), 0.1, { type: 'triangle', vol: 0.07, when: i * 0.05 })); break;
+    case 'craft': [0, 4, 7].forEach((s, i) => tone(note(440, s), 0.2, { type: 'square', vol: 0.05, when: i * 0.07 })); noise(0.2, { vol: 0.15, freq: 1500 }); break;
+    case 'eat': [0, 1, 2].forEach(i => noise(0.08, { vol: 0.2, freq: 1200, when: i * 0.12 })); break;
+    case 'coin': tone(1568, 0.08, { type: 'square', vol: 0.05 }); tone(2093, 0.25, { type: 'square', vol: 0.05, when: 0.07 }); break;
+    case 'fail': tone(200, 0.3, { type: 'sawtooth', vol: 0.06, slide: 0.6 }); break;
+    case 'skill': [0, 4, 7, 12].forEach((s, i) => tone(note(523, s), 0.5, { type: 'triangle', vol: 0.1, when: i * 0.1 })); tone(note(523, 24), 0.8, { vol: 0.06, when: 0.4 }); break;
+    case 'chest': [0, 4, 7, 11, 14, 19].forEach((s, i) => tone(note(659, s), 0.3, { vol: 0.08, when: i * 0.05 })); break;
+    case 'shrine': [0, 7, 12, 16].forEach((s, i) => tone(note(330, s), 1.2, { vol: 0.08, attack: 0.1, when: i * 0.15 })); break;
+    case 'door': tone(90, 0.8, { type: 'sawtooth', vol: 0.08, slide: 0.7 }); noise(0.8, { vol: 0.12, freq: 300 }); break;
+    case 'place': tone(300, 0.08, { type: 'square', vol: 0.06, slide: 0.8 }); noise(0.06, { vol: 0.15, freq: 800 }); break;
+    case 'break': noise(0.2, { vol: 0.3, freq: 1200, sweep: 0.3 }); break;
+    case 'roar':
+      tone(90, 1.4, { type: 'sawtooth', vol: 0.25, slide: 0.55 });
+      tone(135, 1.2, { type: 'sawtooth', vol: 0.15, slide: 0.6, when: 0.05 });
+      noise(1.4, { vol: 0.35, freq: 500, sweep: 0.4 });
+      break;
+    case 'shout':
+      tone(110, 0.9, { type: 'sawtooth', vol: 0.2, slide: 0.7 });
+      noise(0.9, { vol: 0.4, freq: 400, sweep: 3, type: 'bandpass' });
+      tone(220, 0.6, { type: 'square', vol: 0.08, slide: 0.5, when: 0.05 });
+      break;
+    case 'flap': noise(0.3, { vol: 0.25, freq: 250, sweep: 0.5 }); break;
   }
 }
 
@@ -145,6 +184,11 @@ const SCALES = {
   ember:   { root: 220, steps: [0, 3, 5, 7, 10, 12, 15], tempo: 400, bass: [0, -2, -4, -5] },
   battle:  { root: 196, steps: [0, 3, 5, 7, 8, 12, 15], tempo: 230, bass: [0, 0, -4, -2] },
   boss:    { root: 175, steps: [0, 1, 5, 6, 7, 12, 13], tempo: 200, bass: [0, 0, 1, 0] },
+  meadow:  { root: 294, steps: [0, 2, 4, 7, 9, 12, 14], tempo: 380, bass: [0, 5, -3, 7] },
+  rift:    { root: 185, steps: [0, 2, 4, 6, 8, 10, 12], tempo: 460, bass: [0, 6, 0, 4] },
+  dragon:  { root: 196, steps: [0, 2, 3, 5, 7, 9, 10, 12], tempo: 360, bass: [0, -2, -5, -4] },
+  home:    { root: 349, steps: [0, 2, 4, 6, 7, 9, 11, 12], tempo: 440, bass: [0, 4, 5, 7] },
+  frost:   { root: 330, steps: [0, 2, 3, 7, 8, 12, 14], tempo: 480, bass: [0, -4, -5, -7] },
 };
 
 function startMusic(mode) {

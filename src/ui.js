@@ -1,6 +1,7 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
 import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell } from './state.js';
+import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -110,20 +111,24 @@ function typewriter(el, text) {
 
 // ------------------------------------------------------------ modals
 
-export function openModal(title, bodyHTML, onMount) {
+let modalOnClose = null;
+export function openModal(title, bodyHTML, onMount, onClose) {
   const el = $('#modal');
+  if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
+  modalOnClose = onClose || null;
   el.innerHTML = `<div class="modal-box">
     <div class="modal-head"><h2>${title}</h2><button class="btn close" aria-label="Close">✕</button></div>
     <div class="modal-body">${bodyHTML}</div></div>`;
   el.classList.remove('hidden');
   el.querySelector('.close').addEventListener('click', closeModal);
-  el.addEventListener('click', (e) => { if (e.target === el) closeModal(); }, { once: true });
+  el.onclick = (e) => { if (e.target === el) closeModal(); };
   onMount?.(el.querySelector('.modal-body'));
 }
 
 export function closeModal() {
   $('#modal').classList.add('hidden');
   $('#modal').innerHTML = '';
+  if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
 }
 
 // Spell tutor: spend training points on new spells.
@@ -200,16 +205,17 @@ export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
     const s = SPELLS[id];
     const school = s ? SCHOOLS[s.school] : null;
     return `<button class="hb ${s ? '' : 'empty'}" data-i="${i}" style="--sc:${school ? school.css : '#555'}" title="${s ? esc(s.name) + ' · ' + esc(describe(s)) : 'Empty slot (press B)'}">
-      <span class="hb-icon">${school ? school.icon : '·'}</span><span class="hb-key">${i + 1}</span>
-      ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
-  }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion (H)"><span class="hb-icon">🧪</span><span class="hb-key">H</span><span class="hb-count"></span><span class="hb-cd"></span></button>
-    <button class="hb util" data-act="dodge" title="Dodge (Space)"><span class="hb-icon">💨</span><span class="hb-key">␣</span><span class="hb-cd"></span></button>
-    <button class="hb util" data-act="target" title="Next target (Tab)"><span class="hb-icon">🎯</span><span class="hb-key">Tab</span></button>`;
+      <span class="hb-icon">${school ? school.icon : '·'}</span><span class="hb-key">${keyLabel(keyFor('slot' + (i + 1)))}</span>
+      ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}${i === 0 ? '<span class="hb-combo"><i></i><i></i></span>' : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
+  }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion"><span class="hb-icon">🧪</span><span class="hb-key">${keyLabel(keyFor('potion'))}</span><span class="hb-count"></span><span class="hb-cd"></span></button>
+    <button class="hb util" data-act="dodge" title="Dodge"><span class="hb-icon">💨</span><span class="hb-key">${keyFor('dodge') === 'Space' ? '␣' : keyLabel(keyFor('dodge'))}</span><span class="hb-cd"></span></button>
+    <button class="hb util" data-act="target" title="Next target"><span class="hb-icon">🎯</span><span class="hb-key">${keyLabel(keyFor('target'))}</span></button>`;
   el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => onSlot(+b.dataset.i)));
   el.querySelector('[data-act="potion"]').addEventListener('click', onPotion);
   el.querySelector('[data-act="dodge"]').addEventListener('click', onDodge);
   el.querySelector('[data-act="target"]').addEventListener('click', onTarget);
   hotbarEls = {
+    combo: el.querySelector('.hb-combo'),
     slots: [...el.querySelectorAll('[data-i]')].map(b => ({ b, cd: b.querySelector('.hb-cd') })),
     potion: el.querySelector('[data-act="potion"]'),
     dodge: el.querySelector('[data-act="dodge"]'),
@@ -238,6 +244,7 @@ export function updateHotbar(state) {
   hotbarEls.potion.querySelector('.hb-count').textContent = state.potion.count;
   hotbarEls.potion.classList.toggle('poor', state.potion.count < 1);
   hotbarEls.dodge.querySelector('.hb-cd').style.background = cdStyle(state.dodge.left, state.dodge.total);
+  if (hotbarEls.combo) hotbarEls.combo.dataset.n = state.combo || 0;
 }
 
 export function updateTarget(e) {
@@ -380,7 +387,8 @@ export function openGearShop(p, onChange) {
 export function openHelp() {
   openModal('❓ How to Play', `<div class="help">
     <h3>Exploring</h3>
-    <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
+    <p><b>W A S D</b> or the arrow keys move you. With <b>modern</b> controls you move relative to the camera: <b>drag the mouse</b> (or your finger) to look around, scroll to zoom. With <b>classic</b> controls A / D turn instead. You can also <b>tap or click the ground</b> to walk there. On phones, use the joystick in the corner.</p>
+    <p><b>Esc</b> opens the menu: settings (sound, graphics, controls, key bindings), saving your game to a file, and quitting to the title. Every key can be changed in Settings → Keys.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
@@ -391,6 +399,8 @@ export function openHelp() {
     <p><b>1</b> is your free basic attack. <b>2–5</b> are the spells on your spell bar: they cost mana (💧) and have cooldowns. Change them in your spellbook (<b>B</b>) and learn new ones from Mirabel.</p>
     <p>Spells lock onto your target (red ring). <b>Tab</b> or clicking an enemy picks a target, otherwise you aim at the nearest one.</p>
     <p><b>Space</b> dodges. Enemies wind up big attacks (watch the orange cast bar and ⚠️), and a well-timed dodge makes you untouchable for a moment.</p>
+    <p><b>Red on the ground means danger!</b> Circles, cones and lines fill up before they go off. Step out of them, or dodge through at the last moment. Some bosses have rings where the safest place is right next to them.</p>
+    <p>Chain your basic attack: every <b>third hit in a row</b> is an empowered combo strike (watch the dots on key 1). Critical hits and big spells knock enemies back.</p>
     <p>Blades ⚔️ boost your next hit, shields 🛡️ soften the next hit on you, traps 🎯 make an enemy take more, and weaknesses 🔻 make their next hit weaker. Enemies resist their own school. Bosses have phases, and some fight back when hit by the wrong kind of magic.</p>
     <p>You regain health and mana quickly when out of combat. <b>H</b> drinks a potion.</p>
     <h3>Difficulty</h3>
@@ -406,5 +416,83 @@ export function resultScreen(html) {
     const ok = el.querySelector('#result-ok');
     ok.focus();
     ok.addEventListener('click', () => { el.classList.add('hidden'); resolve(); });
+  });
+}
+
+// ------------------------------------------------------------ settings & menu
+
+export function openSettings(tab = 'audio', onClose) {
+  let listening = null;
+  const slider = (key, label, min = 0, max = 1, step = 0.05) =>
+    `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[key]}" data-set="${key}"><b>${Math.round(settings[key] * 100)}%</b></label>`;
+  const toggle = (key, label, desc = '') =>
+    `<label class="set-row"><span>${label}${desc ? `<small>${desc}</small>` : ''}</span><button class="btn small ${settings[key] ? 'primary' : ''}" data-toggle="${key}">${settings[key] ? 'On' : 'Off'}</button></label>`;
+  const choice = (key, label, opts) =>
+    `<div class="set-row"><span>${label}</span><div class="set-choice">${opts.map(([v, l]) => `<button class="btn small ${settings[key] === v ? 'primary' : ''}" data-choice="${key}" data-v="${v}">${l}</button>`).join('')}</div></div>`;
+  const render = (body) => {
+    const tabs = [['audio', '🔊 Sound'], ['graphics', '🖥️ Graphics'], ['controls', '🎮 Controls'], ['keys', '⌨️ Keys']];
+    let inner = '';
+    if (tab === 'audio') inner = slider('master', 'Master volume') + slider('music', 'Music') + slider('sfx', 'Sound effects');
+    if (tab === 'graphics') inner = choice('quality', 'Quality', Object.entries(QUALITY).map(([k, q]) => [k, q.label]))
+      + '<p class="modal-note">Low turns off shadows and draws fewer particles: great for older laptops and phones.</p>'
+      + slider('shake', 'Screen shake', 0, 1.5, 0.1) + toggle('showFps', 'Show FPS counter') + toggle('damageNumbers', 'Damage numbers');
+    if (tab === 'controls') inner = choice('controls', 'Movement', [['modern', 'Modern'], ['classic', 'Classic']])
+      + '<p class="modal-note"><b>Modern:</b> W A S D move relative to the camera, drag to look around. <b>Classic:</b> W / S walk, A / D turn.</p>'
+      + slider('camSens', 'Camera sensitivity', 0.3, 2, 0.1) + toggle('autoCam', 'Auto camera', 'Camera swings behind you when you tap to walk');
+    if (tab === 'keys') inner = `<p class="modal-note">Click an action, then press the key you want. Arrow keys always move too.</p>
+      <div class="keys-grid">${Object.entries(ACTIONS).map(([a, d]) => `<button class="key-row ${listening === a ? 'listening' : ''}" data-bind="${a}"><span>${d.label}</span><kbd>${listening === a ? 'Press a key…' : keyLabel(keyFor(a))}</kbd></button>`).join('')}</div>
+      <p><button class="btn small" id="reset-keys">Reset keys</button></p>`;
+    body.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="btn small ${tab === k ? 'primary' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+      <div class="settings">${inner}</div>
+      ${tab !== 'keys' ? '<p><button class="btn small" id="reset-set">Reset to defaults</button></p>' : ''}`;
+    body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; listening = null; render(body); }));
+    body.querySelectorAll('[data-set]').forEach(inp => inp.addEventListener('input', () => {
+      setSetting(inp.dataset.set, +inp.value);
+      inp.nextElementSibling.textContent = `${Math.round(inp.value * 100)}%`;
+    }));
+    body.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => { setSetting(b.dataset.toggle, !settings[b.dataset.toggle]); render(body); }));
+    body.querySelectorAll('[data-choice]').forEach(b => b.addEventListener('click', () => { setSetting(b.dataset.choice, b.dataset.v); render(body); }));
+    body.querySelectorAll('[data-bind]').forEach(b => b.addEventListener('click', () => { listening = b.dataset.bind; render(body); }));
+    body.querySelector('#reset-keys')?.addEventListener('click', () => { resetKeys(); render(body); });
+    body.querySelector('#reset-set')?.addEventListener('click', () => { resetSettings(); render(body); });
+  };
+  const onKey = (e) => {
+    if (!listening) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.code !== 'Escape') bindKey(listening, e.code);
+    listening = null;
+    const body = $('#modal .modal-body');
+    if (body) render(body);
+  };
+  window.addEventListener('keydown', onKey, true);
+  openModal('⚙️ Settings', '', render, () => { window.removeEventListener('keydown', onKey, true); onClose?.(); });
+}
+
+// The pause menu (Esc). `items`: [{ label, action, primary? }]
+export function openMenu(items) {
+  openModal('☰ Menu', `<div class="menu-list">${items.map((it, i) => `<button class="btn ${it.primary ? 'primary' : ''} big" data-i="${i}">${it.label}</button>`).join('')}</div>`, (body) => {
+    body.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { const it = items[+b.dataset.i]; if (!it.keepOpen) closeModal(); it.action?.(); }));
+  });
+}
+
+// Lets the player save a file to their computer.
+export function downloadText(filename, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+// Asks the player to pick a file and resolves with its text.
+export function pickFile(accept = '.json,application/json') {
+  return new Promise((resolve) => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = accept;
+    inp.addEventListener('change', async () => resolve(inp.files[0] ? await inp.files[0].text() : null));
+    inp.click();
   });
 }

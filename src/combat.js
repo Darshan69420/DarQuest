@@ -2,6 +2,7 @@
 import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { basicSpell } from './state.js';
 import { sfx } from './audio.js';
+import { insideShape } from './world.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -31,6 +32,8 @@ export class Combat {
     this.inCombat = false;
     this.petTimer = 4;
     this.tickTimer = 0;
+    this.combo = 0;
+    this.lastBasic = -9;
     world.onTargetTap = (e) => this.setTarget(e);
   }
 
@@ -118,7 +121,19 @@ export class Combat {
     this.p.mana -= cost;
     this.world.castPose(this.world.player);
     sfx('cast', spell.school);
-    this.playerSpell(spell, target, this.world.player);
+    // every third basic attack in a row is an empowered combo strike
+    let power = 1;
+    if (basic) {
+      this.combo = t - this.lastBasic < BASIC_COOLDOWN + 1.5 ? this.combo + 1 : 1;
+      this.lastBasic = t;
+      if (this.combo >= 3) {
+        power = 1.8;
+        this.combo = 0;
+        sfx('combo', spell.school);
+        this.world.float(this.world.player, '✦ Combo!', 'status');
+      }
+    }
+    this.playerSpell(spell, target, this.world.player, false, power);
   }
 
   faceTarget(e) {
@@ -163,6 +178,7 @@ export class Combat {
     return {
       slots,
       dodge: { left: Math.max(0, this.dodgeReady - t), total: DODGE_COOLDOWN },
+      combo: t - this.lastBasic < BASIC_COOLDOWN + 1.5 ? this.combo : 0,
       potion: { left: Math.max(0, this.potionReady - t), total: RULES.potionCooldown, count: this.p?.potions || 0 },
     };
   }
@@ -170,7 +186,7 @@ export class Combat {
   // ------------------------------------------------------------ spell effects
 
   // Resolves a spell cast by the player (or their pet) at an enemy target or on the player.
-  playerSpell(spell, target, fromModel, isPet = false) {
+  playerSpell(spell, target, fromModel, isPet = false, power = 1) {
     const w = this.world;
     const school = SCHOOLS[spell.school];
     const color = school.color;
@@ -178,7 +194,7 @@ export class Combat {
     const dmgBonus = (this.p.level - 1) * 0.02 + (st.dmg || 0) / 100;
     const critChance = 0.05 + (st.acc || 0) / 100;
     const hitMult = () => {
-      let m = 1 + dmgBonus;
+      let m = (1 + dmgBonus) * power;
       if (!isPet) {
         for (const b of this.hero.blades) m *= 1 + b;
         for (const x of this.hero.weak) m *= 1 - x;
@@ -191,7 +207,7 @@ export class Combat {
       case 'damage':
       case 'drain': {
         const big = spell.pips >= 4;
-        const flight = big ? w.meteor(target.model, color, 0.8 + spell.pips * 0.12) : w.projectile(fromModel, target.model, color, 0.22 + spell.pips * 0.05);
+        const flight = big ? w.meteor(target.model, color, 0.8 + spell.pips * 0.12) : w.projectile(fromModel, target.model, color, (0.22 + spell.pips * 0.05) * (power > 1 ? 1.7 : 1));
         const cm = hitMult();
         flight.then(() => {
           if (target.state === 'dead') return;
@@ -201,7 +217,8 @@ export class Combat {
           let total = 0;
           for (const e of hit) {
             const crit = Math.random() < critChance;
-            total += this.damageEnemy(e, rand(spell.min, spell.max) * cm * (crit ? 1.5 : 1), spell.school, color, crit);
+            total += this.damageEnemy(e, rand(spell.min, spell.max) * cm * (crit ? 1.5 : 1), spell.school, color, crit, !isPet && (crit || big || power > 1));
+            if (!isPet && (crit || big)) w.hitStop(big ? 0.09 : 0.05);
             if (spell.dot && e.hp > 0) this.addOverTime(e.mods.dots, spell.dot.total * cm, spell.dot.rounds, spell.school);
           }
           sfx(big ? 'bighit' : 'hit');
@@ -272,7 +289,7 @@ export class Combat {
     list.push({ per: total / ticks, left: ticks, school });
   }
 
-  damageEnemy(e, amount, school, color, crit = false) {
+  damageEnemy(e, amount, school, color, crit = false, knock = false) {
     if (e.state === 'dead') return 0;
     let m = 1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0);
     for (const t of e.mods.traps) m *= 1 + t;
@@ -283,6 +300,8 @@ export class Combat {
     e.hp = Math.max(0, e.hp - dealt);
     this.world.float(e.model, crit ? `${dealt}!` : `${dealt}`, crit ? 'dmg crit' : 'dmg');
     this.world.hitReact(e.model);
+    if (crit) sfx('crit');
+    if (knock && !e.def.boss && e.def.speed > 0 && e.hp > dealt) this.world.knock(e, this.world.player.position, 1.4);
     this.aggro(e);
     if (e.hp <= 0) this.kill(e);
     else this.checkPhases(e);
@@ -324,14 +343,20 @@ export class Combat {
 
   heroDown() {
     this.hero = mods();
-    for (const e of this.world.enemies) if (e.state === 'aggro') { e.state = 'return'; e.cast = null; }
+    for (const e of this.world.enemies) if (e.state === 'aggro') { e.state = 'return'; this.clearCast(e); }
     this.setTarget(null);
     this.onPlayerDeath?.();
   }
 
+  // Stops a wind-up, removing any warning it drew on the ground.
+  clearCast(e) {
+    e.cast?.tele?.forEach(h => h.cancel());
+    e.cast = null;
+  }
+
   kill(e) {
     e.state = 'dead';
-    e.cast = null;
+    this.clearCast(e);
     e.mods = mods();
     e.respawnAt = this.now + (e.def.boss ? 60 : 20);
     this.world.defeat(e.model);
@@ -392,9 +417,55 @@ export class Combat {
     e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15);
     if (!spell) return;
     e.cd[spell.id] = this.now + (1 + spell.pips * 2.4) / speed;
+    // big area attacks are drawn on the ground first: step out of them!
+    const aoe = e.def.aoe?.[spell.id];
+    if (aoe) {
+      const dur = (aoe.dur ?? 1.1) / Math.sqrt(speed);
+      const shapes = this.aoeShapes(e, aoe);
+      e.cast = { spell, t: 0, dur, aoe: shapes, tele: shapes.map(sp => this.world.telegraph({ ...sp, dur })) };
+      sfx('warn');
+      return;
+    }
     const windup = (e.def.range > 3 ? 0.35 + spell.pips * 0.2 : 0.45) / Math.sqrt(speed);
     e.cast = { spell, t: 0, dur: windup };
     if (spell.pips >= 3) this.world.float(e.model, '⚠️', 'status');
+  }
+
+  // Where an area attack lands: on the player, around the caster, or a cone / line toward the player.
+  aoeShapes(e, a) {
+    const m = e.model.position, pp = this.world.player.position;
+    const dir = Math.atan2(pp.x - m.x, pp.z - m.z);
+    if (a.shape === 'cone' || a.shape === 'line') return [{ ...a, x: m.x, z: m.z, dir }];
+    if (a.at === 'self') return [{ ...a, x: m.x, z: m.z }];
+    const out = [];
+    for (let i = 0; i < (a.count || 1); i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const r = i === 0 ? 0 : (a.spread || 4) * (0.45 + Math.random() * 0.55);
+      out.push({ ...a, x: pp.x + Math.cos(ang) * r, z: pp.z + Math.sin(ang) * r });
+    }
+    return out;
+  }
+
+  resolveAoe(e, c) {
+    const w = this.world, spell = c.spell;
+    const color = SCHOOLS[spell.school].color;
+    w.castPose(e.model);
+    for (const sp of c.aoe) {
+      if (sp.shape === 'line') {
+        for (let d = 1; d <= sp.len; d += 3) w.groundBurst(sp.x + Math.sin(sp.dir) * d, sp.z + Math.cos(sp.dir) * d, color, 6, 4);
+      } else if (sp.shape === 'cone') {
+        for (let d = 2; d <= sp.r; d += 3) w.groundBurst(sp.x + Math.sin(sp.dir) * d, sp.z + Math.cos(sp.dir) * d, color, 8, 3 + d * 0.3);
+      } else {
+        w.groundBurst(sp.x, sp.z, color, 10 + sp.r * 4, 3 + sp.r);
+        w.shockwave({ x: sp.x, z: sp.z }, color, sp.r);
+      }
+    }
+    sfx(spell.pips >= 3 ? 'bighit' : 'hit');
+    w.shake(0.2 + spell.pips * 0.05);
+    if (this.p.hp <= 0) return;
+    const pp = w.player.position;
+    if (c.aoe.some(sp => insideShape(sp, pp.x, pp.z))) this.applyEnemyHit(e, spell, color);
+    else if (c.aoe.some(sp => insideShape(sp, pp.x, pp.z, 4))) w.float(w.player, 'Avoided!', 'status');
   }
 
   enemySpell(e, spell) {
@@ -488,6 +559,7 @@ export class Combat {
         continue;
       }
       const d = flat(e.model.position, pp);
+      if (e.state === 'idle' && d > 90) { e.moving = false; continue; }  // far away: asleep
       const speed = e.def.speed * this.diff.speed;
       if (e.state === 'idle') {
         this.wander(e, dt);
@@ -502,16 +574,19 @@ export class Combat {
         fighting = true;
         if (e.def.boss) boss = true;
         const leash = e.def.boss ? 40 : 26;
-        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; e.cast = null; continue; }
+        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; this.clearCast(e); continue; }
         const range = e.def.speed <= 0 ? Math.max(e.def.range, 26) : e.def.range;
         if (e.cast) {
           e.cast.t += dt;
-          w.faceEnemy(e, pp);
+          const locked = e.cast.aoe?.[0]?.dir;
+          if (locked !== undefined) e.model.rotation.y = locked;
+          else w.faceEnemy(e, pp);
           e.moving = false;
           if (e.cast.t >= e.cast.dur) {
-            const s = e.cast.spell;
+            const c = e.cast;
             e.cast = null;
-            this.enemySpell(e, s);
+            if (c.aoe) this.resolveAoe(e, c);
+            else this.enemySpell(e, c.spell);
           }
         } else if (d > range * 0.95) {
           w.moveEnemy(e, pp, speed * 1.8, dt, range * 0.8);

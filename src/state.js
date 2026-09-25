@@ -1,7 +1,16 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
 
-const SAVE_KEY = 'darquest-save-v1';
+// Three save slots. Slot 1 keeps the original key so older saves still load.
+export const SLOT_KEYS = ['darquest-save-v1', 'darquest-save-slot2', 'darquest-save-slot3'];
+let slot = 0;
+try { slot = Math.min(2, Math.max(0, +(localStorage.getItem('darquest-last-slot') || 0))); } catch { /* ignore */ }
+
+export function setSlot(i) {
+  slot = i;
+  try { localStorage.setItem('darquest-last-slot', String(i)); } catch { /* ignore */ }
+}
+export function getSlot() { return slot; }
 
 export function baseHpFor(school, level) {
   return SCHOOLS[school].baseHp + (level - 1) * RULES.hpPerLevel;
@@ -63,28 +72,49 @@ export function recalc(p) {
 }
 
 export function save(p) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(p)); } catch { /* storage unavailable */ }
+  p.savedAt = Date.now();
+  try { localStorage.setItem(SLOT_KEYS[slot], JSON.stringify(p)); } catch { /* storage unavailable */ }
 }
 
-export function load() {
+// Turns saved JSON back into a player, filling in anything newer versions added.
+export function revive(raw) {
+  const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  if (!p || typeof p !== 'object' || !SCHOOLS[p.school] || typeof p.name !== 'string') return null;
+  upgrade(p);
+  recalc(p);
+  p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
+  return p;
+}
+
+export function load(i = slot) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const p = JSON.parse(raw);
-    if (!p || !SCHOOLS[p.school]) return null;
-    upgrade(p);
-    recalc(p);
-    p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
-    return p;
+    const raw = localStorage.getItem(SLOT_KEYS[i]);
+    return raw ? revive(raw) : null;
   } catch { return null; }
 }
 
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+export function hasSave(i = slot) {
+  try { return !!localStorage.getItem(SLOT_KEYS[i]); } catch { return false; }
 }
 
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+export function clearSave(i = slot) {
+  try { localStorage.removeItem(SLOT_KEYS[i]); } catch { /* ignore */ }
+}
+
+export function listSlots() {
+  return SLOT_KEYS.map((_, i) => ({ i, p: load(i) }));
+}
+
+// Save files are plain JSON, wrapped so we can recognise them on import.
+export function exportSave(p) {
+  return JSON.stringify({ game: 'DarQuest', version: 2, exportedAt: new Date().toISOString(), player: p }, null, 1);
+}
+
+export function importSave(text) {
+  const data = JSON.parse(text);
+  const p = revive(data?.game === 'DarQuest' ? data.player : data);
+  if (!p) throw new Error('That file is not a DarQuest save.');
+  return p;
 }
 
 // Returns the number of levels gained.

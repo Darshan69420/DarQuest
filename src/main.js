@@ -8,9 +8,11 @@ import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, zoneAt,
 } from './data.js';
 import {
-  newPlayer, load, save, hasSave, clearSave, currentQuest, npcMarker, recordKill,
+  newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
+  setSlot, getSlot, listSlots, exportSave, importSave,
 } from './state.js';
+import { settings, actionOf, onSettings } from './settings.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -20,6 +22,59 @@ let hudTimer = 0;
 let saveTimer = 0;
 
 // ------------------------------------------------------------ title screen
+
+let newSlot = 0;
+
+function timeAgo(ms) {
+  if (!ms) return '';
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h} hour${h > 1 ? 's' : ''} ago`;
+  return `${Math.round(h / 24)} days ago`;
+}
+
+function renderSlots() {
+  const slots = listSlots();
+  $('#slots').innerHTML = slots.map(({ i, p }) => {
+    if (!p) return `<div class="slot-card empty"><div class="slot-num">${i + 1}</div>
+      <div class="slot-info"><b>Empty slot</b><span>Start a new wizard here</span></div>
+      <div class="slot-btns"><button class="btn primary" data-new="${i}">New game</button></div></div>`;
+    const sc = SCHOOLS[p.school], d = DIFFICULTIES[p.difficulty];
+    const q = QUESTS[p.quest?.index];
+    return `<div class="slot-card" style="--sc:${sc.css}"><div class="slot-num">${i + 1}</div>
+      <div class="slot-info"><b>${UI.esc(p.name)}</b><span>${sc.icon} ${sc.name} · Level ${p.level} · ${d.icon} ${d.name}</span>
+      <small>${q ? UI.esc(q.name) : 'Main story complete'}${p.savedAt ? ' · ' + timeAgo(p.savedAt) : ''}</small></div>
+      <div class="slot-btns"><button class="btn primary" data-play="${i}">Play</button>
+      <button class="btn small" data-export="${i}" title="Export this save to a file">📤</button>
+      <button class="btn small danger" data-del="${i}" title="Delete this wizard">🗑️</button></div></div>`;
+  }).join('');
+  $('#slots').querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.play;
+    setSlot(i);
+    const p = load(i);
+    if (p) startGame(p, false);
+  }));
+  $('#slots').querySelectorAll('[data-new]').forEach(b => b.addEventListener('click', () => showNewGame(+b.dataset.new)));
+  $('#slots').querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => {
+    const p = load(+b.dataset.export);
+    if (p) UI.downloadText(`darquest-${p.name.replace(/\W+/g, '_')}-lv${p.level}.json`, exportSave(p));
+  }));
+  $('#slots').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.del;
+    const p = load(i);
+    if (p && confirm(`Delete ${p.name} (level ${p.level}) forever? Export them first if you might want them back.`)) { clearSave(i); renderSlots(); }
+  }));
+  if (!slots.some(s => s.p)) showNewGame(0);
+}
+
+function showNewGame(i) {
+  newSlot = i;
+  $('#ng-slot').textContent = `Slot ${i + 1}`;
+  $('.new-game').classList.remove('hidden');
+  $('.new-game').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function buildTitle() {
   let chosen = null;
@@ -55,24 +110,36 @@ function buildTitle() {
   $('#begin').addEventListener('click', () => {
     const name = $('#hero-name').value.trim().slice(0, 24) || 'Apprentice';
     if (!chosen) return;
+    if (load(newSlot) && !confirm('This slot already has a wizard. Replace them?')) return;
+    setSlot(newSlot);
     startGame(newPlayer(name, chosen, difficulty), true);
   });
-
-  if (hasSave()) {
-    const saved = load();
-    if (saved) {
-      const d = DIFFICULTIES[saved.difficulty];
-      $('#continue').classList.remove('hidden');
-      $('#continue').textContent = `Continue as ${saved.name} (Lv ${saved.level}${d.hp > 1 ? `, ${d.name}` : ''})`;
-      $('#continue').addEventListener('click', () => startGame(saved, false));
+  $('#ng-cancel').addEventListener('click', () => $('.new-game').classList.add('hidden'));
+  $('#title-settings').addEventListener('click', () => UI.openSettings());
+  $('#title-import').addEventListener('click', async () => {
+    const text = await UI.pickFile();
+    if (!text) return;
+    try {
+      const p = importSave(text);
+      const free = listSlots().find(s => !s.p);
+      const i = free ? free.i : getSlot();
+      if (!free && !confirm(`All slots are full. Replace slot ${i + 1} with ${p.name}?`)) return;
+      setSlot(i);
+      save(p);
+      renderSlots();
+      UI.toast(`📥 Imported <b>${UI.esc(p.name)}</b> into slot ${i + 1}`, 'good');
+    } catch (err) {
+      UI.toast(`Could not import: ${UI.esc(err.message)}`);
     }
-  }
+  });
+  renderSlots();
 }
 
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
   $('#title').classList.add('hidden');
+  $('#joystick').classList.toggle('hidden', !matchMedia('(pointer: coarse)').matches);
   world.spawnPlayer(p, isNew ? null : p.pos);
   world.mode = 'explore';
   combat.setPlayer(p);
@@ -87,7 +154,7 @@ function startGame(p, isNew) {
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
-      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D or the arrow keys, or tap the ground. Fight with keys 1 to 5 and dodge with Space. When you see a "!" above someone's head, talk to them with E. Come and find me in front of the Academy!`,
+      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D (drag the mouse to look around), or tap the ground. Fight with keys 1 to 5 and dodge with Space: when you see red on the ground, get out of it! When you see a "!" above someone's head, talk to them with E. Press Esc for the menu and settings. Come and find me in front of the Academy!`,
       [{ label: 'Let\'s go!', primary: true }, { label: 'How to play', action: UI.openHelp }]), 700);
   }
 }
@@ -344,6 +411,9 @@ world.onTick = (dt) => {
       text = f ? `Press E to use the ${f.name}` : pt ? 'Press E to use the Spiral Door' : `Press E to talk to ${NPCS[near.id].name}`;
     }
     UI.setPrompt(text);
+    const fps = $('#fps');
+    fps.classList.toggle('hidden', !settings.showFps);
+    if (settings.showFps) fps.textContent = `${Math.round(world.fps)} FPS`;
   }
   saveTimer += dt;
   if (saveTimer > 5) {
@@ -364,21 +434,44 @@ function toggleMute() {
   UI.toast(m ? 'Sound off' : 'Sound on');
 }
 
+function openGameMenu() {
+  UI.openMenu([
+    { label: '▶ Resume', primary: true },
+    { label: '⚙️ Settings', action: () => UI.openSettings() },
+    { label: '❓ How to play', action: () => UI.openHelp() },
+    { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
+    { label: '🏠 Save & quit to title', action: () => { player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
+  ]);
+}
+
 window.addEventListener('keydown', (e) => {
   if (!player || e.target instanceof HTMLInputElement) return;
   Audio.initAudio();
-  if (e.code === 'Escape') { UI.closeModal(); UI.closeDialog(); return; }
-  if (e.code === 'KeyM') return toggleMute();
+  if (e.code === 'Escape') {
+    if (UI.isDialogOpen()) { UI.closeModal(); UI.closeDialog(); }
+    else if (world.mode === 'explore') openGameMenu();
+    return;
+  }
+  const act = actionOf(e.code);
+  if (act === 'mute') return toggleMute();
   if (world.mode !== 'explore' || UI.isDialogOpen()) return;
-  if (e.code === 'KeyB') UI.openSpellbook(player, onChange);
-  if (e.code === 'KeyC' || e.code === 'KeyI') UI.openCharacter(player, onChange);
-  if (e.code === 'KeyH') drinkPotion();
-  const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code);
-  if (n >= 0) combat.castSlot(n);
-  if (e.code === 'Space') { e.preventDefault(); combat.dodge(); }
-  if (e.code === 'Tab') { e.preventDefault(); combat.cycleTarget(); }
-  if (e.key === '?' || e.code === 'F1') { e.preventDefault(); UI.openHelp(); }
+  if (e.key === '?') { e.preventDefault(); UI.openHelp(); return; }
+  switch (act) {
+    case 'spellbook': UI.openSpellbook(player, onChange); break;
+    case 'character': UI.openCharacter(player, onChange); break;
+    case 'potion': drinkPotion(); break;
+    case 'dodge': e.preventDefault(); combat.dodge(); break;
+    case 'target': e.preventDefault(); combat.cycleTarget(); break;
+    case 'help': e.preventDefault(); UI.openHelp(); break;
+    case 'slot1': case 'slot2': case 'slot3': case 'slot4': case 'slot5':
+      combat.castSlot(+act.slice(4) - 1);
+      break;
+    default: onAction?.(act, e);
+  }
 });
+
+// Extra actions added by later systems (skills, shouts, building...).
+let onAction = null;
 
 // A soft click for every button in the game.
 document.addEventListener('click', (e) => { if (e.target.closest('.btn, .school-card, .diff-card')) Audio.sfx('click'); });
@@ -393,9 +486,28 @@ $('#btn-book').addEventListener('click', () => inExplore() && UI.openSpellbook(p
 $('#btn-potion').addEventListener('click', () => inExplore() && drinkPotion());
 $('#btn-mute').addEventListener('click', toggleMute);
 $('#btn-help').addEventListener('click', () => UI.openHelp());
-$('#btn-reset').addEventListener('click', () => {
-  if (confirm('Start over? This deletes your saved wizard.')) { clearSave(); location.reload(); }
-});
+$('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
+onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });
+
+// Virtual joystick for phones and tablets.
+{
+  const pad = $('#joystick'), knob = pad.querySelector('.knob');
+  let id = null;
+  const move = (e) => {
+    const r = pad.getBoundingClientRect();
+    let x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+    const max = r.width / 2 - 10, d = Math.hypot(x, y);
+    if (d > max) { x *= max / d; y *= max / d; }
+    knob.style.transform = `translate(${x}px, ${y}px)`;
+    world.joy.x = x / max;
+    world.joy.y = -y / max;
+  };
+  pad.addEventListener('pointerdown', (e) => { id = e.pointerId; pad.setPointerCapture(id); move(e); });
+  pad.addEventListener('pointermove', (e) => { if (e.pointerId === id) move(e); });
+  const end = () => { id = null; knob.style.transform = ''; world.joy.x = world.joy.y = 0; };
+  pad.addEventListener('pointerup', end);
+  pad.addEventListener('pointercancel', end);
+}
 
 // Keep the world from reacting to keys while a menu is open.
 setInterval(() => {
@@ -405,6 +517,10 @@ setInterval(() => {
 }, 100);
 
 // Handy for testing from the browser console.
-window.darquest = { world, combat, get player() { return player; } };
+window.darquest = {
+  world, combat, UI,
+  get player() { return player; },
+  newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
+};
 
 buildTitle();

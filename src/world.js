@@ -7,8 +7,53 @@ import {
 } from './models.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
 import { buildEmberfall } from './maps.js';
+import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+// Shortest signed angle from b to a.
+export const angDiff = (a, b) => ((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+
+// A flat pie slice (or full disc / ring) on the ground, pointing along +Z.
+function sectorGeo(r, angle, inner = 0) {
+  const n = Math.max(8, Math.round(48 * angle / (Math.PI * 2)));
+  const pos = [];
+  const pt = (a, rr) => [Math.sin(a) * rr, 0, Math.cos(a) * rr];
+  for (let i = 0; i < n; i++) {
+    const a0 = -angle / 2 + (angle * i) / n, a1 = -angle / 2 + (angle * (i + 1)) / n;
+    if (inner > 0) pos.push(...pt(a0, inner), ...pt(a0, r), ...pt(a1, r), ...pt(a0, inner), ...pt(a1, r), ...pt(a1, inner));
+    else pos.push(0, 0, 0, ...pt(a0, r), ...pt(a1, r));
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const edge = [];
+  const full = angle >= Math.PI * 2 - 0.01;
+  if (!full) edge.push(V());
+  for (let i = 0; i <= n; i++) edge.push(V(...pt(-angle / 2 + (angle * i) / n, r)));
+  return { geo, edge: new THREE.BufferGeometry().setFromPoints(edge) };
+}
+
+// A flat strip from the origin forward along +Z.
+function stripGeo(width, len) {
+  const w = width / 2;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([-w, 0, 0, w, 0, 0, w, 0, len, -w, 0, 0, w, 0, len, -w, 0, len], 3));
+  return { geo, edge: new THREE.BufferGeometry().setFromPoints([V(-w, 0, 0), V(w, 0, 0), V(w, 0, len), V(-w, 0, len)]) };
+}
+
+// Is the point (x, z) inside a telegraphed attack shape? `pad` is roughly the player's radius.
+export function insideShape(spec, x, z, pad = 0.35) {
+  const dx = x - spec.x, dz = z - spec.z;
+  const dir = spec.dir || 0;
+  if (spec.shape === 'line') {
+    const along = dx * Math.sin(dir) + dz * Math.cos(dir);
+    const across = dx * Math.cos(dir) - dz * Math.sin(dir);
+    return along >= -pad && along <= spec.len + pad && Math.abs(across) <= spec.width / 2 + pad;
+  }
+  const d = Math.hypot(dx, dz);
+  if (d > spec.r + pad || d < (spec.inner || 0) - pad) return false;
+  if (spec.shape === 'cone') return d < 1.2 || Math.abs(angDiff(Math.atan2(dx, dz), dir)) <= spec.angle / 2 + 0.06;
+  return true;
+}
 const COURTYARD_R = 31;
 const LANE = { halfWidth: 8.5, zMin: 24, zMax: 146 };
 const PLAYER_SPEED = 6.5;
@@ -24,7 +69,7 @@ export class World {
   constructor(canvas, labelRoot) {
     this.canvas = canvas;
     this.labelRoot = labelRoot;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: (QUALITY[settings.quality] || QUALITY.high).antialias });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -48,7 +93,18 @@ export class World {
     this.animated = [];       // objects with userData.anim
     this.player = null;
     this.heading = Math.PI;   // facing -Z (toward the academy)
-    this.camYawOffset = 0;
+    this.camYawOffset = 0;    // classic controls: camera swing away from the heading
+    this.camYaw = Math.PI;    // modern controls: the camera's own direction
+    this.camPitch = 0;
+    this.joy = { x: 0, y: 0 };  // virtual joystick on touch screens
+    this.moveDir = null;
+    this.isMoving = false;
+    this.hitStopT = 0;
+    this.fx = 1;              // particle amount from the graphics setting
+    this.lastDrag = -10;
+    this.fps = 0;
+    this.fpsFrames = 0;
+    this.fpsT = 0;
     this.camDist = 10;
     this.camHeight = 5;
     this.moveTarget = null;
@@ -70,6 +126,11 @@ export class World {
     this.ringGeo = new THREE.RingGeometry(0.8, 1, 40);
 
     this.buildEnvironment();
+    this.applyQuality();
+    onSettings((k) => {
+      if (k === 'quality' || k === '*') this.applyQuality();
+      if (k === 'controls' || k === '*') this.camYaw = this.heading + this.camYawOffset;
+    });
     this.buildMap();
     this.batchStatic();
     this.spawnNPCs();
@@ -81,6 +142,22 @@ export class World {
   }
 
   // ------------------------------------------------------------ setup
+
+  get modern() { return settings.controls !== 'classic'; }
+  get viewYaw() { return this.modern ? this.camYaw : this.heading + this.camYawOffset; }
+
+  applyQuality() {
+    const q = QUALITY[settings.quality] || QUALITY.high;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    this.sun.castShadow = q.shadows > 0;
+    if (q.shadows && this.sun.shadow.mapSize.x !== q.shadows) {
+      this.sun.shadow.mapSize.set(q.shadows, q.shadows);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.fx = q.particles;
+    this.resize();
+  }
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -345,6 +422,7 @@ export class World {
     const at = pos && this.walkable(pos.x, pos.z) ? pos : zone.spawn;
     this.player.position.set(at.x, 0, at.z);
     this.heading = at.heading ?? Math.PI;
+    this.camYaw = this.heading;
     if (this.pet) this.pet.position.set(at.x + 1, 0, at.z - 1);
     this.snapCamera();
   }
@@ -355,7 +433,7 @@ export class World {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
       this.keys[e.code] = true;
-      if (this.mode === 'explore' && ['KeyE', 'Enter'].includes(e.code)) {
+      if (this.mode === 'explore' && (e.code === keyFor('interact') || e.code === 'Enter')) {
         const near = this.nearestInteractable();
         if (near) { e.preventDefault(); this.onInteract?.(near.id); }
       }
@@ -365,20 +443,31 @@ export class World {
 
     let down = null;
     this.canvas.addEventListener('pointerdown', (e) => {
-      down = { x: e.clientX, y: e.clientY, t: performance.now(), lastX: e.clientX, moved: 0 };
+      down = { x: e.clientX, y: e.clientY, t: performance.now(), lastX: e.clientX, lastY: e.clientY, moved: 0, button: e.button };
       this.canvas.setPointerCapture(e.pointerId);
     });
     this.canvas.addEventListener('pointermove', (e) => {
       if (!down) return;
-      const dx = e.clientX - down.lastX;
+      const dx = e.clientX - down.lastX, dy = e.clientY - down.lastY;
       down.lastX = e.clientX;
-      down.moved += Math.abs(dx) + Math.abs(e.movementY || 0);
-      if (this.mode === 'explore' && down.moved > 6) this.camYawOffset -= dx * 0.008;
+      down.lastY = e.clientY;
+      down.moved += Math.abs(dx) + Math.abs(dy);
+      if (this.mode === 'explore' && down.moved > 6) {
+        const sens = 0.008 * settings.camSens;
+        if (this.modern) this.camYaw -= dx * sens;
+        else this.camYawOffset -= dx * sens;
+        this.camPitch = THREE.MathUtils.clamp(this.camPitch + dy * 0.025 * settings.camSens, -3.5, 7);
+        this.lastDrag = this.time;
+      }
     });
     this.canvas.addEventListener('pointerup', (e) => {
-      if (down && down.moved < 8 && performance.now() - down.t < 400 && this.mode === 'explore') this.tapMove(e.clientX, e.clientY);
+      if (down && down.moved < 8 && performance.now() - down.t < 400 && this.mode === 'explore') {
+        if (down.button === 2) this.onRightClick?.(e.clientX, e.clientY);
+        else this.onClickWorld?.(e.clientX, e.clientY) || this.tapMove(e.clientX, e.clientY);
+      }
       down = null;
     });
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('wheel', (e) => {
       this.camDist = THREE.MathUtils.clamp(this.camDist + Math.sign(e.deltaY) * 0.8, 4, 16);
     }, { passive: true });
@@ -430,6 +519,7 @@ export class World {
     this.player.position.set(to.x, 0, to.z);
     this.heading = to.heading ?? this.heading;
     this.camYawOffset = 0;
+    this.camYaw = this.heading;
     this.moveTarget = null;
     if (this.pet) this.pet.position.set(to.x + 1, 0, to.z - 1);
     this.snapCamera();
@@ -493,17 +583,34 @@ export class World {
     return true;
   }
 
+  // Movement keys: modern controls move relative to the camera (the wizard turns to face where
+  // they walk); classic controls walk along the heading and turn with A / D.
   movePlayer(dt) {
     const k = this.keys;
-    const fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
-    const turn = (k.KeyA || k.ArrowLeft ? 1 : 0) - (k.KeyD || k.ArrowRight ? 1 : 0);
+    const on = (action, alt) => !!(k[keyFor(action)] || k[alt]);
+    const fwd = (on('forward', 'ArrowUp') ? 1 : 0) - (on('back', 'ArrowDown') ? 1 : 0);
+    const side = (on('right', 'ArrowRight') ? 1 : 0) - (on('left', 'ArrowLeft') ? 1 : 0);
+    const joy = Math.hypot(this.joy.x, this.joy.y) > 0.12;
     let speed = 0;
+    let dir = null;
 
-    if (fwd || turn) {
+    if ((this.modern && (fwd || side)) || joy) {
+      const f = fwd + (joy ? this.joy.y : 0), s = side + (joy ? this.joy.x : 0);
+      const mag = Math.min(1, Math.hypot(f, s));
       this.moveTarget = null;
       this.pendingTalk = null;
-      this.heading += turn * 2.8 * dt;
-      speed = fwd > 0 ? PLAYER_SPEED : fwd < 0 ? -PLAYER_SPEED * 0.55 : 0;
+      const yaw = this.viewYaw;
+      const Fx = Math.sin(yaw), Fz = Math.cos(yaw);
+      const dx = Fx * f - Fz * s, dz = Fz * f + Fx * s;
+      const len = Math.hypot(dx, dz) || 1;
+      dir = { x: dx / len, z: dz / len };
+      this.heading += angDiff(Math.atan2(dir.x, dir.z), this.heading) * Math.min(1, dt * 14);
+      speed = PLAYER_SPEED * mag * (this.speedMult || 1);
+    } else if (fwd || side) {
+      this.moveTarget = null;
+      this.pendingTalk = null;
+      this.heading -= side * 2.8 * dt;
+      speed = (fwd > 0 ? PLAYER_SPEED : fwd < 0 ? -PLAYER_SPEED * 0.55 : 0) * (this.speedMult || 1);
       if (fwd) this.camYawOffset *= Math.exp(-3 * dt);
     } else if (this.moveTarget) {
       const p = this.player.position;
@@ -514,10 +621,10 @@ export class World {
         this.moveTarget = null;
         if (talk) { this.pendingTalk = null; this.onInteract?.(talk.id); }
       } else {
-        const want = Math.atan2(dx, dz);
-        let diff = ((want - this.heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-        this.heading += diff * Math.min(1, dt * 10);
-        speed = PLAYER_SPEED;
+        this.heading += angDiff(Math.atan2(dx, dz), this.heading) * Math.min(1, dt * 10);
+        speed = PLAYER_SPEED * (this.speedMult || 1);
+        // the camera slowly swings round behind you on tap-to-walk
+        if (this.modern && settings.autoCam && this.time - this.lastDrag > 1.2) this.camYaw += angDiff(this.heading, this.camYaw) * Math.min(1, dt * 1.2);
       }
     }
 
@@ -528,10 +635,14 @@ export class World {
       if (this.walkable(nx, nz)) p.set(nx, 0, nz);
     }
     const moving = speed !== 0;
+    this.isMoving = moving;
     if (moving) {
       const p = this.player.position;
-      const nx = p.x + Math.sin(this.heading) * speed * dt;
-      const nz = p.z + Math.cos(this.heading) * speed * dt;
+      const sgn = Math.sign(speed);
+      const mx = dir ? dir.x : Math.sin(this.heading) * sgn, mz = dir ? dir.z : Math.cos(this.heading) * sgn;
+      this.moveDir = { x: mx, z: mz };
+      const step = Math.abs(speed) * dt;
+      const nx = p.x + mx * step, nz = p.z + mz * step;
       if (this.walkable(nx, nz)) p.set(nx, 0, nz);
       else if (this.walkable(nx, p.z)) p.x = nx;
       else if (this.walkable(p.x, nz)) p.z = nz;
@@ -563,10 +674,10 @@ export class World {
   }
 
   followCam() {
-    const yaw = this.heading + this.camYawOffset;
+    const yaw = this.viewYaw;
     const p = this.player.position;
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15, p.z - Math.cos(yaw) * this.camDist),
+      pos: V(p.x - Math.sin(yaw) * this.camDist, Math.max(1.2, this.camHeight + 1.2 + this.camDist * 0.15 + this.camPitch), p.z - Math.cos(yaw) * this.camDist),
       // look a little ahead so enemies in front are not hidden behind the hat
       look: V(p.x + Math.sin(yaw) * 3.5, 1.4, p.z + Math.cos(yaw) * 3.5),
     };
@@ -576,8 +687,12 @@ export class World {
 
   // Enemy behaviour lives in combat.js; the world only animates and moves them.
   updateEnemies() {
+    const pp = this.player?.position;
     for (const e of this.enemies) {
-      if (e.state !== 'dead') e.model.userData.anim?.(this.time, !!e.moving);
+      if (e.state === 'dead') continue;
+      // only animate foes near the player: the rest of the world sleeps
+      if (pp && Math.abs(e.model.position.x - pp.x) + Math.abs(e.model.position.z - pp.z) > 110) continue;
+      e.model.userData.anim?.(this.time, !!e.moving);
     }
   }
 
@@ -619,6 +734,7 @@ export class World {
     if (this.pet) this.pet.position.set(sp.x + 1, 0, sp.z);
     this.heading = sp.heading;
     this.camYawOffset = 0;
+    this.camYaw = this.heading;
     this.moveTarget = null;
     this.snapCamera();
     this.invulnUntil = this.time + 4;
@@ -627,10 +743,8 @@ export class World {
   // A quick dash in the direction the player is moving (or facing).
   dash() {
     if (!this.player || this.dashT > 0) return false;
-    const k = this.keys;
-    const back = (k.KeyS || k.ArrowDown) && !(k.KeyW || k.ArrowUp);
-    const dir = back ? this.heading + Math.PI : this.heading;
-    this.dashDir = V(Math.sin(dir), 0, Math.cos(dir));
+    const d = this.isMoving && this.moveDir ? this.moveDir : { x: Math.sin(this.heading), z: Math.cos(this.heading) };
+    this.dashDir = V(d.x, 0, d.z);
     this.dashT = 0.22;
     this.invulnUntil = Math.max(this.invulnUntil, this.time + 0.4);
     for (let i = 0; i < 10; i++) this.particle(this.player.position.clone().add(V(0, 0.6, 0)), 0xe8e4ff, { vel: V((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2), life: 0.5, size: 0.12 });
@@ -711,6 +825,7 @@ export class World {
   // ------------------------------------------------------------ spell effects
 
   float(obj, text, cls = '') {
+    if (!settings.damageNumbers && cls.startsWith('dmg')) return;
     const el = document.createElement('div');
     el.className = 'floater ' + cls;
     el.textContent = text;
@@ -738,12 +853,15 @@ export class World {
   }
 
   burst(pos, color, count = 16, power = 4) {
+    count = Math.ceil(count * this.fx);
     for (let i = 0; i < count; i++) {
       const v = V(Math.random() - 0.5, Math.random() * 0.8, Math.random() - 0.5).normalize().multiplyScalar(power * (0.4 + Math.random()));
       this.particle(pos, color, { vel: v, life: 0.5 + Math.random() * 0.4, size: 0.1 + Math.random() * 0.12, gravity: 6 });
     }
     this.shockwave(pos, color);
   }
+
+  groundBurst(x, z, color, count = 18, power = 6) { this.burst(V(x, 0.4, z), color, count, power); }
 
   shockwave(pos, color, maxScale = 3) {
     const ring = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -855,14 +973,74 @@ export class World {
     });
   }
 
+  // A quick wobble when something is hit (rotation, so it never fights movement).
   hitReact(obj) {
-    const base = obj.position.clone();
     let t = 0;
     this.effects.push((dt) => {
       t += dt;
-      obj.position.x = base.x + Math.sin(t * 60) * 0.12 * (1 - t / 0.35);
-      if (t >= 0.35) { obj.position.copy(base); return false; }
+      obj.rotation.z = Math.sin(t * 50) * 0.09 * (1 - t / 0.3);
+      if (t >= 0.3) { obj.rotation.z = 0; return false; }
     });
+  }
+
+  // Shoves an enemy away from a point.
+  knock(e, from, dist = 1.2) {
+    const m = e.model.position;
+    let dx = m.x - from.x, dz = m.z - from.z;
+    const d = Math.hypot(dx, dz) || 1;
+    dx /= d; dz /= d;
+    let t = 0;
+    const dur = 0.18;
+    this.effects.push((dt) => {
+      t += dt;
+      const step = (dist * dt) / dur;
+      const nx = m.x + dx * step, nz = m.z + dz * step;
+      if (this.walkable(nx, nz)) m.set(nx, 0, nz);
+      if (t >= dur) return false;
+    });
+  }
+
+  // Freezes the action for a split second on big hits, so they feel heavy.
+  hitStop(sec = 0.06) { this.hitStopT = Math.max(this.hitStopT, sec); }
+
+  // A warning on the ground that fills up, then goes off. Returns a handle you can cancel.
+  // spec: { shape: 'circle' | 'cone' | 'line', x, z, r, inner, angle, dir, len, width, dur, color }
+  telegraph(spec) {
+    const color = spec.color ?? 0xff4030;
+    const g = new THREE.Group();
+    g.position.set(spec.x, 0.08 + Math.random() * 0.02, spec.z);
+    g.rotation.y = spec.dir || 0;
+    const { geo, edge } = spec.shape === 'line' ? stripGeo(spec.width, spec.len) : sectorGeo(spec.r, spec.shape === 'cone' ? spec.angle : Math.PI * 2, spec.inner || 0);
+    const mk = (opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const base = new THREE.Mesh(geo, mk(0.2));
+    const fill = new THREE.Mesh(geo, mk(0.32));
+    const line = new THREE.LineLoop(edge, new THREE.LineBasicMaterial({ color: 0xffd0c0, transparent: true, opacity: 0.9, fog: false }));
+    for (const m of [base, fill, line]) { m.renderOrder = 2; g.add(m); }
+    fill.scale.set(0.001, 1, spec.shape === 'line' ? 1 : 0.001);
+    if (spec.shape === 'line') fill.scale.set(1, 1, 0.001);
+    this.scene.add(g);
+    let t = 0, cancelled = false;
+    const dur = spec.dur ?? 1;
+    const handle = { spec, cancel: () => { cancelled = true; } };
+    this.effects.push((dt) => {
+      t += dt;
+      const k = Math.min(1, t / dur);
+      if (spec.shape === 'line') fill.scale.z = Math.max(0.001, k);
+      else fill.scale.set(Math.max(0.001, k), 1, Math.max(0.001, k));
+      base.material.opacity = 0.16 + Math.sin(t * 14) * 0.06;
+      if (t >= dur) {
+        fill.material.opacity = 0.75 * (1 - (t - dur) / 0.2);
+        base.material.opacity = 0;
+        line.material.opacity = 0;
+      }
+      if (cancelled || t >= dur + 0.2) {
+        this.scene.remove(g);
+        geo.dispose(); edge.dispose();
+        base.material.dispose(); fill.material.dispose(); line.material.dispose();
+        return false;
+      }
+    });
+    return handle;
   }
 
   defeat(obj) {
@@ -877,7 +1055,7 @@ export class World {
     });
   }
 
-  shake(amount) { this.shakeAmt = Math.max(this.shakeAmt, amount); }
+  shake(amount) { this.shakeAmt = Math.max(this.shakeAmt, amount * settings.shake); }
 
   // ------------------------------------------------------------ main loop
 
@@ -900,9 +1078,24 @@ export class World {
   }
 
   frame() {
-    const dt = Math.min(0.05, this.clock.getDelta());
+    const real = Math.min(0.05, this.clock.getDelta());
+    this.update(real);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  // Runs the game forward without drawing (used by automated tests).
+  simulate(seconds, step = 0.05) {
+    for (let t = 0; t < seconds; t += step) this.update(step);
+  }
+
+  update(real) {
+    let dt = real;
+    if (this.hitStopT > 0) { this.hitStopT -= real; dt *= 0.1; }
     this.dt = dt;
     this.time += dt;
+    this.fpsFrames++;
+    this.fpsT += real;
+    if (this.fpsT >= 0.5) { this.fps = this.fpsFrames / this.fpsT; this.fpsFrames = 0; this.fpsT = 0; }
 
     if (this.mode === 'explore' && this.player) this.movePlayer(dt);
     else if (this.player) this.player.userData.anim(this.time, false);
@@ -955,6 +1148,5 @@ export class World {
 
     this.onTick?.(dt);
     this.updateLabels();
-    this.renderer.render(this.scene, this.camera);
   }
 }

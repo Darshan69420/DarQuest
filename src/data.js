@@ -245,6 +245,29 @@ export const ENEMIES = {
 };
 for (const [id, e] of Object.entries(ENEMIES)) e.id = id;
 
+// Big attacks that are drawn on the ground first, so you can step out of them (or dodge through).
+//   circle { r, inner?, at: 'self' | (player), count?, spread? } · cone { r, angle } · line { len, width }
+const AOE = {
+  hollow_knight:   { hollow_strike: { shape: 'cone', r: 4.4, angle: 1.7, dur: 0.95 } },
+  storm_crow:      { lightning_bats: { shape: 'circle', r: 2.8, dur: 1.1 } },
+  lord_hollowmere: {
+    banshee_wail: { shape: 'circle', at: 'self', inner: 5, r: 19, dur: 1.9 },   // run IN to the boss!
+    ghoul_claw: { shape: 'cone', r: 12, angle: 0.75, dur: 1.2 },
+    hollow_strike: { shape: 'circle', r: 3, count: 3, spread: 5, dur: 1.25 },
+  },
+  cinderhound:     { fire_serpent: { shape: 'line', len: 11, width: 2.2, dur: 1 } },
+  obsidian_golem:  { rock_slam: { shape: 'circle', r: 4, at: 'self', dur: 1.1 }, sphinx_sands: { shape: 'circle', r: 3.2, dur: 1.2 } },
+  magma_serpent:   { fire_serpent: { shape: 'line', len: 15, width: 2.4, dur: 1.1 }, phoenix_rush: { shape: 'circle', r: 3.6, dur: 1.3 } },
+  magma_guard:     { rock_slam: { shape: 'circle', r: 4.2, at: 'self', dur: 1.1 } },
+  pyrrhon: {
+    eruption: { shape: 'circle', r: 3.2, count: 5, spread: 6, dur: 1.5 },
+    molten_wave: { shape: 'circle', r: 6, dur: 1.5 },
+    fire_serpent: { shape: 'line', len: 20, width: 3, dur: 1.2 },
+    phoenix_rush: { shape: 'circle', r: 4, dur: 1.3 },
+  },
+};
+for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
+
 // How far away each foe attacks from. Everything else fights up close.
 const RANGED = { frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16 };
 for (const e of Object.values(ENEMIES)) {

@@ -1316,15 +1316,41 @@ export class World {
     return handle;
   }
 
-  defeat(obj) {
-    const base = obj.scale.x;
+  // A defeated foe is knocked back, topples away from the player and sinks into the ground in a
+  // burst of its school's colour. Bosses fall slowly, with a shockwave.
+  defeat(obj, { color = 0x9a8cff, boss = false } = {}) {
+    const base = obj.scale.x, y0 = obj.position.y, pp = this.player?.position;
+    const dir = pp ? Math.atan2(obj.position.x - pp.x, obj.position.z - pp.z) : obj.rotation.y + Math.PI;
+    const push = V(Math.sin(dir), 0, Math.cos(dir));
+    const axis = V(0, 1, 0).cross(push).normalize();
+    const q0 = obj.quaternion.clone(), tip = new THREE.Quaternion();
+    const h = (obj.userData.height || 2) * base;
+    const dur = boss ? 2.4 : 1.15;
+    for (let i = 0; i < (boss ? 50 : 20); i++) this.particle(this.chest(obj), i % 3 ? color : 0xffffff, { vel: V((Math.random() - 0.5) * 4, Math.random() * 4, (Math.random() - 0.5) * 4), life: 1.3, size: 0.15 });
+    if (boss) {
+      this.shake(0.7);
+      this.hitStop(0.18);
+      this.shockwave(obj.position, color, 9);
+      this.groundBurst(obj.position.x, obj.position.z, color, 40, 8);
+    }
     let t = 0;
-    for (let i = 0; i < 20; i++) this.particle(this.chest(obj), 0x9a8cff, { vel: V((Math.random() - 0.5) * 3, Math.random() * 3, (Math.random() - 0.5) * 3), life: 1.2, size: 0.15 });
     this.effects.push((dt) => {
       t += dt;
-      obj.rotation.y += dt * 12;
-      obj.scale.setScalar(base * Math.max(0.01, 1 - t));
-      if (t >= 1) { obj.visible = false; obj.scale.setScalar(base); return false; }
+      const k = Math.min(1, t / dur);
+      const fall = Math.min(1, k / 0.45);
+      tip.setFromAxisAngle(axis, fall * fall * Math.PI * 0.46);
+      obj.quaternion.copy(q0).premultiply(tip);
+      obj.position.addScaledVector(push, dt * Math.max(0, 1 - k * 2) * (boss ? 1.5 : 3));
+      const land = y0 * Math.max(0, 1 - k / 0.3);   // flyers drop to the ground first
+      obj.position.y = land - Math.max(0, (k - 0.55) / 0.45) * h * 0.5;
+      if (k > 0.6) obj.scale.setScalar(base * Math.max(0.01, 1 - (k - 0.6) / 0.4));
+      if (t >= dur) {
+        obj.visible = false;
+        obj.scale.setScalar(base);
+        obj.quaternion.copy(q0);
+        obj.position.y = 0;
+        return false;
+      }
     });
   }
 

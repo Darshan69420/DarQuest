@@ -455,7 +455,7 @@ export class Combat {
     if (e.fly) { e.fly = null; e.model.userData.setFlying?.(false); }
     e.mods = mods();
     e.respawnAt = this.now + (e.def.boss ? 60 : 20);
-    this.world.defeat(e.model);
+    this.world.defeat(e.model, { color: SCHOOLS[e.def.school]?.color, boss: e.def.boss });
     this.updateBar(e);
     if (this.target === e) this.setTarget(this.alive().find(x => x.state === 'aggro') || null);
     this.onKill?.(e);

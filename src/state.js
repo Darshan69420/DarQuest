@@ -296,7 +296,7 @@ export function npcMarker(p, npcId) {
 export function recordKill(p, enemyId) {
   const q = currentQuest(p);
   if (!q || p.quest.state !== 'active' || q.objective.type !== 'defeat') return false;
-  if (q.objective.enemy !== enemyId) return false;
+  if (q.objective.enemy !== enemyId && q.objective.enemy !== ENEMIES[enemyId]?.questAs) return false;
   p.quest.progress = Math.min(q.objective.count, p.quest.progress + 1);
   if (p.quest.progress >= q.objective.count) p.quest.state = 'ready';
   return true;

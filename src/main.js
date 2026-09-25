@@ -392,6 +392,7 @@ function completeQuest(q) {
   announceLevels(levels);
   player.quest = { index: player.quest.index + 1, state: 'available', progress: 0 };
   if (player.quest.index === 7) setTimeout(() => UI.toast('🌀 The <b>Spiral Door</b> in the courtyard has awakened…', 'good'), 1200);
+  if (player.quest.index === 44) setTimeout(() => UI.toast('🌑 <b>Chapter 7: The Pale Magister.</b> The last Spiral Door has opened, black as ink, near the Rift Gate. The Hollow Deep awaits.', 'good'), 1800);
   if (player.quest.index === 37) setTimeout(() => UI.toast('🌳 <b>Chapter 6: The Blighted Heart.</b> A vine-wrapped Spiral Door has opened on the east side of the courtyard: Thornwood awaits.', 'good'), 1800);
   if (player.quest.index === 30) setTimeout(() => UI.toast('⚡ <b>Chapter 5: Eye of the Storm.</b> A crackling Spiral Door has opened in the north-west of the courtyard: Stormspire awaits.', 'good'), 1800);
   if (player.quest.index === 23) setTimeout(() => UI.toast('❄️ <b>Chapter 4: The Frozen Crown.</b> A Spiral Door in the courtyard has frozen over: Glacierreach awaits.', 'good'), 1800);
@@ -737,6 +738,46 @@ function openNewGamePlus() {
 }
 extraServices.push({ npc: 'orvyn', label: '⭐ New Game+', when: () => storyDone(), action: openNewGamePlus });
 
+// ------------------------------------------------------------ the finale: Malvoren
+
+// At 75% health Malvoren hides behind a ward held up by four Soul Anchors.
+combat.onPhaseEvent = (e, ev) => {
+  if (ev !== 'anchors') return;
+  e.takenMult = 0.05;
+  e.anchored = true;
+  world.aura(e.model, 0xd06aff);
+  UI.combatMessage('🛡️ Malvoren is warded! Destroy the four Soul Anchors to break it.');
+};
+function updateFinale() {
+  const m = world.enemies.find(e => e.def.id === 'malvoren' && e.anchored && e.state !== 'dead');
+  if (!m) return;
+  const left = world.enemies.some(e => e.def.id === 'soul_anchor' && e.state !== 'dead' && Math.hypot(e.model.position.x - m.model.position.x, e.model.position.z - m.model.position.z) < 40);
+  if (left) return;
+  m.anchored = false;
+  m.takenMult = 1;
+  m.stunUntil = combat.now + 3;
+  world.shake(0.6);
+  world.aura(m.model, 0xffffff);
+  world.float(m.model, 'Ward broken!', 'status');
+  UI.combatMessage('💥 The anchors shatter and Malvoren\'s ward breaks! He staggers. Strike now!');
+  Audio.sfx('bighit');
+}
+
+// The ending, the first time Malvoren falls.
+function showEnding() {
+  const p = player, s = p.stats_log;
+  const first = !p.won;
+  p.won = true;
+  save(p);
+  UI.resultScreen(`<h2 class="win">🌟 The Pale Magister Falls</h2>
+    <p>Malvoren's crown rolls across the floor of the Pale Spire. The violet flame at its peak gutters and goes out, and for the first time in a hundred years, the Hollow Deep is quiet.</p>
+    <p>Up above, the Spiral Doors hum softly. In Emberfall the lava cools to a gentle glow. The dragons of the Peaks sleep. Frostholm thaws, Skyport's ships sail again, and the Elder Mother blooms.</p>
+    <p><b>${UI.esc(p.name)}</b> came to Starfall Academy as an apprentice. Now every land knows the name.</p>
+    <div class="credits"><b>DarQuest</b><br>A game by Darshan<br>Made with Three.js · music and sound made in code<br><br>
+      Level ${p.level}${p.arch ? ` · Archmage ${p.arch}` : ''} · ${s.kills} foes defeated · ${s.deaths || 0} falls · ${Object.keys(p.bestiary).length} kinds of foe met${p.ngplus ? ` · New Game+ ${p.ngplus}` : ''}</div>
+    <p class="tip">${first ? 'Tell Headmaster Orvyn the news. Then keep playing: the Endless Rift, the Arena, the Undercroft on Heroic, weekly challenges, and New Game+ are all waiting. You also earned the Pale Nightmare mount (Juno, in the meadow).' : 'Victory, again!'}</p>`).then(() => refresh());
+}
+
 // Weekly challenges: a toast when one is finished (claim it in the Journal).
 function checkWeekly() {
   const w = weekly(player);
@@ -858,7 +899,7 @@ function toggleMount() {
   Audio.sfx('pet');
 }
 
-const mountUnlocked = (id) => (id === 'stalker' ? player.rift.best >= 20 : id === 'drake' ? storyIndex(player) > 22 : true);
+const mountUnlocked = (id) => (id === 'stalker' ? player.rift.best >= 20 : id === 'drake' ? storyIndex(player) > 22 : id === 'nightmare' ? (player.bestiary.malvoren || 0) > 0 : true);
 
 function openStableUI() {
   openStable(player, {
@@ -1135,6 +1176,7 @@ function rewardKill(e) {
   const xp = Math.round(def.xp * diff.reward * (moonlit ? 1.15 : 1) * (e.power?.xp || 1));
   const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')) * (e.power?.gold || 1));
   if (def.rival) setTimeout(arenaWin, 800);
+  if (def.id === 'malvoren') setTimeout(showEnding, 2600);
   if (def.rift) {
     rift.onKill(e);
     rift.run.gold += gold;
@@ -1229,7 +1271,7 @@ async function playerDefeated() {
     return;
   }
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-    <p>You wake up back at ${{ emberfall: 'the Emberfall camp', dragonspire: 'Skyhold Camp', glacier: 'Frostholm', stormspire: 'Skyport', thornwood: 'Greenhollow' }[zoneAt(world.player.position.x)] || 'Starfall Academy'} with half your health.</p>
+    <p>You wake up back at ${{ emberfall: 'the Emberfall camp', dragonspire: 'Skyhold Camp', glacier: 'Frostholm', stormspire: 'Skyport', thornwood: 'Greenhollow', hollowdeep: 'the Last Refuge' }[zoneAt(world.player.position.x)] || 'Starfall Academy'} with half your health.</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;
@@ -1260,6 +1302,7 @@ world.onTick = (dt) => {
   world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed') + (world.mounted ? MOUNTS[player.activeMount]?.speed || 0 : 0);
   rift.update(dt);
   undercroft.update(dt);
+  updateFinale();
   companion.update(dt);
   if (inHomestead()) {
     homestead.update(dt);

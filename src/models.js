@@ -986,11 +986,11 @@ function shaman() {
 }
 
 // A lumbering rock giant with a single glowing eye.
-function golem({ lava = false, scale = 1, helm = false, ice = false } = {}) {
+function golem({ lava = false, scale = 1, helm = false, ice = false, bone = false } = {}) {
   const g = new THREE.Group();
   const body = group(g);
-  const rock = mat(lava ? 0x5e3a30 : ice ? 0x8ab8d8 : 0x4a4268), rock2 = mat(lava ? 0x74483a : ice ? 0xc8e4f8 : 0x5e5684);
-  const glowC = lava ? 0xff6a1a : ice ? 0x4dc8ff : 0xb46bff;
+  const rock = mat(lava ? 0x5e3a30 : ice ? 0x8ab8d8 : bone ? 0xcfc3a6 : 0x4a4268), rock2 = mat(lava ? 0x74483a : ice ? 0xc8e4f8 : bone ? 0xe8dcc0 : 0x5e5684);
+  const glowC = lava ? 0xff6a1a : ice ? 0x4dc8ff : bone ? 0xd06aff : 0xb46bff;
   const glow = glowMat(glowC, 2.4);
   add(body, new THREE.DodecahedronGeometry(0.85, 1), rock, 0, 1.55, 0, { s: [1.15, 1, 0.9] });
   add(body, sph(0.22, 16, 10), glow, 0, 1.6, 0.7);
@@ -1197,6 +1197,13 @@ export function makeEnemy(kind) {
     case 'pixie': return pixie();
     case 'blight_horror': return blightHorror();
     case 'thornmother': return treant({ size: 2.3, blight: true });
+    case 'deathless': return skeleton('warrior');
+    case 'bone_magus': return skeleton('mage');
+    case 'sorrowshade': return shade(0x4a3a6a, 0xd06aff);
+    case 'bone_colossus': return golem({ scale: 1.35, bone: true });
+    case 'pale_templar': { const k = knight({ armor: 0xe8e4f0, dark: 0x3a3048, accent: 0xd06aff, eye: 0xd06aff }); k.scale.setScalar(1.15); return k; }
+    case 'malvoren': return malvoren();
+    case 'soul_anchor': return soulAnchor();
     case 'blight_pod': { const pod = new THREE.Group(); add(pod, sph(0.7, 14, 10), mat(0x6a3a8a, { emissive: 0xd06aff, emissiveIntensity: 0.5 }), 0, 0.8, 0, { s: [1, 1.3, 1] }); for (let k = 0; k < 5; k++) add(pod, new THREE.ConeGeometry(0.08, 0.5, 4), mat(0x2a1a2a), Math.cos(k * 1.26) * 0.6, 0.4, Math.sin(k * 1.26) * 0.6, { rz: -Math.cos(k * 1.26) * 0.8, rx: Math.sin(k * 1.26) * 0.8 }); pod.userData.anim = (t) => { pod.scale.setScalar(1 + Math.sin(t * 4) * 0.06); }; return finish(pod, 0.03, 0.08); }
     case 'shade': return shade();
     case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
@@ -2698,6 +2705,7 @@ export function makeMount(kind) {
     case 'emberback': return quadruped({ color: 0xc0391b, dark: 0x6a1a0a, ears: 'lizard', tail: 'lizard', legLen: 0.7, neck: 0.4, fire: true, glow: 0xffd23d });
     case 'elk': return quadruped({ color: 0xb8a080, mane: 0xf0e8dc, antlers: true, legLen: 1.25, eye: 0x3a2a1a });
     case 'stalker': return quadruped({ color: 0x2a1a44, mane: 0x4a2a7a, ears: 'cat', tail: 'lizard', legLen: 0.9, neck: 0.45, glow: 0xc542ff });
+    case 'nightmare': return quadruped({ color: 0x1a1428, dark: 0x0a0810, mane: 0xd06aff, legLen: 1.2, neck: 1, glow: 0xe8c0ff, eye: 0xd06aff });
     case 'drake': {
       const d = makeDragon({ color: 0xc0392b, belly: 0xf2c14e, wings: 2, size: 1.05, frill: true });
       d.userData.saddle = 2.1;
@@ -3398,4 +3406,152 @@ export function makeThornBush(scale = 1, color = 0x4a2a5a) {
   add(g, new THREE.OctahedronGeometry(0.2), glowMat(0xd06aff, 2), 0, 0.5, 0);
   g.scale.setScalar(scale);
   return finish(g, 0.03, 0.1, true);
+}
+
+// ------------------------------------------------------------ the Hollow Deep (Chapter 7)
+
+// A skeleton: 'warrior' (sword and shield) or 'mage' (hooded robe and a bone staff).
+function skeleton(kind = 'warrior') {
+  const g = new THREE.Group();
+  const body = group(g);
+  const bone = mat(0xe8dcc0), dark = mat(0x2a2030), glowC = 0xd06aff;
+  const hip = group(body, 0, 1.05, 0);
+  add(hip, new THREE.BoxGeometry(0.45, 0.14, 0.22), bone);
+  for (let k = 0; k < 4; k++) add(hip, new THREE.CylinderGeometry(0.05, 0.05, 0.14, 6), bone, 0, 0.12 + k * 0.13, -0.05);
+  const chest = group(hip, 0, 0.72, 0);
+  for (let k = 0; k < 4; k++) add(chest, new THREE.TorusGeometry(0.24 - k * 0.02, 0.035, 5, 14, Math.PI * 1.4), bone, 0, 0.05 - k * 0.1, 0, { rx: Math.PI / 2, rz: -Math.PI * 0.2 });
+  const head = group(chest, 0, 0.42, 0.02);
+  add(head, sph(0.24, 14, 10), bone, 0, 0, 0, { s: [0.95, 1, 1] });
+  add(head, new THREE.BoxGeometry(0.28, 0.1, 0.2), bone, 0, -0.2, 0.06);
+  for (const s of [-1, 1]) {
+    add(head, sph(0.075, 10, 8), basic(0x0a0610), s * 0.09, 0.02, 0.2, { shadow: false });
+    add(head, sph(0.03, 6, 4), basic(glowC), s * 0.09, 0.02, 0.26, { shadow: false });
+  }
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const arm = group(chest, s * 0.32, 0.15, 0);
+    limb(arm, V3(0, 0, 0), V3(s * 0.08, -0.4, 0.05), 0.045, 0.04, bone, 6);
+    limb(arm, V3(s * 0.08, -0.4, 0.05), V3(s * 0.08, -0.75, 0.2), 0.04, 0.035, bone, 6);
+    arms.push(arm);
+  }
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const leg = group(hip, s * 0.14, 0, 0);
+    limb(leg, V3(0, 0, 0), V3(0, -0.5, 0.03), 0.055, 0.045, bone, 6);
+    limb(leg, V3(0, -0.5, 0.03), V3(0, -0.95, 0), 0.045, 0.04, bone, 6);
+    add(leg, new THREE.BoxGeometry(0.12, 0.06, 0.22), bone, 0, -0.98, 0.05);
+    legs.push(leg);
+  }
+  if (kind === 'warrior') {
+    const sword = group(arms[1], 0.1, -0.75, 0.22);
+    add(sword, new THREE.BoxGeometry(0.06, 0.9, 0.02), mat(0x9a9aa8), 0, 0.4, 0);
+    add(sword, new THREE.BoxGeometry(0.26, 0.05, 0.06), dark, 0, -0.05, 0);
+    add(arms[0], new THREE.CylinderGeometry(0.34, 0.34, 0.06, 12), mat(0x4a3a5a), -0.12, -0.6, 0.25, { rz: Math.PI / 2, ry: 0.2 });
+    add(arms[0], new THREE.OctahedronGeometry(0.1), glowMat(glowC, 2), -0.16, -0.6, 0.25);
+    add(head, new THREE.SphereGeometry(0.27, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x5a5a6a), 0, 0.02, 0);
+  } else {
+    add(chest, new THREE.ConeGeometry(0.45, 1.5, 12, 1, true), mat(0x3a2a4a, { side: THREE.DoubleSide }), 0, -0.55, 0);
+    add(head, sph(0.3, 14, 10), mat(0x3a2a4a), 0, 0.06, -0.06, { s: [1.05, 1.1, 1.05] });
+    add(head, sph(0.24, 12, 8), basic(0x0a0610), 0, 0.02, 0.08, { s: [0.9, 0.95, 0.6] });
+    for (const s of [-1, 1]) add(head, sph(0.035, 6, 4), basic(glowC), s * 0.08, 0.03, 0.26, { shadow: false });
+    const staff = group(arms[1], 0.08, -0.75, 0.2);
+    add(staff, new THREE.CylinderGeometry(0.03, 0.03, 1.8, 6), bone, 0, 0.3, 0);
+    add(staff, sph(0.14, 10, 8), bone, 0, 1.25, 0);
+    add(staff, new THREE.OctahedronGeometry(0.1), glowMat(glowC, 2.4), 0, 1.25, 0.12);
+  }
+  g.userData.anim = (t, moving) => {
+    const k = moving ? t * 7 : 0;
+    legs.forEach((l, i) => { l.rotation.x = Math.sin(k + i * Math.PI) * 0.5; });
+    arms.forEach((a, i) => { a.rotation.x = moving ? Math.sin(k + i * Math.PI + Math.PI) * 0.4 : Math.sin(t * 1.5 + i) * 0.05; });
+    head.rotation.y = Math.sin(t * 0.9) * 0.25;
+    head.rotation.z = Math.sin(t * 2.3) * 0.05;
+    body.position.y = moving ? Math.abs(Math.sin(k)) * 0.05 : 0;
+  };
+  return finish(g, 0.025, 0.06);
+}
+
+// Malvoren, the Pale Magister: tall, pale and crowned, with grimoires orbiting him.
+function malvoren() {
+  const g = makeWizard({ robe: 0xe8e4f0, hat: 0x2a1a3a, trim: 0xd06aff, gem: 0xd06aff, hatStyle: 'wizard', skin: 0xd8d4e0, eyeColor: 0xd06aff, hair: 0xf2f0ff, beard: true });
+  const head = g.userData.head;
+  for (let i = 0; i < 7; i++) {
+    const a = -1 + (i / 6) * 2;
+    add(head, new THREE.ConeGeometry(0.05, 0.3 + (i === 3 ? 0.2 : 0), 5), glowMat(0xd06aff, 2.2), Math.sin(a) * 0.4, 0.5, Math.cos(a) * 0.12, { rz: -a * 0.3 });
+  }
+  const books = [];
+  for (let i = 0; i < 3; i++) {
+    const b = dyn(group(g, 0, 2, 0));
+    add(b, new THREE.BoxGeometry(0.42, 0.08, 0.32), mat([0x3a1a4a, 0x1a2a4a, 0x4a1a1a][i]));
+    add(b, new THREE.BoxGeometry(0.38, 0.06, 0.3), mat(0xf0e6d0), 0.01, 0.01, 0);
+    add(b, new THREE.OctahedronGeometry(0.06), glowMat(0xd06aff, 2.4), 0, 0.07, 0);
+    books.push(b);
+  }
+  const runes = [];
+  for (let i = 0; i < 5; i++) runes.push(dyn(add(g, new THREE.TorusGeometry(0.14, 0.025, 4, 10), basic(0xe8c0ff), 0, 0, 0, { shadow: false })));
+  const base = g.userData.anim;
+  g.userData.anim = (t, moving) => {
+    base(t, moving);
+    books.forEach((b, i) => {
+      const a = t * 0.9 + (i / 3) * Math.PI * 2;
+      b.position.set(Math.cos(a) * 1.25, 1.9 + Math.sin(t * 2 + i) * 0.2, Math.sin(a) * 1.25);
+      b.rotation.set(Math.sin(t + i) * 0.3, -a, 0);
+    });
+    runes.forEach((r, i) => {
+      const a = -t * 1.4 + (i / 5) * Math.PI * 2;
+      r.position.set(Math.cos(a) * 0.9, 0.2, Math.sin(a) * 0.9);
+      r.rotation.x = Math.PI / 2;
+    });
+  };
+  g.scale.setScalar(1.7);
+  return g;
+}
+
+// A soul anchor: a floating obelisk that chains the Magister's ward.
+function soulAnchor() {
+  const g = new THREE.Group();
+  const stone = group(g, 0, 1.4, 0);
+  dyn(stone);
+  add(stone, new THREE.OctahedronGeometry(0.7), mat(0x2a2038), 0, 0, 0, { s: [0.6, 1.8, 0.6] });
+  for (let k = 0; k < 3; k++) add(stone, new THREE.TorusGeometry(0.55, 0.05, 5, 16), glowMat(0xd06aff, 2.2), 0, -0.5 + k * 0.5, 0, { rx: Math.PI / 2 });
+  add(stone, new THREE.OctahedronGeometry(0.22), basic(0xf0d8ff), 0, 1.4, 0);
+  g.userData.anim = (t) => { stone.position.y = 1.4 + Math.sin(t * 2) * 0.15; stone.rotation.y = t; };
+  return finish(g, 0.03, 0.08);
+}
+
+// A cave stalagmite cluster.
+export function makeStalagmites(scale = 1, color = 0x3a3444) {
+  const g = new THREE.Group();
+  for (let k = 0; k < 4; k++) {
+    const h = 2 + Math.random() * 4, r = 0.4 + Math.random() * 0.5;
+    add(g, new THREE.ConeGeometry(r, h, 7), mat(k % 2 ? color : darker(color, 0.8)), (Math.random() - 0.5) * 2, h / 2, (Math.random() - 0.5) * 2);
+  }
+  if (Math.random() < 0.5) add(g, new THREE.OctahedronGeometry(0.3), glowMat(0xd06aff, 2), 0.3, 0.4, 0.5, { s: [0.6, 1.6, 0.6] });
+  g.scale.setScalar(scale);
+  return finish(g, 0.04, 0.2, true);
+}
+
+// The Pale Spire: Malvoren's tower of white stone, crowned with a violet flame.
+export function makePaleSpire() {
+  const g = new THREE.Group();
+  const white = mat(0xe8e4f0), trim = mat(0x6a4a8a), dark = mat(0x2a2038);
+  add(g, new THREE.CylinderGeometry(9, 11, 4, 12), dark, 0, 2, 0);
+  add(g, new THREE.CylinderGeometry(6.5, 8, 30, 12), white, 0, 19, 0);
+  for (const y of [10, 20, 30]) add(g, new THREE.CylinderGeometry(7.2, 7.2, 1, 12), trim, 0, y, 0);
+  add(g, new THREE.CylinderGeometry(4.5, 6.5, 14, 12), white, 0, 41, 0);
+  add(g, new THREE.ConeGeometry(5.2, 16, 12), trim, 0, 56, 0);
+  add(g, new THREE.OctahedronGeometry(2.2), glowMat(0xd06aff, 2.6), 0, 66, 0, { s: [0.7, 1.4, 0.7] });
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    for (const y of [14, 24]) {
+      const wg = group(g, Math.sin(a) * 6.9, y, Math.cos(a) * 6.9);
+      wg.rotation.y = a;
+      add(wg, archGeo(1.2, 2.6, 0.3), glowMat(0xd06aff, 1.6), 0, -1.3, 0);
+    }
+  }
+  add(g, archGeo(4.5, 7, 1), dark, 0, 0, 7.9);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    limb(g, V3(Math.sin(a) * 7, 34, Math.cos(a) * 7), V3(Math.sin(a) * 12, 44, Math.cos(a) * 12), 0.8, 0.3, dark, 6);
+  }
+  return finish(g, 0.08, 0.6, true);
 }

@@ -194,6 +194,7 @@ const SCALES = {
   dragon:  { root: 196, steps: [0, 2, 3, 5, 7, 9, 10, 12], tempo: 360, bass: [0, -2, -5, -4] },
   home:    { root: 349, steps: [0, 2, 4, 6, 7, 9, 11, 12], tempo: 440, bass: [0, 4, 5, 7] },
   frost:   { root: 330, steps: [0, 2, 3, 7, 8, 12, 14], tempo: 480, bass: [0, -4, -5, -7] },
+  deep:    { root: 131, steps: [0, 1, 4, 5, 7, 8, 11, 12], tempo: 500, bass: [0, 1, -4, -5] },
   forest:  { root: 294, steps: [0, 2, 5, 7, 9, 12, 14], tempo: 440, bass: [0, -3, 5, 2] },
   storm:   { root: 247, steps: [0, 2, 4, 6, 7, 9, 11, 12], tempo: 360, bass: [0, 5, 7, 5] },
   crypt:   { root: 147, steps: [0, 1, 3, 6, 7, 10, 12], tempo: 540, bass: [0, -1, -5, -6] },

@@ -6,7 +6,7 @@ The plan to take DarQuest from a two-chapter demo to a full RPG. Each phase ends
 
 Built so far (see the README for the full feature list):
 
-- **Six story chapters, 44 main quests, 8 bosses:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax), Glacierreach (Queen Sylvara), Stormspire (Voltaris) and Thornwood (the Thornmother), plus the Hollow Undercroft dungeon. The Pale Magister, Malvoren, is the villain behind them all.
+- **Seven story chapters, 51 main quests, 9 bosses and an ending:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax), Glacierreach (Queen Sylvara), Stormspire (Voltaris), Thornwood (the Thornmother) and the Hollow Deep (Malvoren, the Pale Magister, with echoes of earlier bosses), plus the Hollow Undercroft dungeon.
 - **Real-time combat:** 6 schools, 100+ spells, dodging, combos, ground telegraphs, flying and summoning bosses, and six dragon shouts.
 - **RPG depth:** talent trees (3 branches per school), gear rarities with random bonus stats and legendary powers, 8 gear slots, 9 pets, companions.
 - **RuneScape-style skills:** 9 skills from 1 to 99, gathering nodes, crafting stations and recipes.
@@ -21,7 +21,7 @@ Built so far (see the README for the full feature list):
 | --- | --- |
 | 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
 | 2. RPG depth | ✅ Talents, gear rarity, crafting, a secondary school, gear set bonuses, a bank |
-| 3. World and story | 🟡 6 of 7 lands (the Hollow Deep remains, for the final showdown with Malvoren) |
+| 3. World and story | ✅ Seven lands, 51 main quests, a finale and an ending. Possible extras: branching dialogue, more side quests |
 | 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
 | 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
 | 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |

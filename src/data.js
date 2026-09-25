@@ -174,6 +174,20 @@ export const SPELLS = {
   mother_wrath:    { name: 'Mother\'s Wrath',  school: 'verdant', pips: 5, type: 'damage', min: 720, max: 820, target: 'one', enemy: true },
   pod_mend:        { name: 'Seed Mend',        school: 'verdant', pips: 2, type: 'heal', amount: 1800, enemy: true },
 
+  // ---------- the Hollow Deep (Chapter 7) ----------
+  sorrow_wail:     { name: 'Sorrow Wail',      school: 'umbral',  pips: 2, type: 'drain', min: 470, max: 530, heal: 0.5, target: 'one', enemy: true },
+  bone_cleave:     { name: 'Bone Cleave',      school: 'umbral',  pips: 2, type: 'damage', min: 500, max: 560, target: 'one', enemy: true },
+  bone_spear:      { name: 'Bone Spear',       school: 'umbral',  pips: 3, type: 'damage', min: 580, max: 660, target: 'one', enemy: true },
+  bone_prison:     { name: 'Bone Prison',      school: 'umbral',  pips: 4, type: 'damage', min: 640, max: 720, target: 'one', enemy: true },
+  colossus_stomp:  { name: 'Colossus Stomp',   school: 'arcane',  pips: 4, type: 'damage', min: 680, max: 760, target: 'one', enemy: true },
+  templar_smite:   { name: 'Templar Smite',    school: 'arcane',  pips: 3, type: 'damage', min: 620, max: 700, target: 'one', enemy: true },
+  pale_ward:       { name: 'Pale Ward',        school: 'arcane',  pips: 0, type: 'shield', pct: 0.5, enemy: true },
+  anchor_pulse:    { name: 'Anchor Pulse',     school: 'umbral',  pips: 1, type: 'damage', min: 320, max: 380, target: 'one', enemy: true },
+  pale_bolt:       { name: 'Pale Bolt',        school: 'umbral',  pips: 3, type: 'damage', min: 720, max: 820, target: 'one', enemy: true },
+  void_rain:       { name: 'Void Rain',        school: 'umbral',  pips: 5, type: 'damage', min: 780, max: 880, target: 'one', enemy: true },
+  soul_drain:      { name: 'Soul Drain',       school: 'umbral',  pips: 3, type: 'drain', min: 660, max: 740, heal: 0.5, target: 'one', enemy: true },
+  unmaking:        { name: 'The Unmaking',     school: 'umbral',  pips: 5, type: 'damage', min: 950, max: 1050, target: 'one', enemy: true },
+
   // ---------- Pet spells (cast for free when a pet "may-casts") ----------
   pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
   pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
@@ -359,6 +373,55 @@ export const ENEMIES = {
     drops: [],
   },
 
+  // ---------------- Chapter 7: the Hollow Deep ----------------
+  sorrowshade: {
+    name: 'Sorrowshade', school: 'umbral', level: 42, hp: 4800, xp: 2300, gold: [130, 180], model: 'sorrowshade',
+    spells: ['sorrow_wail', 'sorrow_wail', 'bone_spear'], resist: { umbral: 0.45 }, boost: { arcane: 0.25 },
+    speed: 2.8, aggro: 9,
+    drops: [{ item: 'deepwalker_hood', chance: 0.05 }, { mat: 'glowcap', chance: 0.4, n: 2 }],
+  },
+  deathless: {
+    name: 'Deathless Legionnaire', school: 'umbral', level: 43, hp: 5600, xp: 2450, gold: [140, 190], model: 'deathless',
+    spells: ['bone_cleave', 'bone_cleave', 'pale_ward'], resist: { umbral: 0.45, arcane: 0.2 }, boost: { blaze: 0.25 },
+    speed: 2.6, aggro: 8,
+    drops: [{ item: 'deepwalker_boots', chance: 0.05 }, { mat: 'silver_ore', chance: 0.4, n: 2 }],
+  },
+  bone_magus: {
+    name: 'Bone Magus', school: 'umbral', level: 44, hp: 4600, xp: 2550, gold: [150, 200], model: 'bone_magus',
+    spells: ['bone_spear', 'bone_prison', 'bone_spear', 'sorrow_wail'], resist: { umbral: 0.45 }, boost: { arcane: 0.3 },
+    speed: 2.4, aggro: 10,
+    drops: [{ item: 'soulreaver_staff', chance: 0.05 }, { item: 'deep_sigil', chance: 0.04 }],
+  },
+  bone_colossus: {
+    name: 'Bone Colossus', school: 'arcane', level: 45, hp: 9000, xp: 3600, gold: [220, 300], model: 'bone_colossus', elite: 'colossus',
+    spells: ['colossus_stomp', 'bone_cleave', 'colossus_stomp'], resist: { arcane: 0.4, umbral: 0.3 }, boost: { verdant: 0.25 },
+    speed: 1.6, aggro: 7,
+    drops: [{ item: 'deepwalker_robe', chance: 0.12 }, { mat: 'diamond', chance: 0.25 }],
+  },
+  pale_templar: {
+    name: 'Pale Templar', school: 'arcane', level: 46, hp: 6200, xp: 2800, gold: [170, 230], model: 'pale_templar',
+    spells: ['templar_smite', 'bone_cleave', 'pale_ward', 'templar_smite'], resist: { arcane: 0.45, umbral: 0.2 }, boost: { umbral: 0.25 },
+    speed: 2.6, aggro: 9,
+    drops: [{ item: 'deepwalker_robe', chance: 0.05 }, { mat: 'gold_ore', chance: 0.4, n: 2 }],
+  },
+  soul_anchor: {
+    name: 'Soul Anchor', school: 'umbral', level: 48, hp: 2600, xp: 400, gold: [20, 40], model: 'soul_anchor',
+    spells: ['anchor_pulse'], resist: {}, boost: { arcane: 0.3, blaze: 0.2 }, speed: 0, aggro: 40, drops: [],
+  },
+  malvoren: {
+    name: 'Malvoren, the Pale Magister', school: 'umbral', level: 50, hp: 42000, xp: 30000, gold: [5000, 6500], model: 'malvoren', boss: true,
+    spells: ['pale_bolt', 'void_rain', 'soul_drain', 'pale_bolt', 'unmaking', 'pale_ward'],
+    resist: { umbral: 0.5, arcane: 0.3 }, boost: { blaze: 0.15, verdant: 0.15 }, speed: 1.8, aggro: 20, powerPipChance: 0.65,
+    flySpell: 'void_rain', flyColor: 0xd06aff, flyMsg: 'Malvoren rises into the air on wings of shadow! Dodge the void, or use Dragonrend to pull him down.',
+    phases: [
+      { at: 0.75, say: 'You think you can unmake ME? I wrote the rules you fight by! Anchors, hold my ward!', summon: ['soul_anchor', 'soul_anchor', 'soul_anchor', 'soul_anchor'], event: 'anchors' },
+      { at: 0.5, say: 'Then watch the sky fall on you.', fly: { dur: 16, radius: 13 }, blade: 0.3 },
+      { at: 0.25, say: 'ENOUGH! Legion, rise! I will unmake everything!', summon: ['deathless', 'bone_magus'], blade: 0.5, cast: 'unmaking' },
+    ],
+    reactions: [{ school: 'arcane', say: 'Arcane? I taught Orvyn that spell!', cast: 'pale_bolt' }],
+    drops: [{ item: 'malvorens_crown', chance: 1 }, { item: 'magisters_staff', chance: 0.7 }, { item: 'pale_mantle', chance: 0.6 }, { item: 'grimoire_of_ages', chance: 0.5 }, { item: 'void_ring', chance: 0.5 }, { mat: 'diamond', chance: 1, n: 8 }, { pet: 'pale_wisp', chance: 0.7 }],
+  },
+
   // ---------------- Chapter 6: Thornwood ----------------
   briar_stalker: {
     name: 'Briar Stalker', school: 'verdant', level: 34, hp: 3800, xp: 1500, gold: [90, 130], model: 'briar_stalker',
@@ -531,6 +594,17 @@ const AOE = {
   ice_golem:       { glacier_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, ice_lance: { shape: 'line', len: 14, width: 2, dur: 1 } },
   frost_wraith:    { ice_lance: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
   frost_drake:     { frost_breath: { shape: 'cone', r: 12, angle: 0.9, dur: 1.3, breath: true }, glacier_slam: { shape: 'circle', at: 'self', r: 6, dur: 1.2 } },
+  deathless:       { bone_cleave: { shape: 'cone', r: 4.5, angle: 1.4, dur: 0.9 } },
+  bone_magus:      { bone_spear: { shape: 'line', len: 16, width: 2.2, dur: 1.1 }, bone_prison: { shape: 'circle', r: 3, count: 3, spread: 5, dur: 1.3 } },
+  bone_colossus:   { colossus_stomp: { shape: 'circle', at: 'self', r: 6.5, dur: 1.3 } },
+  pale_templar:    { templar_smite: { shape: 'cone', r: 7, angle: 1.1, dur: 1 } },
+  sorrowshade:     { bone_spear: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
+  malvoren: {
+    pale_bolt: { shape: 'line', len: 24, width: 2.6, dur: 1.1 },
+    void_rain: { shape: 'circle', r: 3.4, count: 8, spread: 11, dur: 1.6 },
+    unmaking: { shape: 'circle', at: 'self', inner: 6, r: 22, dur: 2.1 },
+    landing_quake: { shape: 'circle', at: 'self', r: 7, dur: 0.8 },
+  },
   briar_stalker:   { pounce: { shape: 'line', len: 11, width: 2.4, dur: 1, charge: true } },
   spore_shambler:  { spore_cloud: { shape: 'circle', r: 4, dur: 1.2 } },
   treant:          { treant_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, root_snare: { shape: 'circle', r: 3, count: 3, spread: 5, dur: 1.3 } },
@@ -580,7 +654,7 @@ const AOE = {
 for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { pixie: 12, blight_pod: 30, thornmother: 9, skyraider: 12, voltaris: 14, thunder_roc: 5, gale_sprite: 10, pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
+const RANGED = { sorrowshade: 11, bone_magus: 12, soul_anchor: 30, malvoren: 14, pixie: 12, blight_pod: 30, thornmother: 9, skyraider: 12, voltaris: 14, thunder_roc: 5, gale_sprite: 10, pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
@@ -591,13 +665,26 @@ ENEMIES.sylvara.attackRate = 1.6;
 ENEMIES.voltaris.attackRate = 1.6;
 ENEMIES.thornmother.attackRate = 1.6;
 ENEMIES.blight_pod.attackRate = 4;
+ENEMIES.malvoren.attackRate = 1.5;
+ENEMIES.soul_anchor.attackRate = 3.2;
 ENEMIES.magma_serpent.speed = 0;
+
+// Echoes of past bosses in Malvoren's Echo Halls: the old fights, remembered at level 46.
+// Every echo counts as a 'magister_echo' for quests.
+for (const [id, base, name] of [['echo_hollowmere', 'lord_hollowmere', 'Echo of Hollowmere'], ['echo_pyrrhon', 'pyrrhon', 'Echo of Pyrrhon'], ['echo_sylvara', 'sylvara', 'Echo of Sylvara']]) {
+  const b = ENEMIES[base], L = 46, k = L - b.level;
+  ENEMIES[id] = {
+    ...b, id, name, level: L, questAs: 'magister_echo', hp: 11000, xp: 4200, gold: [260, 340], aggro: 8, dmgMult: 1 + k * 0.075,
+    phases: [{ at: 0.5, say: 'The Magister... remembers... me...', blade: 0.4 }], drops: [{ mat: 'diamond', chance: 0.5 }], reactions: [],
+  };
+}
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
 const GX = 2300; // Glacierreach (see GLACIER_X)
 const SX = 3300; // Stormspire (see STORM_X)
 const TX = 4400; // Thornwood (see THORN_X)
+const HX2 = 5500; // the Hollow Deep (see DEEP_X)
 
 export const SPAWNS = [
   { enemy: 'gloomsprig', x: -4, z: 52, r: 4 },
@@ -669,6 +756,17 @@ export const SPAWNS = [
   ...[[-2, 102], [2, 114], [-2, 124], [8, 136]].map(([dx, z]) => ({ enemy: 'treant', x: TX + dx, z, r: 2 })),
   ...[[-8, 146], [8, 150], [0, 158], [-10, 156]].map(([dx, z]) => ({ enemy: 'blight_horror', x: TX + dx, z, r: 3 })),
   { enemy: 'thornmother', x: TX, z: 218, r: 0 },
+
+  // the Hollow Deep
+  ...[[-6, 60], [6, 64], [-4, 74], [8, 72], [0, 56]].map(([dx, z]) => ({ enemy: 'sorrowshade', x: HX2 + dx, z, r: 4 })),
+  ...[[-3, 30], [3, 42], [52, 60], [66, 62], [58, 74]].map(([dx, z]) => ({ enemy: 'deathless', x: HX2 + dx, z, r: 3 })),
+  ...[[54, 68], [66, 72], [60, 58], [62, 78]].map(([dx, z]) => ({ enemy: 'bone_magus', x: HX2 + dx, z, r: 3 })),
+  ...[[57, 92], [63, 104]].map(([dx, z]) => ({ enemy: 'bone_colossus', x: HX2 + dx, z, r: 2 })),
+  { enemy: 'echo_hollowmere', x: HX2 + 52, z: 120, r: 0 },
+  { enemy: 'echo_pyrrhon', x: HX2 + 68, z: 120, r: 0 },
+  { enemy: 'echo_sylvara', x: HX2 + 60, z: 134, r: 0 },
+  ...[[-6, 118], [6, 120], [-4, 130], [7, 130]].map(([dx, z]) => ({ enemy: 'pale_templar', x: HX2 + dx, z, r: 3 })),
+  { enemy: 'malvoren', x: HX2, z: 196, r: 0 },
 ];
 
 export const NPCS = {
@@ -743,6 +841,21 @@ export const NPCS = {
     name: 'Quartermaster Hesk', title: 'Dragonforged Gear', x: 1411, z: -7, robe: 0x4a4a5a, hat: 0x2a2a34, trim: 0xff7a1a, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x5a3a2a, skin: 0xd8a888,
     stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
+  },
+  lyra: {
+    name: 'Lyra Duskmantle', title: 'Runaway Apprentice', x: 5500 + 7, z: 6, robe: 0xe8e4f0, hat: 0x3a2a4a, trim: 0xd06aff, hatStyle: 'hood', hair: 0xd8d0e8, skin: 0xe8d0c0, eyeColor: 0xd06aff,
+    lines: ['I was Malvoren\'s apprentice for ten years. I know his tricks. I just never had the courage to face him.',
+            'Down here, the dead remember everything. Malvoren made sure of it.'],
+  },
+  aldric: {
+    name: 'Sir Aldric', title: 'the Redeemed Knight', x: 5500 - 8, z: -2, robe: 0x707894, hat: 0x2d2a3a, trim: 0xf2c14e, hatStyle: 'helmet', beard: true, hair: 0x8a6a4a, skin: 0xe0b890, eyeColor: 0x7de0ff,
+    lines: ['I was a Hollow Knight once, bound to Hollowmere\'s will. When you broke him, you broke my chains too.',
+            'Arcane and fire burn bone well. The Magister\'s own magic, less so.'],
+  },
+  mott: {
+    name: 'Gravekeeper Mott', title: 'Refuge Outfitter', x: 5500 + 12, z: -8, robe: 0x3a3a3a, hat: 0x1a1a1a, trim: 0x7affd0, service: 'gear', hatStyle: 'wizard', beard: true, hair: 0xaaaaaa, skin: 0xc8b8a8,
+    stock: ['deepwalker_hood', 'deepwalker_robe', 'deepwalker_boots', 'soulreaver_staff', 'deep_sigil'],
+    lines: ['Clothes for the deep dark. They fit the living just as well as the dead.'],
   },
   rowan: {
     name: 'Elder Rowan', title: 'Greenhollow Druid', x: 4400 + 7, z: 6, robe: 0x3a6a3a, hat: 0x6b4a2b, trim: 0xf2c14e, hatStyle: 'hood', beard: true, hair: 0xe8e0d0, skin: 0xc89878, eyeColor: 0x5fdc6a,
@@ -1114,6 +1227,56 @@ export const QUESTS = [
     done: 'The Heartwood is clean, and the Elder Mother blooms again... And in the Thornmother\'s roots, a path of black stone goes down, and down. Into the Hollow Deep, where Malvoren waits. Chapter 6 is complete. When you are ready, archmage, the last Door will open.',
     reward: { xp: 30000, gold: 4500, tp: 3 },
   },
+  // ---------------- Chapter 7: The Pale Magister ----------------
+  {
+    id: 'q45', name: 'The Last Door', giver: 'orvyn', turnIn: 'lyra',
+    objective: { type: 'talk', npc: 'lyra' },
+    offer: 'The last Spiral Door has opened, black as ink, on the east side of the courtyard near the Rift Gate. It leads down into the Hollow Deep, to Malvoren\'s tower. Someone waits on the other side: a girl who escaped him. Find her.',
+    done: 'You came. I\'m Lyra, I was Malvoren\'s apprentice. His Pale Spire stands at the bottom of the Deep. Between here and there: the dead he enslaved, echoes of every monster he made, and his Templars.',
+    reward: { xp: 12000, gold: 800 },
+  },
+  {
+    id: 'q46', name: 'Sorrow on the Shore', giver: 'lyra', turnIn: 'lyra',
+    objective: { type: 'defeat', enemy: 'sorrowshade', count: 5 },
+    offer: 'Past the Bone Road lies the Weeping Shore, where Sorrowshades drain the life from anyone who passes. Set 5 of them free.',
+    done: 'Listen: the shore is quiet. Sir Aldric has been waiting to march on the Ossuary.',
+    reward: { xp: 13000, gold: 850, potions: 1 },
+  },
+  {
+    id: 'q47', name: 'The Deathless Legion', giver: 'aldric', turnIn: 'aldric',
+    objective: { type: 'defeat', enemy: 'deathless', count: 5 },
+    offer: 'Malvoren raised an army of skeletons: the Deathless Legion. They march the Bone Road and guard the Ossuary to the east. Break 5 of them.',
+    done: 'Five fewer. I fought beside some of them, long ago. Rest well, brothers.',
+    reward: { xp: 13500, gold: 900, tp: 1 },
+  },
+  {
+    id: 'q48', name: 'The Bone Magi', giver: 'aldric', turnIn: 'aldric',
+    objective: { type: 'defeat', enemy: 'bone_magus', count: 4 },
+    offer: 'The Bone Magi in the Ossuary raise the Legion again and again. Their bone spears fly in straight lines, and their prisons fall in circles. Destroy 4.',
+    done: 'The Ossuary is silent at last. North of it lie the Echo Halls. Lyra knows what waits there.',
+    reward: { xp: 14000, gold: 950 },
+  },
+  {
+    id: 'q49', name: 'Echoes of the Past', giver: 'lyra', turnIn: 'lyra',
+    objective: { type: 'defeat', enemy: 'magister_echo', count: 3 },
+    offer: 'In the Echo Halls, Malvoren keeps echoes of every champion he corrupted: Hollowmere, Pyrrhon and Queen Sylvara, stronger than you remember. Defeat all three echoes.',
+    done: 'The echoes are gone. They looked almost... grateful. Only the Pale Gate stands between you and the Spire now.',
+    reward: { xp: 15000, gold: 1000, tp: 1 },
+  },
+  {
+    id: 'q50', name: 'The Pale Gate', giver: 'aldric', turnIn: 'aldric',
+    objective: { type: 'defeat', enemy: 'pale_templar', count: 4 },
+    offer: 'Malvoren\'s Pale Templars hold the gate west of the Echo Halls. They smite in wide arcs and raise wards. Cut through 4 of them.',
+    done: 'The gate is open. Go, and end this. Lyra will tell you his weaknesses.',
+    reward: { xp: 16000, gold: 1100, potions: 1 },
+  },
+  {
+    id: 'q51', name: 'The Pale Magister', giver: 'lyra', turnIn: 'orvyn',
+    objective: { type: 'defeat', enemy: 'malvoren', count: 1 },
+    offer: 'At three-quarters health he hides behind a ward held by four Soul Anchors: destroy them. At half, he rises into the air and rains void: dodge, or use Dragonrend. At the end he calls up his Legion and casts the Unmaking, a ring of death: get close to him. You have beaten every one of his creations. Now beat him.',
+    done: 'It is over. Malvoren is gone, the Spiral Doors are safe, and every land you freed is healing... You came to Starfall as an apprentice. You leave it as a legend. The Chronicle is complete, archmage. Thank you. (New Game+ is waiting whenever you want to live it again.)',
+    reward: { xp: 50000, gold: 10000, tp: 5 },
+  },
 ];
 
 export const SHOP = {
@@ -1192,6 +1355,18 @@ export const GEAR = {
   crown_of_the_sky:  { name: 'Crown of the Sky Tyrant', slot: 'hat', level: 22, stats: { hp: 320, dmg: 13, pip: 8, acc: 4 }, color: 0x8a1a1a },
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
+
+  // ---------- the Hollow Deep (Chapter 7) ----------
+  deepwalker_hood:   { name: 'Deepwalker Hood',     slot: 'hat',     level: 42, stats: { hp: 540, dmg: 18, resist: 9 }, color: 0x2a2038, price: 9600 },
+  deepwalker_robe:   { name: 'Deepwalker Robe',     slot: 'robe',    level: 43, stats: { hp: 960, resist: 22, dmg: 8 }, color: 0x3a2a4a, price: 10800 },
+  deepwalker_boots:  { name: 'Deepwalker Boots',    slot: 'boots',   level: 42, stats: { hp: 400, acc: 11, pip: 7 }, price: 8800 },
+  soulreaver_staff:  { name: 'Soulreaver Staff',    slot: 'wand',    level: 45, stats: { dmg: 35, pip: 11, acc: 8 }, price: 12400 },
+  deep_sigil:        { name: 'Sigil of the Deep',   slot: 'amulet',  level: 44, stats: { hp: 640, dmg: 18, resist: 10 }, price: 11200 },
+  malvorens_crown:   { name: 'Malvoren\'s Crown',   slot: 'hat',     level: 50, stats: { hp: 760, dmg: 26, pip: 12, acc: 10 }, color: 0xe8e4f0 },
+  magisters_staff:   { name: 'Staff of the Magister', slot: 'wand',  level: 50, stats: { dmg: 42, pip: 13, acc: 10 }, color: 0xd06aff },
+  pale_mantle:       { name: 'Pale Mantle',         slot: 'cloak',   level: 50, stats: { hp: 700, dmg: 16, resist: 14 }, color: 0xe8e4f0 },
+  grimoire_of_ages:  { name: 'Grimoire of Ages',    slot: 'offhand', level: 50, stats: { dmg: 28, acc: 11, heal: 12 }, color: 0x3a1a4a },
+  void_ring:         { name: 'Void Ring',           slot: 'ring',    level: 48, stats: { dmg: 18, acc: 10, hp: 280 } },
 
   // ---------- Thornwood (Chapter 6) ----------
   thornweave_hood:   { name: 'Thornweave Hood',     slot: 'hat',     level: 36, stats: { hp: 460, dmg: 16, resist: 8 }, color: 0x3a6a3a, price: 6400 },
@@ -1297,6 +1472,7 @@ export const PETS = {
   frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
   bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
   storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+  pale_wisp:    { name: 'Pale Wisp',    school: 'umbral',  kind: 'sprite', color: 0xe8e0ff, spell: 'pet_void', chance: 0.3, stats: { dmg: 8, hp: 80 } },
   sproutling:   { name: 'Sproutling',   school: 'verdant', kind: 'sprite', color: 0x9fff7a, spell: 'pet_bloom', chance: 0.25, stats: { heal: 12, hp: 60 } },
   thunderchick: { name: 'Thunderchick', school: 'tempest', kind: 'owl', color: 0x9ff0ff, spell: 'pet_bolt', chance: 0.25, stats: { dmg: 6, acc: 4 } },
   aurora_wisp:  { name: 'Aurora Wisp',  school: 'frost',   kind: 'sprite', color: 0x7affd0, spell: 'pet_aurora', chance: 0.25, stats: { heal: 10, resist: 4 } },
@@ -1392,6 +1568,25 @@ export const ZONES = {
     atmosphere: { fog: 0x8ab0d8, top: 0x0a1a40, mid: 0x4a7ab8, bottom: 0xc8e8ff, hemi: 0xe0f0ff, fogNear: 40, fogFar: 190 },
     music: 'frost',
   },
+  hollowdeep: {
+    name: 'The Hollow Deep',
+    regions: [
+      { type: 'circle', x: 5500, z: 0, r: 20 },
+      { type: 'rect', x0: 5500 - 6, x1: 5500 + 6, z0: 16, z1: 52 },
+      { type: 'circle', x: 5500, z: 66, r: 16 },
+      { type: 'rect', x0: 5500 + 14, x1: 5500 + 46, z0: 60, z1: 72 },
+      { type: 'circle', x: 5500 + 60, z: 66, r: 16 },
+      { type: 'rect', x0: 5500 + 54, x1: 5500 + 66, z0: 80, z1: 110 },
+      { type: 'circle', x: 5500 + 60, z: 124, r: 16 },
+      { type: 'rect', x0: 5500 + 14, x1: 5500 + 46, z0: 118, z1: 130 },
+      { type: 'circle', x: 5500, z: 124, r: 16 },
+      { type: 'rect', x0: 5500 - 6, x1: 5500 + 6, z0: 138, z1: 166 },
+      { type: 'circle', x: 5500, z: 188, r: 24 },
+    ],
+    spawn: { x: 5500, z: -8, heading: 0 },
+    atmosphere: { fog: 0x1a1428, top: 0x05030a, mid: 0x2a1a3a, bottom: 0x4a3a5a, hemi: 0xb8a8d8, fogNear: 25, fogFar: 130, hemiI: 1.15, sunI: 1.25 },
+    music: 'deep',
+  },
   thornwood: {
     name: 'Thornwood',
     regions: [
@@ -1453,7 +1648,8 @@ export const DRAGON_X = 1400;
 export const GLACIER_X = 2300;
 export const STORM_X = 3300;
 export const THORN_X = 4400;
-export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 3850 ? 'thornwood' : x > 2850 ? 'stormspire' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export const DEEP_X = 5500;
+export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 4950 ? 'hollowdeep' : x > 3850 ? 'thornwood' : x > 2850 ? 'stormspire' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [
@@ -1462,6 +1658,12 @@ export const AREAS = [
   { id: 'bonefield', name: 'The Bone Field', x0: 1370, x1: 1430, z0: 84, z1: 130, music: 'dragon' },
   { id: 'cliffs', name: 'Wyvern Cliffs', x0: 1462, x1: 1506, z0: 84, z1: 125, music: 'dragon' },
   { id: 'roost', name: "The Dragon's Roost", x0: 1455, x1: 1515, z0: 165, z1: 225, music: 'dragon' },
+  { id: 'refuge', name: 'The Last Refuge', x0: 5500 - 22, x1: 5500 + 22, z0: -22, z1: 18, music: 'deep' },
+  { id: 'weeping', name: 'The Weeping Shore', x0: 5500 - 18, x1: 5500 + 18, z0: 48, z1: 84, music: 'deep' },
+  { id: 'ossuary', name: 'The Ossuary', x0: 5500 + 42, x1: 5500 + 78, z0: 48, z1: 84, music: 'crypt' },
+  { id: 'echohalls', name: 'The Echo Halls', x0: 5500 + 42, x1: 5500 + 78, z0: 106, z1: 142, music: 'battle' },
+  { id: 'palegate', name: 'The Pale Gate', x0: 5500 - 18, x1: 5500 + 18, z0: 106, z1: 142, music: 'deep' },
+  { id: 'palespire', name: 'The Pale Spire', x0: 5500 - 26, x1: 5500 + 26, z0: 162, z1: 214, music: 'boss' },
   { id: 'greenhollow', name: 'Greenhollow', x0: 4400 - 26, x1: 4400 + 26, z0: -26, z1: 20, music: 'forest' },
   { id: 'mossyglade', name: 'The Mossy Glade', x0: 4400 - 18, x1: 4400 + 18, z0: 58, z1: 94, music: 'forest' },
   { id: 'glowcap', name: 'The Glowcap Hollow', x0: 4400 - 78, x1: 4400 - 42, z0: 58, z1: 94, music: 'forest' },
@@ -1491,6 +1693,8 @@ export const PORTALS = [
   { id: 'portal_dragon', x: -26, z: -4, to: { x: 1400, z: -8, heading: 0 }, dest: 'Dragonspire Peaks', unlock: 14, rot: Math.PI / 2, color: 0x4dc8ff },
   { id: 'portal_dragon_back', x: 1400, z: -19, to: { x: -13, z: -4, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_glacier', x: -22, z: -19, to: { x: 2300, z: -8, heading: 0 }, dest: 'Glacierreach', unlock: 23, rot: 0.86, color: 0xdff6ff },
+  { id: 'portal_deep', x: 24, z: 8, to: { x: 5500, z: -6, heading: 0 }, dest: 'The Hollow Deep', unlock: 44, rot: -1.89, color: 0x3a1a4a },
+  { id: 'portal_deep_back', x: 5500, z: -18, to: { x: 20.5, z: 6.5, heading: -1.89 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_thorn', x: 25, z: -10, to: { x: 4400, z: -8, heading: 0 }, dest: 'Thornwood', unlock: 37, rot: -1.19, color: 0x7aff7a },
   { id: 'portal_thorn_back', x: 4400, z: -20, to: { x: 21.5, z: -8.5, heading: -1.19 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_storm', x: -17, z: 25, to: { x: 3300, z: -8, heading: 0 }, dest: 'Stormspire', unlock: 30, rot: 2.54, color: 0xc8b8ff },
@@ -1512,6 +1716,7 @@ export const MOUNTS = {
   elk:       { name: 'Frost Elk',      icon: '🦌', speed: 0.8,  price: 2600, level: 16, desc: 'Sure-footed on the snowiest mountain path.' },
   stalker:   { name: 'Void Stalker',   icon: '🐈‍⬛', speed: 0.85, price: 0, level: 1, unlock: 'rift', desc: 'Earned by reaching floor 20 of the Endless Rift.' },
   drake:     { name: 'Sky Drake',      icon: '🐉', speed: 0.9,  price: 0, level: 1, unlock: 'vorathrax', desc: 'Earned by slaying Vorathrax, the Sky Tyrant.' },
+  nightmare: { name: 'Pale Nightmare', icon: '🐎', speed: 1.0,  price: 0, level: 1, unlock: 'malvoren', desc: 'Earned by defeating Malvoren, the Pale Magister.' },
 };
 
 // Waystones: touch one to remember it, then fast-travel back from the World Atlas (N).
@@ -1524,6 +1729,9 @@ export const WAYSTONES = [
   { id: 'ws_bonefield', name: 'The Bone Field', zone: 'dragonspire', x: 1395, z: 89 },
   { id: 'ws_roost', name: 'Roost Approach', zone: 'dragonspire', x: 1480, z: 124 },
   { id: 'ws_home', name: 'Your Homestead', zone: 'homestead', x: -2792, z: 22 },
+  { id: 'ws_refuge', name: 'The Last Refuge', zone: 'hollowdeep', x: 5500 - 5, z: 11 },
+  { id: 'ws_ossuary', name: 'The Ossuary', zone: 'hollowdeep', x: 5500 + 52, z: 76 },
+  { id: 'ws_palegate', name: 'The Pale Gate', zone: 'hollowdeep', x: 5500 + 9, z: 132 },
   { id: 'ws_greenhollow', name: 'Greenhollow', zone: 'thornwood', x: 4400 - 5, z: 12 },
   { id: 'ws_glade', name: 'The Mossy Glade', zone: 'thornwood', x: 4400 + 9, z: 66 },
   { id: 'ws_grove', name: 'Blighted Grove', zone: 'thornwood', x: 4400 + 10, z: 134 },
@@ -1549,4 +1757,5 @@ export const FOUNTAINS = [
   { id: 'hearth_glacier', name: 'Frostholm Hearth', x: GLACIER_X, z: 0, r: 5.5 },
   { id: 'fountain_storm', name: 'Skyport Fountain', x: STORM_X, z: 0, r: 5.2 },
   { id: 'well_thorn', name: 'Greenhollow Spring', x: THORN_X, z: 0, r: 5.2 },
+  { id: 'font_deep', name: 'Refuge Wellspring', x: DEEP_X, z: 0, r: 5.2 },
 ];

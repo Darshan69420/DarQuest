@@ -7,7 +7,7 @@ import {
 } from './models.js';
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
-import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier, buildStormspire, buildThornwood } from './maps.js';
+import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier, buildStormspire, buildThornwood, buildHollowDeep } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 import { Sky } from './sky.js';
 import { buildArena } from './arena.js';
@@ -369,9 +369,10 @@ export class World {
     const glacier = buildGlacier(this);
     const storm = buildStormspire(this);
     const thorn = buildThornwood(this);
+    const deep = buildHollowDeep(this);
     buildHomestead(this);
     buildArena(this);
-    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring, hearth_glacier: glacier.hearth, fountain_storm: storm.fountain, well_thorn: thorn.spring };
+    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring, hearth_glacier: glacier.hearth, fountain_storm: storm.fountain, well_thorn: thorn.spring, font_deep: deep.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
       const rot = pt.rot || 0;

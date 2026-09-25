@@ -63,6 +63,7 @@ export class Combat {
       if (sub) sub.textContent = `Level ${e.power?.level ?? d.level}${d.boss ? ' · Boss' : d.elite ? ' · Elite' : ''}`;
     }
     e.maxHp = Math.round(e.def.hp * this.diff.hp * (e.power?.hp || 1));
+    e.takenMult = 1;   // per-foe damage taken (boss wards)
     e.hp = e.maxHp;
     e.mods = mods();
     e.cd = {};
@@ -369,7 +370,7 @@ export class Combat {
       this.aggro(e);
       return 0;
     }
-    let m = (1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0)) * (e.def.takenMult || 1);
+    let m = (1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0)) * (e.def.takenMult || 1) * (e.takenMult ?? 1);
     for (const t of e.mods.traps) m *= 1 + t;
     for (const s of e.mods.shields) m *= 1 - s;
     e.mods.traps = [];
@@ -488,6 +489,7 @@ export class Combat {
       if (ph.pips) e.nextAttack = this.now + 0.5;
       if (ph.cast) setTimeout(() => { if (e.state === 'aggro') this.enemySpell(e, SPELLS[ph.cast]); }, 900);
       if (ph.fly) this.startFlight(e, ph.fly);
+      if (ph.event) this.onPhaseEvent?.(e, ph.event);
       if (ph.summon) {
         for (const id of ph.summon) {
           const a = Math.random() * Math.PI * 2;

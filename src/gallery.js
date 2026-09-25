@@ -65,6 +65,16 @@ const GROUPS = {
       { id: 'gianttree', name: 'Giant tree', build: () => M.makeGiantTree(0.12) },
     ],
   },
+  deep: {
+    title: 'The Hollow Deep',
+    items: [
+      ...[['sorrowshade', 'Sorrowshade'], ['deathless', 'Deathless Legionnaire'], ['bone_magus', 'Bone Magus'], ['bone_colossus', 'Bone Colossus'], ['pale_templar', 'Pale Templar'], ['soul_anchor', 'Soul Anchor'], ['malvoren', 'Malvoren']]
+        .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
+      { id: 'nightmare', name: 'Pale Nightmare', build: () => M.makeMount('nightmare') },
+      { id: 'stalag', name: 'Stalagmites', build: () => M.makeStalagmites(0.6) },
+      { id: 'spire', name: 'Pale Spire', build: () => { const sp = M.makePaleSpire(); sp.scale.setScalar(0.08); return sp; } },
+    ],
+  },
   skilling: {
     title: 'Skilling & Rift',
     items: [

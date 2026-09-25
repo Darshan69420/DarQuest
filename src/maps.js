@@ -8,9 +8,9 @@ import {
   makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire, makeMount,
   makeHouse, makeIceCrystal, makeIceTower, makeIceWall, makeIceThrone, makeAurora,
   makeSkyIsland, makeAirship, makeRopeBridge, makeLightningRod, makeStormCloud, makeCrystal,
-  makeGiantTree, makeRootHouse, makeThornBush, makeMushroom,
+  makeGiantTree, makeRootHouse, makeThornBush, makeMushroom, makeStalagmites, makePaleSpire, makeGrave, makeTorch,
 } from './models.js';
-import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, THORN_X as TX, NPCS } from './data.js';
+import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, THORN_X as TX, DEEP_X as DX, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
 
 // Word Walls: each teaches the first word of a dragon shout.
@@ -824,6 +824,100 @@ export function buildThornwood(world) {
     m.scale.setScalar(0.07);
     m.userData.base = new THREE.Vector3(T - 70 + Math.random() * 100, 0.6 + Math.random() * 4, deep ? 130 + Math.random() * 100 : -20 + Math.random() * 150);
     if (!deep && Math.random() < 0.3) m.userData.base.x = T - 70 + Math.random() * 25;
+    m.userData.phase = Math.random() * 10;
+    scene.add(m);
+    world.motes.push(m);
+  }
+  return { spring };
+}
+
+// ------------------------------------------------------------ the Hollow Deep (Chapter 7)
+
+export function buildHollowDeep(world) {
+  const scene = world.scene;
+  const H = DX;
+  flatPlane(scene, new THREE.PlaneGeometry(520, 520), 0x14101c, H + 30, 100, 0);
+  // stone floors, the bone road, the ghostly river and the Spire's courtyard
+  flatPlane(scene, new THREE.CircleGeometry(20, 40), 0x3a3448, H, 0, 0.02);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 38), 0xcfc3a6, H, 34, 0.021);
+  flatPlane(scene, new THREE.CircleGeometry(16, 40), 0x2a2438, H, 66, 0.022);
+  flatPlane(scene, new THREE.PlaneGeometry(34, 11), 0x3a3448, H + 30, 66, 0.023);
+  flatPlane(scene, new THREE.CircleGeometry(16, 40), 0x4a4040, H + 60, 66, 0.024);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 32), 0x3a3448, H + 60, 95, 0.025);
+  flatPlane(scene, new THREE.CircleGeometry(16, 40), 0x2a2040, H + 60, 124, 0.026);
+  flatPlane(scene, new THREE.RingGeometry(14, 15, 40), 0xd06aff, H + 60, 124, 0.03);
+  flatPlane(scene, new THREE.PlaneGeometry(34, 11), 0x3a3448, H + 30, 124, 0.027);
+  flatPlane(scene, new THREE.CircleGeometry(16, 40), 0x4a4458, H, 124, 0.028);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 30), 0xe8e4f0, H, 152, 0.029);
+  flatPlane(scene, new THREE.CircleGeometry(24, 48), 0xd8d4e0, H, 188, 0.03);
+  flatPlane(scene, new THREE.RingGeometry(20, 21.5, 48), 0xd06aff, H, 188, 0.032);
+  // rivers of souls: glowing water with drifting light
+  const river = (x, z, w, len, rot) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), new THREE.MeshBasicMaterial({ color: 0x7a5aff, transparent: true, opacity: 0.6 }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = rot;
+    m.position.set(x, 0.035, z);
+    m.userData.anim = (t) => { m.material.opacity = 0.5 + Math.sin(t * 1.5 + x) * 0.12; };
+    return world.add(m, x, z);
+  };
+  river(H - 22, 66, 8, 70, 0.1);
+  river(H + 22, 96, 7, 60, -0.4);
+  river(H + 30, 160, 8, 80, 1.2);
+
+  // the Last Refuge: tents and lanterns around a wellspring
+  const spring = makeFountain();
+  spring.scale.setScalar(0.8);
+  world.add(spring, H, 0, 0, 2.9);
+  world.add(tent(0x3a2a4a), H - 14, 9, 1.2, 2.4);
+  world.add(tent(0x2a3a4a), H + 14, 10, -1.6, 2.4);
+  world.add(tent(0x4a2a2a), H - 15, -10, 1.9, 2.4);
+  world.add(campfire(), H + 4, 12, 0, 1.2);
+  world.addStation('range', H + 4, 12, 0, false);
+  world.addStation('anvil', H + 15, -4, -1.6);
+  world.addStation('alchemy', H - 13, -3, 1.3);
+  world.addStation('furnace', H + 10, -15, -0.6);
+  for (const [dx, dz] of [[-6, 17], [6, 17], [-18, 2], [18, -3], [-4, -18], [5, -18]]) world.add(makeLamp(0x7affd0), H + dx, dz, 0, 0.4);
+  world.addNode('silver_rock', H - 17, 5);
+  world.addNode('gold_rock', H + 17, 4);
+
+  // the Bone Road: graves and bones on both sides
+  for (let z = 20; z <= 50; z += 5) for (const s of [-1, 1]) world.add(Math.random() < 0.5 ? makeGrave() : makeBones(false), H + s * (7.5 + Math.random() * 2), z, Math.random() * 6);
+  // the Ossuary: piles of bones and sarcophagi
+  for (const [dx, dz] of [[-10, -8], [10, 8], [-9, 9], [8, -10]]) world.add(makeBones(true), H + 60 + dx, 66 + dz, Math.random() * 6);
+  world.addNode('dragonite_rock', H + 70, 60);
+  // the Echo Halls: pillars in a ring
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    if (Math.abs(Math.sin(a)) > 0.95 || Math.cos(a) < -0.95) continue;
+    world.add(makeCliff(1.6, 7, 1.6, 0x4a4458), H + 60 + Math.cos(a) * 17.5, 124 + Math.sin(a) * 17.5, 0, 1.1);
+  }
+  // the Pale Gate: white pillars and banners
+  for (const [dx, dz] of [[-5, 139], [5, 139]]) { world.add(makeCliff(2, 9, 2, 0xe8e4f0), H + dx - Math.sign(dx) * 2.5, dz, 0, 1.2); world.add(makeBanner(0xd06aff), H + dx, dz - 2, 0, 0.3); }
+  // the Pale Spire behind its courtyard
+  world.add(makePaleSpire(), H, 226, Math.PI, 10);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    if (Math.sin(a) < -0.9) continue;
+    const t = makeTorch();
+    t.scale.setScalar(1.3);
+    world.add(t, H + Math.cos(a) * 22.5, 188 + Math.sin(a) * 22.5, -a - Math.PI / 2);
+  }
+
+  // stalagmites and cave walls everywhere you cannot walk
+  for (let i = 0; i < 140; i++) {
+    const x = H - 60 + Math.random() * 180, z = -30 + Math.random() * 280;
+    if (world.walkable(x, z) || world.walkable(x + 3, z) || world.walkable(x - 3, z) || world.walkable(x, z + 3) || world.walkable(x, z - 3)) continue;
+    world.add(makeStalagmites(0.8 + Math.random() * 1.2, [0x3a3444, 0x2a2438, 0x4a4058][i % 3]), x, z, Math.random() * 6);
+  }
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * Math.PI * 2;
+    world.add(makePeak(30 + Math.random() * 20, 60 + Math.random() * 40, false), H + 30 + Math.sin(a) * 160, 100 + Math.cos(a) * 170, Math.random());
+  }
+  // drifting souls
+  for (let k = 0; k < 90; k++) {
+    const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshBasicMaterial({ color: k % 3 ? 0xd8c8ff : 0x7affd0 }));
+    m.scale.setScalar(0.07);
+    m.userData.base = new THREE.Vector3(H - 25 + Math.random() * 100, 0.8 + Math.random() * 6, -20 + Math.random() * 220);
     m.userData.phase = Math.random() * 10;
     scene.add(m);
     world.motes.push(m);

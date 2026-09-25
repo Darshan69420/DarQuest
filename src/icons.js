@@ -121,9 +121,9 @@ const MAP = {
   axe: '🪓🪚✂️', food: '🍢🍲🍳🥧🫐🍄🌶️🍴', moon: '🌙🌑', target: '🎯', heart: '❤️💚🧡💗💙💓🩹🙂', horse: '🐴🐎🦌',
   gem: '💎🔷💠🧲📿', pack: '🎒', pouch: '👜', leaf: '🌿🍃🌱🌾🍀🌵🌼🌸🌺', drop: '💧🩸🌧️', coffin: '⚰️', chain: '🔗🪢🕸️',
   scales: '⚖️', warning: '⚠️❗🔻', burst: '💥😤', wind: '💨🌪️🌬️☁️🌫️', crown: '👑', ghost: '👻😱',
-  book: '📖📚📘📕🧠', question: '❓❔', hall: '🏦🏛️🏰🏟️', hat: '🎩🧙', people: '🤝', feather: '🪶🪽🕊️🐦🦋',
-  lock: '🔒🗝️🚪', flag: '🏳️', gear: '⚙️🖥️⌨️🎮🕹️', hourglass: '⏳⏱️', eye: '👁️🔭♿', comet: '☄️', steps: '👣',
-  speech: '💬🗣️', mirror: '🪞🪟', compass: '🧭', map: '🗺️', bone: '🦴', egg: '🥚', home: '🏡🏠', sound: '🔊🔇',
+  book: '📖📚📘📕🧠', question: '❓❔', hall: '🏦🏛️🏰🏟️', hat: '🎩🧙', people: '🤝♿', feather: '🪶🪽🕊️🐦🦋',
+  lock: '🔒🗝️🚪⌨️', flag: '🏳️', gear: '⚙️🕹️', hourglass: '⏳⏱️', eye: '👁️🔭🖥️', comet: '☄️', steps: '👣',
+  speech: '💬🗣️', mirror: '🪞🪟', compass: '🧭🎮', map: '🗺️', bone: '🦴', egg: '🥚', home: '🏡🏠', sound: '🔊🔇',
   sun: '☀️🌅🌇', anvil: '📊⚒️', check: '✅', lantern: '🕯️🏮', robe: '👘🧣🧥', boot: '👢👟', ring: '💍',
   bin: '🗑️', dice: '🎲🃏', menu: '☰',
 };

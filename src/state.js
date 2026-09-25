@@ -319,7 +319,7 @@ export function recordShout(p, shoutId) {
   return true;
 }
 
-// Where the quest wants you to go: { npc }, { enemy } or { shout } (a Word Wall).
+// Where the quest wants you to go: { npc }, { enemy }, { shout } (a Word Wall) or { spots } (places).
 export function questTarget(p) {
   const q = currentQuest(p);
   if (!q) return null;
@@ -327,6 +327,8 @@ export function questTarget(p) {
   if (p.quest.state === 'ready') return { npc: q.turnIn };
   if (q.objective.type === 'talk') return { npc: q.objective.npc };
   if (q.objective.type === 'shout') return { shout: q.objective.shout };
+  if (q.objective.type === 'use') return { spots: q.objective.spots.filter((_, i) => !p.quest.used?.includes(i)).map(([x, z]) => ({ x, z })) };
+  if (q.objective.type === 'defend' || q.objective.type === 'visit') return { spots: [{ x: q.objective.x, z: q.objective.z }] };
   return { enemy: q.objective.enemy };
 }
 
@@ -338,6 +340,9 @@ export function questTrackerText(p) {
   if (p.quest.state === 'ready') return { title: q.name, goal: `Return to ${npc(q.turnIn)}` };
   if (q.objective.type === 'talk') return { title: q.name, goal: `Talk to ${npc(q.objective.npc)}` };
   if (q.objective.type === 'shout') return { title: q.name, goal: `Learn ${SHOUTS[q.objective.shout].name} at its Word Wall` };
+  if (q.objective.type === 'use') return { title: q.name, goal: `${q.objective.goal} (${p.quest.progress}/${q.objective.spots.length})` };
+  if (q.objective.type === 'defend') return { title: q.name, goal: `${q.objective.goal} for ${q.objective.time} seconds` };
+  if (q.objective.type === 'visit') return { title: q.name, goal: `${q.objective.goal} in ${q.objective.place}` };
   return { title: q.name, goal: `Defeat ${q.objective.count} ${foeName(q.objective.enemy, q.objective.count)} (${p.quest.progress}/${q.objective.count})` };
 }
 

@@ -40,6 +40,7 @@ import { ITEMS, BUFFS, removeItem, pickFood } from './items.js';
 import { npcSideQuests, accept as acceptSideQuest, complete as completeSideQuest, sideEvent, rewardText, goalText } from './sidequests.js';
 import * as SK from './ui_skills.js';
 import { Hints } from './hints.js';
+import { Objectives } from './objectives.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -207,6 +208,7 @@ function startGame(p, isNew) {
 
 function refresh() {
   if (!player) return;
+  objectives.sync();
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
   const task = player.slayer.task;
@@ -262,6 +264,11 @@ function questTargetPos() {
   if (t.shout) {
     const w = WORD_WALLS.find(x => x.shout === t.shout);
     return via(w.x) || { x: w.x, z: w.z };
+  }
+  if (t.spots) {
+    const p = world.player.position, d = (s) => Math.hypot(s.x - p.x, s.z - p.z);
+    const best = t.spots.reduce((b, s) => (!b || d(s) < d(b) ? s : b), null);
+    return best && (via(best.x) || best);
   }
   if (t.npc) {
     const n = world.npcs.find(x => x.id === t.npc);
@@ -621,6 +628,18 @@ const gatherer = new Gatherer({
 
 // Later systems (dungeons, shouts, building...) can add their own interactables and NPC services.
 const extraServices = [];
+
+// Quest objectives beyond fighting: using things, holding ground and finding places.
+const objectives = new Objectives(world, combat, {
+  player: () => player,
+  quest: () => player && currentQuest(player),
+  sfx: (n) => Audio.sfx(n),
+  message: (t) => UI.combatMessage(t),
+  toast: (html, cls) => UI.toast(html, cls),
+  addFoe: (e) => combat.initEnemy(e),
+  changed: () => { refresh(); save(player); },
+  arrived: (o) => UI.dialog(o.place.replace(/^the /, 'The '), 'Quest', o.msg, [{ label: 'Continue', primary: true }]),
+});
 
 // ------------------------------------------------------------ the Endless Rift
 
@@ -982,6 +1001,7 @@ function questZone() {
   if (!t) return null;
   if (t.npc) return zoneAt(NPCS[t.npc].x);
   if (t.shout) return zoneAt(WORD_WALLS.find(w => w.shout === t.shout).x);
+  if (t.spots) return t.spots.length ? zoneAt(t.spots[0].x) : null;
   const sp = SPAWNS.find(s => matchesFoe(s.enemy, t.enemy));
   return sp ? zoneAt(sp.x) : null;
 }
@@ -1192,6 +1212,7 @@ UI.uiHooks.openShouts = () => openShouts(player, { onChange: () => { buildHotbar
 UI.uiHooks.shoutIcon = (id) => SHOUTS[id]?.icon;
 
 function onExtraInteract(id) {
+  if (objectives.interact(id)) return true;
   if (id.startsWith('x:ws:')) {
     const ws = WAYSTONES.find(w => 'x:ws:' + w.id === id);
     discoverWaystone(ws);
@@ -1288,6 +1309,7 @@ function rewardKill(e) {
 
 async function playerDefeated() {
   world.mode = 'locked';
+  objectives.reset();
   Audio.sfx('defeat');
   const diff = DIFFICULTIES[player.difficulty];
   await new Promise(r => setTimeout(r, 900));
@@ -1346,6 +1368,7 @@ world.onTick = (dt) => {
   if (!player || world.mode !== 'explore') return;
   combat.update(dt);
   gatherer.update(dt);
+  objectives.update(dt);
   // elixir buffs tick down; Well Fed regenerates health
   let buffsChanged = false;
   for (const id of Object.keys(player.buffs)) {
@@ -1409,10 +1432,14 @@ world.onTick = (dt) => {
       markerNear: world.npcs.some(n => n.marker && close(n.model.position.x, n.model.position.z, 14)),
       nodeNear: !!near?.id.startsWith('node:'),
       portalNear: PORTALS.some(pt => close(pt.x, pt.z, 9)),
+      useNear: currentQuest(player)?.objective.type === 'use' && !!objectives.targets()?.some(t => close(t.x, t.z, 12)),
+      ringNear: currentQuest(player)?.objective.type === 'defend' && !!objectives.targets()?.some(t => close(t.x, t.z, 16)),
       night: world.skyCycle.isNight, mounted: world.mounted,
       talking: UI.isDialogOpen(), paused: UI.isDialogOpen(),
     }, 0.25);
-    SK.updateActionBar(gatherer.progress());
+    SK.updateActionBar(objectives.progress() || gatherer.progress());
+    const holding = objectives.trackerGoal();
+    if (holding) UI.updateQuest({ title: currentQuest(player).name, goal: holding });
     SK.updateBuffs(player);
     RU.updateRiftHud(rift.run);
     checkArea();
@@ -1581,7 +1608,7 @@ setInterval(() => {
 
 // Handy for testing from the browser console.
 window.darquest = {
-  world, combat, UI, rift, homestead, undercroft, hints,
+  world, combat, UI, rift, homestead, undercroft, hints, objectives,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

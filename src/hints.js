@@ -49,6 +49,18 @@ export const HINTS = [
     done: (c, t) => t > 10 || c.talking,
   },
   {
+    id: 'objective', icon: '✦', title: 'Quest objects',
+    text: () => `Things marked <b>✦</b> are part of your quest. ${touch() ? 'Tap the prompt' : `Walk up and press ${k('interact')}`}, then stand still until the bar fills.`,
+    when: (c) => c.useNear,
+    done: (c, t) => t > 10,
+  },
+  {
+    id: 'defend', icon: '🛡️', title: 'Hold your ground',
+    text: () => 'Step into the <b>golden ring</b> to begin, and stay inside until the timer runs out. Leave it for too long and the foes get past!',
+    when: (c) => c.ringNear,
+    done: (c, t) => t > 11,
+  },
+  {
     id: 'levelup', icon: '📘', title: 'You levelled up!',
     text: () => `Each level gives a <b>Training Point</b>: Mirabel in the Academy courtyard teaches new spells for them. Put spells on your bar in the Spellbook (${k('spellbook')}), and spend <b>Talent Points</b> under Character (${k('character')}) → Talents.`,
     when: (c) => c.p.level >= 2,

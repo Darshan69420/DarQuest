@@ -991,8 +991,8 @@ export const QUESTS = [
   },
   {
     id: 'q4', name: 'A Chill in the Air', giver: 'brannoc', turnIn: 'brannoc',
-    objective: { type: 'defeat', enemy: 'frost_wisp', count: 3 },
-    offer: 'Further down the lane, Frostbitten Wisps are freezing the lamp posts. Shatter 3 of them.',
+    objective: { type: 'use', kind: 'lamp', goal: 'Thaw the frozen lamps', label: 'thaw the lamp', verb: 'Thawing the lamp', spots: [[-6, 86], [6, 86], [-6, 102], [6, 98]], ambush: { enemy: 'frost_wisp', count: 1, on: [2, 4] } },
+    offer: 'Further down the lane, Frostbitten Wisps have frozen the lamp posts solid, and the dark is creeping in. Thaw all 4 frozen lamps. The wisps will not like it one bit.',
     done: 'The lamps are glowing again. You\'re a natural, apprentice.',
     reward: { xp: 200, gold: 50 },
   },
@@ -1041,8 +1041,8 @@ export const QUESTS = [
   },
   {
     id: 'q11', name: 'The Ashen Circle', giver: 'tumblewick', turnIn: 'tumblewick',
-    objective: { type: 'defeat', enemy: 'ashen_shaman', count: 3 },
-    offer: 'Eh? Ah, a Starfall wizard. The Ashen Shamans are chanting in the canyon, feeding the flames with shadow magic. They heal each other, so take them down quickly. Stop 3 of them.',
+    objective: { type: 'use', kind: 'totem', goal: 'Smash the Ashen Circle\'s totems', label: 'smash the totem', verb: 'Smashing the totem', spots: [[700, 70], [690, 84], [700, 98]], ambush: { enemy: 'ashen_shaman', count: 1, on: [1, 2, 3] } },
+    offer: 'Eh? Ah, a Starfall wizard. The Ashen Shamans chant around three stone totems in the canyon, feeding the flames with shadow magic. Smash the totems! Every one you break will bring a shaman running, and they heal each other, so be quick.',
     done: 'Ha! The chanting has stopped. Here, a Training Point\'s worth of old wisdom for you.',
     reward: { xp: 700, gold: 80, tp: 1 },
   },
@@ -1105,9 +1105,9 @@ export const QUESTS = [
   },
   {
     id: 'q20', name: 'The Scaled Cult', giver: 'vaelith', turnIn: 'vaelith',
-    objective: { type: 'defeat', enemy: 'dragon_cultist', count: 4 },
-    offer: 'Wizards who worship the dragons call themselves the Scaled Cult. They are the ones waking the dragons, feeding them with dark magic. They camp on the ridge east of the Bone Field. Stop 4 of them.',
-    done: 'Their chanting has stopped. Among their scrolls I found a name: Vorathrax. And another name I did not expect... Hollowmere.',
+    objective: { type: 'use', kind: 'banner', goal: 'Burn the Scaled Cult\'s banners', label: 'burn the banner', verb: 'Burning the banner', spots: [[1422, 105], [1444, 105], [1466, 105]], ambush: { enemy: 'dragon_cultist', count: 2, on: [1, 3] } },
+    offer: 'Wizards who worship the dragons call themselves the Scaled Cult. They are the ones waking the dragons, feeding them with dark magic. Their banners on the ridge east of the Bone Field call the dragons down. Burn all 3.',
+    done: 'The banners are ash and the dragons are confused. Among the cult\'s scrolls I found a name: Vorathrax. And another name I did not expect... Hollowmere.',
     reward: { xp: 2800, gold: 260 },
   },
   {
@@ -1141,16 +1141,16 @@ export const QUESTS = [
   },
   {
     id: 'q25', name: 'Wolves at the Gate', giver: 'halvard', turnIn: 'halvard',
-    objective: { type: 'defeat', enemy: 'snow_wolf', count: 5 },
-    offer: 'Snowfang Wolves hunt along the road north of town. They are fast, and they hit harder after they howl. Drive off 5 of them.',
-    done: 'The road is safe again, for now. Seer Ingrid wants to speak with you about the lake.',
+    objective: { type: 'defend', goal: 'Hold the north road', place: 'the north road', x: 2300, z: 46, r: 7, time: 40, waves: ['snow_wolf'], every: 8, per: 2, max: 4 },
+    offer: 'The whole Snowfang pack is coming down the north road. They are fast, and they hit harder after they howl. Stand in the old ward circle on the road and hold it until they give up. Do not let them past!',
+    done: 'The pack has scattered into the hills. The road is safe, for now. Seer Ingrid wants to speak with you about the lake.',
     reward: { xp: 5000, gold: 350, potions: 1 },
   },
   {
     id: 'q26', name: 'Voices Under the Ice', giver: 'ingrid', turnIn: 'ingrid',
-    objective: { type: 'defeat', enemy: 'frost_wraith', count: 4 },
-    offer: 'Frost Wraiths rise from the frozen Mirror Lake: the spirits of those the Queen froze. They throw lances of ice in straight lines. Lay 4 of them to rest.',
-    done: 'Before they faded, the spirits spoke one name: "the Pale Magister". He came to court a year ago, and the Queen changed after that.',
+    objective: { type: 'use', kind: 'brazier', goal: 'Light the spirit braziers by Mirror Lake', label: 'light the brazier', verb: 'Lighting the brazier', spots: [[2284, 108], [2300, 92], [2316, 110]], ambush: { enemy: 'frost_wraith', count: 1, on: [2, 3] } },
+    offer: 'Frost Wraiths rise from the frozen Mirror Lake: the spirits of those the Queen froze. They throw lances of ice in straight lines. Light the 3 old spirit braziers around the lake with aurora fire, and the spirits will be able to speak, and rest.',
+    done: 'The aurora fire burns, and before they faded the spirits spoke one name: "the Pale Magister". He came to court a year ago, and the Queen changed after that.',
     reward: { xp: 5500, gold: 400, tp: 1 },
   },
   {
@@ -1205,9 +1205,9 @@ export const QUESTS = [
   },
   {
     id: 'q34', name: 'Conductors', giver: 'tavi', turnIn: 'tavi',
-    objective: { type: 'defeat', enemy: 'tempest_golem', count: 4 },
-    offer: 'North of Thunder Isle, the Crystal Spire hums with stolen lightning. Tempest Golems guard it and pulse with power. Shatter 4 of them before they overload the islands.',
-    done: 'The Spire is quiet. Now only the pirates stand between us and the storm\'s eye.',
+    objective: { type: 'use', kind: 'rod', goal: 'Recharge the lightning rods', label: 'recharge the rod', verb: 'Recharging the rod', spots: [[3355, 118], [3373, 124], [3360, 133], [3368, 109]], ambush: { enemy: 'tempest_golem', count: 1, on: [2, 4] } },
+    offer: 'North of Thunder Isle, the Crystal Spire is stealing the lightning from our rods, and the islands have started to sink! Recharge the 4 lightning rods around it. The Tempest Golems will come for anyone who touches them.',
+    done: 'The rods are humming and the islands are rising again. Now only the pirates stand between us and the storm\'s eye.',
     reward: { xp: 8000, gold: 550 },
   },
   {
@@ -1262,16 +1262,16 @@ export const QUESTS = [
   },
   {
     id: 'q42', name: 'Old Bark', giver: 'rowan', turnIn: 'rowan',
-    objective: { type: 'defeat', enemy: 'treant', count: 4 },
-    offer: 'North of the glade, the old treants have woken in a rage. They slam the ground around them and call roots up under your feet. Put 4 of them back to sleep.',
-    done: 'They sleep. When the blight is gone they will wake kind again. I hope.',
+    objective: { type: 'use', kind: 'tree', goal: 'Heal the sick trees with Rowan\'s salve', label: 'heal the tree', verb: 'Healing the tree', spots: [[4402, 100], [4402, 118], [4391, 132], [4404, 138]], ambush: { enemy: 'treant', count: 1, on: [2, 4] } },
+    offer: 'North of the glade, the blight is eating the young trees, and the old treants have woken in a rage to guard them. They slam the ground and call roots up under your feet. Take this salve and heal 4 of the sick trees. The treants may not see that you are helping, so be careful.',
+    done: 'The young trees are green again, and the treants are calming down. When the blight is gone they will wake kind again. I hope.',
     reward: { xp: 11500, gold: 800, potions: 1 },
   },
   {
     id: 'q43', name: 'Into the Blight', giver: 'rowan', turnIn: 'rowan',
-    objective: { type: 'defeat', enemy: 'blight_horror', count: 4 },
-    offer: 'Beyond the treants lies the Blighted Grove, where the rot is thickest. Blight Horrors guard it. Destroy 4, and the way to the Heartwood will open.',
-    done: 'You have walked through the worst of it. Wren has something to tell you before you face the heart of this.',
+    objective: { type: 'visit', kind: 'pod', goal: 'Find the source of the blight', place: 'the Blighted Grove', x: 4400, z: 168, r: 5, msg: 'At the heart of the grove, a great pod of rot pulses like a heart, feeding the blight through a thousand roots. You burn it with a word of power. Far away, something screams. The way to the Heartwood is open.' },
+    offer: 'Beyond the treants lies the Blighted Grove, where the rot is thickest and the Blight Horrors lurk. Something at its centre is feeding the blight. Fight your way in and find it.',
+    done: 'A heart of rot, and you burnt it! You have walked through the worst of it. Wren has something to tell you before you face the heart of this.',
     reward: { xp: 12000, gold: 850, tp: 1 },
   },
   {
@@ -1298,9 +1298,9 @@ export const QUESTS = [
   },
   {
     id: 'q47', name: 'The Deathless Legion', giver: 'aldric', turnIn: 'aldric',
-    objective: { type: 'defeat', enemy: 'deathless', count: 5 },
-    offer: 'Malvoren raised an army of skeletons: the Deathless Legion. They march the Bone Road and guard the Ossuary to the east. Break 5 of them.',
-    done: 'Five fewer. I fought beside some of them, long ago. Rest well, brothers.',
+    objective: { type: 'defend', goal: 'Hold the Bone Road', place: 'the Bone Road', x: 5530, z: 63, r: 7, time: 50, waves: ['deathless', 'sorrowshade'], every: 9, per: 2, max: 5 },
+    offer: 'Malvoren raised an army of skeletons: the Deathless Legion. They are marching up the Bone Road right now. There is an old ward circle on the road. Stand in it and hold until the Legion breaks. They never stop coming, so do not stop fighting.',
+    done: 'The Legion broke on that circle like waves on a rock. I fought beside some of them, long ago. Rest well, brothers.',
     reward: { xp: 13500, gold: 900, tp: 1 },
   },
   {

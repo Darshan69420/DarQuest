@@ -17,7 +17,7 @@ export function openJournal(p, { onTitle }, tab = 'quests') {
       const avail = SIDE_QUESTS.filter(q => isAvailable(p, q));
       const done = SIDE_QUESTS.filter(q => isDone(p, q.id));
       const givers = [...new Set(avail.map(q => q.giver))];
-      const chapter = p.quest.index < 7 ? 1 : p.quest.index < 14 ? 2 : 3;
+      const chapter = p.quest.index < 7 ? 1 : p.quest.index < 14 ? 2 : p.quest.index < 23 ? 3 : 4;
       inner = `<h3 class="sub-h">⭐ Main story</h3>
         <div class="journal-q main"><b>${esc(t.title)}</b><br><span>${esc(t.goal)}</span>${main ? `<br><small>Chapter ${chapter} · quest ${p.quest.index + 1} of ${QUESTS.length}</small>` : ''}</div>
         ${p.slayer?.task ? `<h3 class="sub-h">💀 Slayer task</h3><div class="journal-q"><b>${esc(ENEMIES[p.slayer.task.enemy].name)}</b> <span>${p.slayer.task.done}/${p.slayer.task.count}</span><br><small>Streak ${p.slayer.streak} · ${p.slayer.points} Slayer Points</small></div>` : ''}

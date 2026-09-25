@@ -6,8 +6,9 @@ import {
   makeThrone, makeRock, makeLamp, glowMat, makeGate, makeTree, makePond, makeFence, makeWindmill,
   makeSignpost, makeHayBale, makeFlowers, makeRoundTree, makeWordWall, makeBones, makeNest, makeSnowPine,
   makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire, makeMount,
+  makeHouse, makeIceCrystal, makeIceTower, makeIceWall, makeIceThrone, makeAurora,
 } from './models.js';
-import { EMBER_X as X, DRAGON_X as D, NPCS } from './data.js';
+import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
 
 // Word Walls: each teaches the first word of a dragon shout.
@@ -416,4 +417,151 @@ export function buildEmberfall(world) {
   }
 
   return { spring };
+}
+
+// ------------------------------------------------------------ Glacierreach (Chapter 4)
+
+export function buildGlacier(world) {
+  const scene = world.scene;
+  const G = GX;
+  flatPlane(scene, new THREE.PlaneGeometry(520, 520), 0xdfe8f4, G + 40, 100, 0);
+  // packed-snow roads, the frozen Mirror Lake, the Rime Caverns and the castle courtyard
+  flatPlane(scene, new THREE.CircleGeometry(24, 44), 0xf2f6fc, G, 0, 0.02);
+  flatPlane(scene, new THREE.CircleGeometry(9, 32), 0xc8b8a0, G, 0, 0.021);
+  flatPlane(scene, new THREE.PlaneGeometry(15, 68), 0xc8d4e4, G, 51, 0.021);
+  const lake = new THREE.Mesh(new THREE.CircleGeometry(24, 48), new THREE.MeshStandardMaterial({ color: 0xa8d8f8, roughness: 0.15, metalness: 0.2, emissive: 0x1a3a5a, emissiveIntensity: 0.25 }));
+  lake.rotation.x = -Math.PI / 2;
+  lake.position.set(G, 0.022, 105);
+  lake.receiveShadow = true;
+  scene.add(lake);
+  flatPlane(scene, new THREE.RingGeometry(24, 26.5, 48), 0xf2f6fc, G, 105, 0.023);
+  // cracks in the ice
+  const crackM = new THREE.LineBasicMaterial({ color: 0xf0faff, transparent: true, opacity: 0.8 });
+  for (let k = 0; k < 14; k++) {
+    const pts = [];
+    let x = G + (Math.random() - 0.5) * 30, z = 105 + (Math.random() - 0.5) * 30, a = Math.random() * 6;
+    for (let i = 0; i < 6; i++) { pts.push(new THREE.Vector3(x, 0.04, z)); a += (Math.random() - 0.5) * 1.2; x += Math.cos(a) * 2; z += Math.sin(a) * 2; }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), crackM));
+  }
+  flatPlane(scene, new THREE.PlaneGeometry(44, 15), 0xc8d4e4, G + 40, 105, 0.024);
+  flatPlane(scene, new THREE.CircleGeometry(18, 40), 0x6a7a98, G + 76, 105, 0.025);
+  flatPlane(scene, new THREE.PlaneGeometry(13, 52), 0xb8c8dc, G + 76, 144, 0.026);
+  flatPlane(scene, new THREE.CircleGeometry(24, 48), 0xd8ecfa, G + 76, 190, 0.027);
+  flatPlane(scene, new THREE.RingGeometry(9, 10, 48), 0x7affd0, G + 76, 190, 0.03);
+  for (let i = 0; i < 40; i++) {
+    const m = flatPlane(scene, new THREE.CircleGeometry(4 + Math.random() * 10, 16), 0xffffff, G - 60 + Math.random() * 200, -40 + Math.random() * 280, 0.015);
+    m.scale.set(1, 0.6 + Math.random() * 0.6, 1);
+  }
+
+  // Frostholm: snowy cottages around a great hearth
+  const hearth = campfire();
+  hearth.scale.setScalar(2.2);
+  world.add(hearth, G, 0, 0, 2.2);
+  world.addStation('range', G, 0, 0, false);
+  const houses = [[-17, 8, 1.2], [17, 9, -1.6], [-18, -9, 1.9], [18, -12, -1.2], [-9, -19, 0.2], [10, -19, -0.2]];
+  houses.forEach(([dx, dz, r], i) => world.add(makeHouse({ w: 6, d: 6, h: 3.6, wall: [0x8a6a4a, 0x9a7a5a, 0x7a5a44][i % 3], roof: 0xf2f6fc }), G + dx, dz, r, 3.8));
+  world.addStation('anvil', G + 14, 14, -2.2);
+  world.addStation('furnace', G + 18, 2, -1.6);
+  world.addStation('alchemy', G - 13, -7, 1.2);
+  world.addStation('workbench', G - 14, 15, 2.4);
+  for (const [dx, dz] of [[-7, 18], [7, 18], [-20, 0], [20, -3], [-4, -21], [4, -21]]) world.add(makeLamp(0x9fe6ff), G + dx, dz, 0, 0.4);
+  for (const [dx, dz] of [[-10, 20], [10, 20]]) world.add(makeBanner(0x3a6ea5), G + dx, dz, 0, 0.3);
+  world.addNode('herb_frostbloom', G - 20, 12);
+  world.addNode('herb_frostbloom', G + 21, 14);
+  world.addNode('starmetal_rock', G + 21, -18);
+  world.addNode('elder', G - 21, -16);
+
+  // the north road, lined with pines and icy cliffs
+  for (let z = 22; z <= 82; z += 8) {
+    for (const s of [-1, 1]) {
+      world.add(makeCliff(5 + Math.random() * 3, 6 + Math.random() * 6, 6, [0x9ab0c8, 0xb8cce0, 0x8aa0b8][Math.floor(Math.random() * 3)]), G + s * (11 + Math.random() * 3), z, Math.random());
+    }
+  }
+  for (let k = 0; k < 10; k++) world.add(makeSnowPine(1 + Math.random() * 0.7), G + (k % 2 ? 1 : -1) * (17 + Math.random() * 8), 22 + k * 7);
+  for (const [dx, dz] of [[-6, 34], [6, 58], [-6, 70]]) world.add(makeIceCrystal(0.8), G + dx, dz, Math.random() * 6, 0.8);
+
+  // the Mirror Lake: fishing holes, crystals and a ring of cliffs
+  for (const [dx, dz] of [[-10, 96], [9, 118], [-2, 114]]) {
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(1.4, 20), new THREE.MeshStandardMaterial({ color: 0x1a4a7a, roughness: 0.1 }));
+    hole.rotation.x = -Math.PI / 2;
+    hole.position.set(G + dx, 0.035, dz);
+    scene.add(hole);
+    world.addNode('fish_frost', G + dx, dz);
+  }
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    if (Math.abs(a - Math.PI) < 0.35 || Math.abs(a - Math.PI / 2) < 0.3) continue;  // road in (south) and path east
+    world.add(makeCliff(8, 9 + Math.random() * 10, 8, 0x9ab0c8), G + Math.sin(a) * 29, 105 + Math.cos(a) * 29, Math.random());
+  }
+  for (const [dx, dz, s] of [[-19, 92, 1.3], [18, 124, 1.1], [-16, 122, 1.5], [20, 90, 0.9]]) world.add(makeIceCrystal(s), G + dx, dz, Math.random() * 6, s);
+
+  // the pass east (yetis) and the Rime Caverns (golems)
+  for (let x = G + 20; x <= G + 60; x += 8) {
+    for (const s of [-1, 1]) world.add(makeCliff(6, 8 + Math.random() * 8, 6, 0x8aa0b8), x + Math.random() * 3, 105 + s * (11.5 + Math.random() * 2), Math.random());
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    if (Math.abs(a - Math.PI * 1.5) < 0.4 || Math.abs(a) < 0.4) continue;  // west entrance and the stair north
+    world.add(makeCliff(8, 12 + Math.random() * 10, 8, 0x4a5a78), G + 76 + Math.sin(a) * 21, 105 + Math.cos(a) * 21, Math.random());
+  }
+  for (const [dx, dz, s, c] of [[64, 95, 1.4, 0x9fe6ff], [88, 97, 1.2, 0x7affd0], [90, 114, 1.6, 0x9fe6ff], [62, 115, 1.1, 0x9a8cff], [76, 92, 1, 0x7affd0]]) world.add(makeIceCrystal(s, c), G + dx, dz, Math.random() * 6, s);
+  world.addNode('starmetal_rock', G + 66, 104);
+  world.addNode('dragonite_rock', G + 86, 106);
+  world.addNode('starmetal_rock', G + 44, 99);
+
+  // the castle stair
+  for (let z = 122; z <= 166; z += 8) {
+    for (const s of [-1, 1]) world.add(makeCliff(6, 10 + Math.random() * 8, 6, 0x8aa0b8), G + 76 + s * (10.5 + Math.random() * 2), z, Math.random());
+  }
+  for (let z = 128; z <= 164; z += 12) for (const s of [-1, 1]) world.add(makeLamp(0x7affd0), G + 76 + s * 5.5, z, 0, 0.4);
+
+  // Sylvara's Ice Castle
+  const C = { x: G + 76, z: 190 };
+  const R = 26;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + Math.PI / 16;
+    if (Math.cos(a) < -0.9) continue;  // the gate faces south, toward the stair
+    const w = makeIceWall(2 * R * Math.sin(Math.PI / 16) + 0.6, 7);
+    world.add(w, C.x + Math.sin(a) * R, C.z + Math.cos(a) * R, a + Math.PI / 2);
+    world.colliders.push({ x: C.x + Math.sin(a) * R, z: C.z + Math.cos(a) * R, r: 3 });
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    world.add(makeIceTower({ r: 2.6, h: 12 + (i % 2) * 3 }), C.x + Math.sin(a + Math.PI / 8) * (R + 0.5), C.z + Math.cos(a + Math.PI / 8) * (R + 0.5), 0, 3);
+  }
+  // the great keep behind the throne
+  world.add(makeIceTower({ r: 7, h: 26 }), C.x, C.z + 36, 0);
+  for (const s of [-1, 1]) world.add(makeIceTower({ r: 4, h: 20 }), C.x + s * 13, C.z + 33, 0);
+  world.add(makeIceThrone(), C.x, C.z + 17, Math.PI, 4.5);
+  for (const [dx, dz] of [[-12, 8], [12, 8], [-14, -6], [14, -6]]) world.add(makeIceCrystal(1.3, 0x7affd0), C.x + dx, C.z + dz, Math.random() * 6, 1.2);
+  for (const [dx, dz] of [[-7, -20], [7, -20]]) world.add(makeBanner(0x9fd6ff), C.x + dx, C.z + dz, 0, 0.3);
+
+  // mountains, forests and the aurora
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * Math.PI * 2;
+    world.add(makePeak(35 + Math.random() * 25, 70 + Math.random() * 60), G + 40 + Math.sin(a) * 175, 100 + Math.cos(a) * 190, Math.random());
+  }
+  for (let i = 0; i < 60; i++) {
+    const x = G - 50 + Math.random() * 200, z = -40 + Math.random() * 280;
+    if (world.walkable(x, z) || world.walkable(x + 4, z) || world.walkable(x - 4, z) || world.walkable(x, z + 4) || world.walkable(x, z - 4)) continue;
+    world.add(Math.random() < 0.8 ? makeSnowPine(1.1 + Math.random() * 0.9) : makeIceCrystal(1 + Math.random()), x, z, Math.random() * 6);
+  }
+  const aurora = makeAurora(world);
+  aurora.position.set(G, 0, 60);
+  const anim = aurora.userData.anim;
+  aurora.userData.anim = (t) => {
+    const pp = world.player?.position;
+    if (pp && pp.x > 1950) aurora.position.set(pp.x, 0, pp.z);  // the bands float far to the north
+    anim(t);
+  };
+  world.add(aurora, G, 60);
+  for (let k = 0; k < 80; k++) {
+    const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshBasicMaterial({ color: k % 5 ? 0xffffff : 0x9fe6ff }));
+    m.scale.setScalar(0.06);
+    m.userData.base = new THREE.Vector3(G - 20 + Math.random() * 130, 1 + Math.random() * 8, -20 + Math.random() * 230);
+    m.userData.phase = Math.random() * 10;
+    scene.add(m);
+    world.motes.push(m);
+  }
+  return { hearth };
 }

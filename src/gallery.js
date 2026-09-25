@@ -35,6 +35,16 @@ const GROUPS = {
     items: [['wyrmling', 'Wyrmling'], ['drake_foe', 'Bone Drake'], ['cultist', 'Scaled Cultist'], ['wyvern', 'Stormwing Wyvern'], ['elder_dragon', 'Vorathrax']]
       .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
   },
+  frost: {
+    title: 'Glacierreach',
+    items: [
+      ...[['snow_wolf', 'Snowfang Wolf'], ['frost_wraith', 'Frost Wraith'], ['yeti', 'Mountain Yeti'], ['ice_golem', 'Rime Golem'], ['frost_drake', 'Frost Dragon'], ['frost_queen', 'Queen Sylvara']]
+        .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
+      { id: 'ice_tower', name: 'Ice tower', build: () => M.makeIceTower({ r: 1.4, h: 6 }) },
+      { id: 'ice_throne', name: 'Ice throne', build: () => M.makeIceThrone() },
+      { id: 'ice_crystal', name: 'Ice crystal', build: () => M.makeIceCrystal(1) },
+    ],
+  },
   skilling: {
     title: 'Skilling & Rift',
     items: [

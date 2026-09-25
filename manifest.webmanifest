@@ -1,0 +1,13 @@
+{
+  "name": "DarQuest",
+  "short_name": "DarQuest",
+  "description": "A 3D fantasy action RPG in your browser: six schools of magic, dragons, skills, a roguelike Rift and a homestead to build.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a1236",
+  "theme_color": "#2a1a4a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

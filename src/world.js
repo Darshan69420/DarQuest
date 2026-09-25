@@ -7,7 +7,7 @@ import {
 } from './models.js';
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
-import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead } from './maps.js';
+import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 import { Sky } from './sky.js';
 import { buildArena } from './arena.js';
@@ -80,7 +80,7 @@ export class World {
     this.renderer.toneMappingExposure = 1.1;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 700);
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 440);
     this.clock = new THREE.Clock();
     this.time = 0;
 
@@ -177,7 +177,7 @@ export class World {
     const scene = this.scene;
     scene.fog = new THREE.Fog(0x4a3468, 50, 170);
 
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.ShaderMaterial({
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(320, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
       uniforms: {
         top: { value: new THREE.Color(0x140f38) },
@@ -199,7 +199,7 @@ export class World {
     const starPos = [];
     for (let i = 0; i < 900; i++) {
       const a = Math.random() * Math.PI * 2, e = 0.12 + Math.random() * 1.4;
-      starPos.push(Math.cos(a) * Math.cos(e) * 380, Math.sin(e) * 380, Math.sin(a) * Math.cos(e) * 380);
+      starPos.push(Math.cos(a) * Math.cos(e) * 300, Math.sin(e) * 300, Math.sin(a) * Math.cos(e) * 300);
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
@@ -366,9 +366,10 @@ export class World {
     const ember = buildEmberfall(this);
     const dragon = buildDragonspire(this);
     buildWordWalls(this);
+    const glacier = buildGlacier(this);
     buildHomestead(this);
     buildArena(this);
-    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring };
+    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring, hearth_glacier: glacier.hearth };
     this.portalModels = {};
     for (const pt of PORTALS) {
       const rot = pt.rot || 0;
@@ -388,7 +389,10 @@ export class World {
     for (const [id, def] of Object.entries(NPCS)) {
       const model = makeWizard(def);
       model.userData.height = measure(model);
-      this.add(model, def.x, def.z, Math.atan2(-def.x, -def.z), 0.8);
+      // face the middle of their town
+      const home = ZONES[zoneAt(def.x)].regions?.[0] || { x: 0, z: 0 };
+      const hx = home.x ?? (home.x0 + home.x1) / 2, hz = home.z ?? (home.z0 + home.z1) / 2;
+      this.add(model, def.x, def.z, Math.atan2(hx - def.x, hz - def.z), 0.8);
       const label = this.addLabel(model, `<div class="marker"></div><div class="name">${def.name}</div><div class="sub">${def.title}</div>`, 'npc', model.userData.height + 0.2);
       this.npcs.push({ id, def, model, label });
     }

@@ -127,6 +127,19 @@ export const SPELLS = {
   sky_fire:       { name: 'Sky Fire',        school: 'blaze',   pips: 4, type: 'damage', min: 440, max: 520, target: 'one', enemy: true },
   landing_quake:  { name: 'Landing Quake',   school: 'arcane',  pips: 4, type: 'damage', min: 480, max: 560, target: 'one', enemy: true },
 
+  // ---------- Glacierreach (Chapter 4) ----------
+  frost_bite:     { name: 'Frost Bite',      school: 'frost',   pips: 1, type: 'damage', min: 230, max: 290, target: 'one', enemy: true },
+  howl_of_winter: { name: 'Howl of Winter',  school: 'frost',   pips: 0, type: 'blade', pct: 0.4, enemy: true },
+  soul_chill:     { name: 'Soul Chill',      school: 'frost',   pips: 2, type: 'drain', min: 260, max: 320, heal: 0.5, target: 'one', enemy: true },
+  avalanche:      { name: 'Avalanche',       school: 'arcane',  pips: 3, type: 'damage', min: 420, max: 500, target: 'one', enemy: true },
+  yeti_smash:     { name: 'Yeti Smash',      school: 'arcane',  pips: 2, type: 'damage', min: 360, max: 430, target: 'one', enemy: true },
+  glacier_slam:   { name: 'Glacier Slam',    school: 'frost',   pips: 3, type: 'damage', min: 440, max: 520, target: 'one', enemy: true },
+  frost_breath:   { name: 'Frost Breath',    school: 'frost',   pips: 4, type: 'damage', min: 520, max: 620, target: 'one', dot: { total: 200, rounds: 3 }, enemy: true },
+  ice_lance:      { name: 'Ice Lance',       school: 'frost',   pips: 3, type: 'damage', min: 480, max: 560, target: 'one', enemy: true },
+  blizzard_storm: { name: 'Blizzard Storm',  school: 'frost',   pips: 5, type: 'damage', min: 560, max: 660, target: 'one', enemy: true },
+  frozen_tomb:    { name: 'Frozen Tomb',     school: 'frost',   pips: 0, type: 'shield', pct: 0.6, enemy: true },
+  winters_mend:   { name: 'Winter\'s Mend',  school: 'frost',   pips: 3, type: 'heal', amount: 1600, enemy: true },
+
   // ---------- Pet spells (cast for free when a pet "may-casts") ----------
   pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
   pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
@@ -135,6 +148,7 @@ export const SPELLS = {
   pet_edge:       { name: 'Pet: Owl Edge',   school: 'arcane',  pips: 0, type: 'blade', pct: 0.25, pet: true },
   pet_leech:      { name: 'Pet: Bat Leech',  school: 'umbral',  pips: 0, type: 'drain', min: 80, max: 120, heal: 0.6, target: 'one', pet: true },
   pet_void:       { name: 'Pet: Void Gaze',  school: 'umbral',  pips: 0, type: 'damage', min: 150, max: 210, target: 'one', pet: true },
+  pet_aurora:     { name: 'Pet: Aurora Mend', school: 'frost',  pips: 0, type: 'heal', amount: 260, pet: true },
   pet_skyfire:    { name: 'Pet: Skyfire',    school: 'tempest', pips: 0, type: 'damage', min: 200, max: 280, target: 'one', pet: true },
 };
 
@@ -301,6 +315,49 @@ export const ENEMIES = {
     speed: 3.4, aggro: 9,
     drops: [{ mat: 'dragon_scale', chance: 0.5 }, { item: 'wyvern_wing_boots', chance: 0.06 }, { item: 'wyvern_cape', chance: 0.05 }, { item: 'storm_orb', chance: 0.04 }, { pet: 'stormwing', chance: 0.02 }],
   },
+  // ---------------- Chapter 4: Glacierreach ----------------
+  snow_wolf: {
+    name: 'Snowfang Wolf', school: 'frost', level: 22, hp: 1900, xp: 620, gold: [40, 60], model: 'snow_wolf',
+    spells: ['frost_bite', 'frost_bite', 'howl_of_winter'], resist: { frost: 0.4 }, boost: { blaze: 0.25 },
+    speed: 4.4, aggro: 9,
+    drops: [{ item: 'rimewalker_boots', chance: 0.05 }, { mat: 'frostbloom', chance: 0.25 }],
+  },
+  frost_wraith: {
+    name: 'Frost Wraith', school: 'frost', level: 23, hp: 1800, xp: 680, gold: [42, 64], model: 'frost_wraith',
+    spells: ['soul_chill', 'soul_chill', 'ice_lance'], resist: { frost: 0.4, umbral: 0.2 }, boost: { blaze: 0.2 },
+    speed: 2.8, aggro: 8,
+    drops: [{ item: 'frostweave_hood', chance: 0.05 }, { mat: 'raw_frostcod', chance: 0.3 }],
+  },
+  yeti: {
+    name: 'Mountain Yeti', school: 'arcane', level: 24, hp: 3000, xp: 780, gold: [50, 75], model: 'yeti',
+    spells: ['yeti_smash', 'yeti_smash', 'avalanche', 'howl_of_winter'], resist: { frost: 0.4, arcane: 0.2 }, boost: { blaze: 0.25 },
+    speed: 2.6, aggro: 8,
+    drops: [{ item: 'glacial_robe', chance: 0.05 }, { mat: 'starmetal_ore', chance: 0.3, n: 2 }],
+  },
+  ice_golem: {
+    name: 'Rime Golem', school: 'frost', level: 25, hp: 3400, xp: 820, gold: [55, 80], model: 'ice_golem',
+    spells: ['glacier_slam', 'glacier_slam', 'frozen_tomb', 'ice_lance'], resist: { frost: 0.5, arcane: 0.2 }, boost: { blaze: 0.3 },
+    speed: 1.8, aggro: 6,
+    drops: [{ item: 'icicle_staff', chance: 0.05 }, { mat: 'diamond', chance: 0.08 }],
+  },
+  frost_drake: {
+    name: 'Frost Dragon', school: 'frost', level: 26, hp: 3600, xp: 900, gold: [60, 90], model: 'frost_drake', dragon: true, soul: 0.45,
+    spells: ['frost_breath', 'glacier_slam', 'frost_bite'], resist: { frost: 0.5 }, boost: { blaze: 0.3 },
+    speed: 3, aggro: 10,
+    drops: [{ mat: 'dragon_scale', chance: 0.6, n: 2 }, { item: 'aurora_cloak', chance: 0.05 }, { pet: 'aurora_wisp', chance: 0.02 }],
+  },
+  sylvara: {
+    name: 'Queen Sylvara of the Frozen Crown', school: 'frost', level: 28, hp: 16000, xp: 9000, gold: [1200, 1600], model: 'frost_queen', boss: true,
+    spells: ['ice_lance', 'blizzard_storm', 'glacier_slam', 'ice_lance', 'winters_mend', 'frozen_tomb'],
+    resist: { frost: 0.55 }, boost: { blaze: 0.25 }, speed: 2, aggro: 18, powerPipChance: 0.6,
+    phases: [
+      { at: 0.7, say: 'You dare trespass in my eternal winter? KNEEL!', summon: ['ice_golem'], shield: 0.4 },
+      { at: 0.45, say: 'My dragons! Tear them apart!', summon: ['frost_drake', 'frost_drake'] },
+      { at: 0.2, say: 'The Magister promised me forever... I will not melt!', blade: 0.5, heal: 2500 },
+    ],
+    reactions: [{ school: 'blaze', say: 'FIRE? In MY palace?!', cast: 'blizzard_storm' }],
+    drops: [{ item: 'crown_of_winter', chance: 1 }, { item: 'sylvaras_mirror', chance: 0.6 }, { item: 'aurora_cloak', chance: 0.45 }, { mat: 'diamond', chance: 1, n: 3 }, { pet: 'aurora_wisp', chance: 0.6 }],
+  },
   vorathrax: {
     name: 'Vorathrax, the Sky Tyrant', school: 'blaze', level: 22, hp: 9500, xp: 4000, gold: [600, 800], model: 'elder_dragon', boss: true, dragon: true, soul: 1, souls: 3,
     spells: ['dragon_claw', 'tail_sweep', 'inferno_breath', 'dragon_claw', 'magma_mend'],
@@ -333,6 +390,15 @@ const AOE = {
   wyrmling:        { ember_spit: { shape: 'circle', r: 2.4, dur: 1 } },
   drake:           { drake_charge: { shape: 'line', len: 11, width: 2.6, dur: 1.1, charge: true }, scorch_breath: { shape: 'cone', r: 9, angle: 0.95, dur: 1.2, breath: true } },
   wyvern:          { wyvern_dive: { shape: 'line', len: 14, width: 2.6, dur: 1.2, charge: true }, fireball_rain: { shape: 'circle', r: 2.8, count: 3, spread: 5, dur: 1.3 } },
+  yeti:            { avalanche: { shape: 'circle', r: 3.6, count: 3, spread: 5, dur: 1.3 }, yeti_smash: { shape: 'cone', r: 5, angle: 1.4, dur: 0.9 } },
+  ice_golem:       { glacier_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, ice_lance: { shape: 'line', len: 14, width: 2, dur: 1 } },
+  frost_wraith:    { ice_lance: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
+  frost_drake:     { frost_breath: { shape: 'cone', r: 12, angle: 0.9, dur: 1.3, breath: true }, glacier_slam: { shape: 'circle', at: 'self', r: 6, dur: 1.2 } },
+  sylvara: {
+    ice_lance: { shape: 'line', len: 22, width: 2.4, dur: 1.1 },
+    blizzard_storm: { shape: 'circle', r: 3.4, count: 6, spread: 9, dur: 1.6 },
+    glacier_slam: { shape: 'circle', at: 'self', inner: 6, r: 20, dur: 2 },
+  },
   vorathrax: {
     dragon_claw: { shape: 'cone', r: 8, angle: 1.5, dur: 1 },
     tail_sweep: { shape: 'circle', at: 'self', r: 9, dur: 1.3 },
@@ -350,17 +416,20 @@ const AOE = {
 for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
+const RANGED = { frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
 }
 ENEMIES.magma_guard.speed = 2.2;
 ENEMIES.vorathrax.attackRate = 1.7;
+ENEMIES.sylvara.attackRate = 1.6;
 ENEMIES.magma_serpent.speed = 0;
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
+const GX = 2300; // Glacierreach (see GLACIER_X)
+
 export const SPAWNS = [
   { enemy: 'gloomsprig', x: -4, z: 52, r: 4 },
   { enemy: 'gloomsprig', x: 4,  z: 58, r: 4 },
@@ -407,6 +476,14 @@ export const SPAWNS = [
   { enemy: 'dragon_cultist', x: 1481, z: 146, r: 2 },
   { enemy: 'dragon_cultist', x: 1487, z: 152, r: 2 },
   { enemy: 'vorathrax', x: 1484, z: 198, r: 0 },
+
+  // Glacierreach
+  ...[[-4, 30], [4, 40], [-3, 52], [4, 62], [-4, 74]].map(([dx, z]) => ({ enemy: 'snow_wolf', x: GX + dx, z, r: 4 })),
+  ...[[-14, 100], [12, 112], [-6, 118], [14, 94], [0, 104]].map(([dx, z]) => ({ enemy: 'frost_wraith', x: GX + dx, z, r: 5 })),
+  ...[[28, 103], [42, 108], [54, 101]].map(([dx, z]) => ({ enemy: 'yeti', x: GX + dx, z, r: 3 })),
+  ...[[70, 100], [82, 110], [78, 96], [72, 113]].map(([dx, z]) => ({ enemy: 'ice_golem', x: GX + dx, z, r: 2 })),
+  ...[[76, 134], [73, 150], [79, 162]].map(([dx, z]) => ({ enemy: 'frost_drake', x: GX + dx, z, r: 3 })),
+  { enemy: 'sylvara', x: GX + 76, z: 198, r: 0 },
 ];
 
 export const NPCS = {
@@ -481,6 +558,21 @@ export const NPCS = {
     name: 'Quartermaster Hesk', title: 'Dragonforged Gear', x: 1411, z: -7, robe: 0x4a4a5a, hat: 0x2a2a34, trim: 0xff7a1a, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x5a3a2a, skin: 0xd8a888,
     stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
+  },
+  halvard: {
+    name: 'Warden Halvard', title: 'Frostholm Watch', x: 2300 + 6, z: 6, robe: 0x5a6a8a, hat: 0xb8c8e0, trim: 0x9fd6ff, hatStyle: 'helmet', beard: true, hair: 0xe8d8a0, skin: 0xe8c0a0, eyeColor: 0x3a6ea5,
+    lines: ['Frostholm has stood in the snow for five hundred years. It has never been this cold.',
+            'The Queen used to be kind, you know. Then the Pale Magister came to her court.'],
+  },
+  ingrid: {
+    name: 'Seer Ingrid', title: 'Frostholm Seer', x: 2300 - 9, z: -3, robe: 0x7affd0, hat: 0x2a6a5a, trim: 0xf8fcff, hair: 0xf8fcff, skin: 0xf0d8c0, eyeColor: 0x7affd0, glasses: true,
+    lines: ['The aurora whispers at night. It speaks of a pale hand pulling every string: Hollowmere, Pyrrhon, the dragons, and now our Queen.',
+            'Fire magic is strong here. Ice melts; that is the one law even a queen must obey.'],
+  },
+  frida: {
+    name: 'Frida Snowglove', title: 'Frostholm Outfitter', x: 2300 + 10, z: -8, robe: 0x8a3a3a, hat: 0xf8fcff, trim: 0xf2c14e, service: 'gear', hatStyle: 'hood', hair: 0xf0a040, skin: 0xf0c8a8,
+    stock: ['frostweave_hood', 'glacial_robe', 'rimewalker_boots', 'icicle_staff', 'winterheart'],
+    lines: ['Wool, fur, and a little enchantment. That is how we stay warm up here.'],
   },
   tumblewick: {
     name: 'Old Tumblewick', title: 'Wandering Outfitter', x: X + 8, z: 3, robe: 0x4a3a6b, hat: 0x2a2040, trim: 0xff9a3d, beard: true, service: 'gear', backpack: true, hair: 0xb0b0b8, skin: 0xd8a888,
@@ -653,6 +745,56 @@ export const QUESTS = [
     done: 'Vorathrax... slain? And you took her soul? Then the stories are true: you are dragonborn as well as a wizard. Chapter 3 is complete! But the cult\'s scrolls speak of Hollowmere, and of a master behind them all. Rest now. When the next Spiral Door opens, we will need you again.',
     reward: { xp: 8000, gold: 1000, tp: 3 },
   },
+  // ---------------- Chapter 4: The Frozen Crown ----------------
+  {
+    id: 'q24', name: 'The Frozen Door', giver: 'orvyn', turnIn: 'halvard',
+    objective: { type: 'talk', npc: 'halvard' },
+    offer: 'A fourth Spiral Door froze solid overnight: the one in the north-west corner of the courtyard. Beyond it lies Glacierreach, the kingdom of Queen Sylvara. Her messengers have stopped coming. Go to the town of Frostholm and find Warden Halvard.',
+    done: 'A Starfall wizard! Thank the aurora. The Queen has sealed herself in her ice castle and the whole land is freezing solid. Wolves prowl right up to our gates.',
+    reward: { xp: 4000, gold: 300 },
+  },
+  {
+    id: 'q25', name: 'Wolves at the Gate', giver: 'halvard', turnIn: 'halvard',
+    objective: { type: 'defeat', enemy: 'snow_wolf', count: 5 },
+    offer: 'Snowfang Wolves hunt along the road north of town. They are fast, and they hit harder after they howl. Drive off 5 of them.',
+    done: 'The road is safe again, for now. Seer Ingrid wants to speak with you about the lake.',
+    reward: { xp: 5000, gold: 350, potions: 1 },
+  },
+  {
+    id: 'q26', name: 'Voices Under the Ice', giver: 'ingrid', turnIn: 'ingrid',
+    objective: { type: 'defeat', enemy: 'frost_wraith', count: 4 },
+    offer: 'Frost Wraiths rise from the frozen Mirror Lake: the spirits of those the Queen froze. They throw lances of ice in straight lines. Lay 4 of them to rest.',
+    done: 'Before they faded, the spirits spoke one name: "the Pale Magister". He came to court a year ago, and the Queen changed after that.',
+    reward: { xp: 5500, gold: 400, tp: 1 },
+  },
+  {
+    id: 'q27', name: 'The Walking Mountain', giver: 'halvard', turnIn: 'halvard',
+    objective: { type: 'defeat', enemy: 'yeti', count: 3 },
+    offer: 'Yetis came down from the peaks and blocked the pass east of the lake. They are big, tough, and they drop avalanches on you. Clear 3 of them.',
+    done: 'Three yetis! The children of Frostholm will sing about you. Badly, but loudly.',
+    reward: { xp: 6000, gold: 450 },
+  },
+  {
+    id: 'q28', name: 'Hearts of Ice', giver: 'ingrid', turnIn: 'ingrid',
+    objective: { type: 'defeat', enemy: 'ice_golem', count: 4 },
+    offer: 'The Queen\'s Rime Golems guard the caverns before her castle. Their slam freezes everything around them. Shatter 4 of them.',
+    done: 'Inside one golem\'s heart I found a pale crystal carved with the same rune as Hollowmere\'s locket. It is all connected.',
+    reward: { xp: 6500, gold: 500, tp: 1 },
+  },
+  {
+    id: 'q29', name: 'Wings of Winter', giver: 'halvard', turnIn: 'halvard',
+    objective: { type: 'defeat', enemy: 'frost_drake', count: 3 },
+    offer: 'Frost Dragons circle the castle stair, north of the caverns. Their breath freezes a wizard mid-spell. Bring down 3 and the path to the Queen is clear.',
+    done: 'Dragons of ice... you really are dragonborn. The stair is open. Seer Ingrid has one more thing to tell you before you go.',
+    reward: { xp: 7000, gold: 550, potions: 1 },
+  },
+  {
+    id: 'q30', name: 'The Frozen Crown', giver: 'ingrid', turnIn: 'orvyn',
+    objective: { type: 'defeat', enemy: 'sylvara', count: 1 },
+    offer: 'Queen Sylvara waits in her throne hall. She will summon golems and dragons, bury the floor in blizzards, and ring herself in ice where only standing close is safe. Break the Magister\'s hold on her. Then go home and tell Orvyn everything.',
+    done: 'Sylvara is free, and Glacierreach begins to thaw. And the Pale Magister... so he was behind Hollowmere, Pyrrhon, the dragons and the Queen. Chapter 4 is complete, archmage. Wherever he hides, the next Spiral Door will lead us to him. Rest and grow stronger. You will need everything you have.',
+    reward: { xp: 16000, gold: 2500, tp: 3 },
+  },
 ];
 
 export const SHOP = {
@@ -728,6 +870,16 @@ export const GEAR = {
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
 
+  // ---------- frost gear (Chapter 4) ----------
+  frostweave_hood:   { name: 'Frostweave Hood',     slot: 'hat',     level: 22, stats: { hp: 300, dmg: 11, resist: 6 }, color: 0x9fd6ff, price: 2400 },
+  glacial_robe:      { name: 'Glacial Robe',        slot: 'robe',    level: 23, stats: { hp: 560, resist: 16, heal: 8 }, color: 0xdff6ff, price: 2800 },
+  rimewalker_boots:  { name: 'Rimewalker Boots',    slot: 'boots',   level: 22, stats: { hp: 220, acc: 7, resist: 7, pip: 4 }, price: 2000 },
+  icicle_staff:      { name: 'Icicle Staff',        slot: 'wand',    level: 24, stats: { dmg: 22, pip: 8, acc: 5 }, price: 3200 },
+  aurora_cloak:      { name: 'Aurora Cloak',        slot: 'cloak',   level: 25, stats: { hp: 360, dmg: 9, heal: 8 }, color: 0x7affd0 },
+  crown_of_winter:   { name: 'Crown of Winter',     slot: 'hat',     level: 28, stats: { hp: 420, dmg: 16, pip: 9, acc: 6 }, color: 0xf8fcff },
+  sylvaras_mirror:   { name: 'Sylvara\'s Mirror',   slot: 'offhand', level: 28, stats: { dmg: 18, acc: 7, heal: 10 }, color: 0x9fe6ff },
+  winterheart:       { name: 'Winterheart Amulet',  slot: 'amulet',  level: 24, stats: { hp: 380, dmg: 12, resist: 8 }, price: 3000 },
+
   // ---------- rings, cloaks and offhands ----------
   hollow_signet:     { name: 'Hollow Signet',       slot: 'ring',    level: 8,  stats: { dmg: 4, acc: 3 } },
   molten_band:       { name: 'Molten Band',         slot: 'ring',    level: 13, stats: { dmg: 6, pip: 4 } },
@@ -793,6 +945,7 @@ export const PETS = {
   frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
   bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
   storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+  aurora_wisp:  { name: 'Aurora Wisp',  school: 'frost',   kind: 'sprite', color: 0x7affd0, spell: 'pet_aurora', chance: 0.25, stats: { heal: 10, resist: 4 } },
   stormwing:    { name: 'Stormwing Wyrmling', school: 'tempest', kind: 'drake', color: 0x4dc8ff, spell: 'pet_skyfire', chance: 0.25, stats: { dmg: 5, acc: 3 } },
   voidling:     { name: 'Voidling',     school: 'umbral',  kind: 'voidling', color: 0xc542ff, spell: 'pet_void', chance: 0.25, stats: { dmg: 4, hp: 20 }, special: 'Rift upgrade from Warden Nyx' },
 };
@@ -855,6 +1008,21 @@ export const ZONES = {
     atmosphere: { fog: 0x9ab8e0, top: 0x3a6ac0, mid: 0x8ab8f0, bottom: 0xffc0a0, hemi: 0xe0ecff, fogNear: 60, fogFar: 240 },
     music: 'home',
   },
+  glacier: {
+    name: 'Glacierreach',
+    regions: [
+      { type: 'circle', x: 2300, z: 0, r: 24 },
+      { type: 'rect', x0: 2300 - 8, x1: 2300 + 8, z0: 18, z1: 84 },
+      { type: 'circle', x: 2300, z: 105, r: 26 },
+      { type: 'rect', x0: 2300 + 18, x1: 2300 + 62, z0: 97, z1: 113 },
+      { type: 'circle', x: 2300 + 76, z: 105, r: 18 },
+      { type: 'rect', x0: 2300 + 69, x1: 2300 + 83, z0: 118, z1: 170 },
+      { type: 'circle', x: 2300 + 76, z: 190, r: 24 },
+    ],
+    spawn: { x: 2300, z: -10, heading: 0 },
+    atmosphere: { fog: 0x8ab0d8, top: 0x0a1a40, mid: 0x4a7ab8, bottom: 0xc8e8ff, hemi: 0xe0f0ff, fogNear: 40, fogFar: 190 },
+    music: 'frost',
+  },
   // the Endless Rift is rebuilt for every floor (see rift.js)
   rift: {
     name: 'The Endless Rift',
@@ -868,7 +1036,8 @@ export const ZONES = {
   },
 };
 export const DRAGON_X = 1400;
-export function zoneAt(x) { return x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export const GLACIER_X = 2300;
+export function zoneAt(x) { return x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [
@@ -877,6 +1046,10 @@ export const AREAS = [
   { id: 'bonefield', name: 'The Bone Field', x0: 1370, x1: 1430, z0: 84, z1: 130, music: 'dragon' },
   { id: 'cliffs', name: 'Wyvern Cliffs', x0: 1462, x1: 1506, z0: 84, z1: 125, music: 'dragon' },
   { id: 'roost', name: "The Dragon's Roost", x0: 1455, x1: 1515, z0: 165, z1: 225, music: 'dragon' },
+  { id: 'frostholm', name: 'Frostholm', x0: 2300 - 26, x1: 2300 + 26, z0: -26, z1: 20, music: 'frost' },
+  { id: 'mirrorlake', name: 'The Mirror Lake', x0: 2300 - 28, x1: 2300 + 28, z0: 80, z1: 132, music: 'frost' },
+  { id: 'caverns', name: 'The Rime Caverns', x0: 2300 + 58, x1: 2300 + 95, z0: 86, z1: 124, music: 'frost' },
+  { id: 'icecastle', name: "Sylvara's Ice Castle", x0: 2300 + 50, x1: 2300 + 102, z0: 165, z1: 216, music: 'boss' },
 ];
 export function areaAt(x, z) {
   for (const a of AREAS) if (x > a.x0 && x < a.x1 && z > a.z0 && z < a.z1) return a;
@@ -890,6 +1063,8 @@ export const PORTALS = [
   { id: 'portal_ember', x: X, z: -17, to: { x: -13, z: 10, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0 },
   { id: 'portal_dragon', x: -26, z: -4, to: { x: 1400, z: -8, heading: 0 }, dest: 'Dragonspire Peaks', unlock: 14, rot: Math.PI / 2, color: 0x4dc8ff },
   { id: 'portal_dragon_back', x: 1400, z: -19, to: { x: -13, z: -4, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
+  { id: 'portal_glacier', x: -22, z: -19, to: { x: 2300, z: -8, heading: 0 }, dest: 'Glacierreach', unlock: 23, rot: 0.86, color: 0xdff6ff },
+  { id: 'portal_glacier_back', x: 2300, z: -20, to: { x: -18, z: -15, heading: 0.86 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_home', x: 64, z: 16, to: { x: -2800, z: 21, heading: Math.PI }, dest: 'Your Homestead', unlock: 0, color: 0x7affb0 },
   { id: 'portal_home_back', x: -2800, z: 26, to: { x: 64, z: 12, heading: Math.PI }, dest: 'Millbrook Meadow', unlock: 0, color: 0x7affb0 },
 ];
@@ -918,6 +1093,9 @@ export const WAYSTONES = [
   { id: 'ws_bonefield', name: 'The Bone Field', zone: 'dragonspire', x: 1395, z: 89 },
   { id: 'ws_roost', name: 'Roost Approach', zone: 'dragonspire', x: 1480, z: 124 },
   { id: 'ws_home', name: 'Your Homestead', zone: 'homestead', x: -2792, z: 22 },
+  { id: 'ws_frostholm', name: 'Frostholm', zone: 'glacier', x: 2300 - 4, z: 12 },
+  { id: 'ws_lake', name: 'The Mirror Lake', zone: 'glacier', x: 2300 - 6, z: 82 },
+  { id: 'ws_castle', name: 'Castle Stair', zone: 'glacier', x: 2300 + 72, z: 124 },
 ];
 
 // Spirits that rise at dusk and fade at dawn.
@@ -931,4 +1109,5 @@ export const FOUNTAINS = [
   { id: 'spring_dragon', name: 'Skyhold Spring', x: 1391, z: 12, r: 4.5 },
   { id: 'fountain', name: 'Wellspring', x: 0, z: 0, r: 5.2 },
   { id: 'spring_ember', name: 'Cooling Spring', x: X - 9, z: -7, r: 4.5 },
+  { id: 'hearth_glacier', name: 'Frostholm Hearth', x: GLACIER_X, z: 0, r: 5.5 },
 ];

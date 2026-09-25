@@ -26,6 +26,12 @@ export const LORE = {
   dragon_cultist: 'Wizards of the Scaled Cult, who worship dragons and wake them from their sleep.',
   wyvern: 'Two-legged storm dragons that dive from the clouds like falling stars.',
   vorathrax: 'The Sky Tyrant. Three centuries asleep, and she woke up angry.',
+  snow_wolf: 'They hunt in packs along the Frostholm road, and their howl sharpens their bite.',
+  frost_wraith: 'The frozen dead of the Mirror Lake. They remember the Queen\'s cold, and share it.',
+  yeti: 'Shaggy giants from the high peaks. Surprisingly gentle, when nobody is watching.',
+  ice_golem: 'Rime Golems, carved by the Queen herself. A pale crystal beats where a heart should be.',
+  frost_drake: 'Dragons of the far north, with breath so cold it freezes spells in the air.',
+  sylvara: 'The Queen of the Frozen Crown. Once kind. Then the Pale Magister came to court.',
 };
 
 // Hunter's knowledge: the more of a kind you defeat, the harder you hit them.
@@ -48,6 +54,8 @@ export const ACHIEVEMENTS = [
   A('hollowmere', 'Out of the Shadows', '💀', 'Defeat Lord Hollowmere', p => bossKilled(p, 'lord_hollowmere'), { title: 'the Brave' }),
   A('pyrrhon', 'Flamebreaker', '🔥', 'Defeat Pyrrhon, the Molten King', p => bossKilled(p, 'pyrrhon'), { title: 'Flamebreaker' }),
   A('vorathrax', 'Dragonslayer', '🐉', 'Slay Vorathrax, the Sky Tyrant', p => bossKilled(p, 'vorathrax'), { title: 'the Dragonborn' }),
+  A('sylvara', 'Winter\'s End', '👑', 'Free Queen Sylvara from the Magister\'s spell', p => bossKilled(p, 'sylvara'), { gold: 1000, title: 'the Thaw' }),
+  A('frost_dragons', 'Wings of Winter', '❄️', 'Slay 10 Frost Dragons', p => (p.bestiary?.frost_drake || 0) >= 10, { gold: 600, title: 'Frostwing' }),
   A('combo_50', 'Combo Artist', '🌠', 'Land 50 combo strikes', p => (p.stats_log.combos || 0) >= 50, { gold: 200 }),
   A('night_20', 'Night Watch', '🌙', 'Defeat 20 night spirits', p => (p.stats_log.nightKills || 0) >= 20, { gold: 300, title: 'the Night Stalker' }),
   A('hunter_master', 'Know Thy Enemy', '📖', 'Reach Master hunter rank on any foe (100 defeats)', p => Object.values(p.bestiary || {}).some(n => n >= 100), { gold: 500 }),

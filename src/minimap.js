@@ -41,7 +41,7 @@ export class Minimap {
 
     // walkable ground
     const zone = ZONES[zoneAt(p.x)];
-    ctx.fillStyle = zoneAt(p.x) === 'emberfall' ? '#6b3a2a' : '#5d5578';
+    ctx.fillStyle = { emberfall: '#6b3a2a', glacier: '#6a8ab0', dragonspire: '#5a6078' }[zoneAt(p.x)] || '#5d5578';
     if (zone.grid) world.minimapHook?.(ctx, sx, sz, scale, p.x, p.z);
     for (const r of zone.regions) {
       ctx.beginPath();

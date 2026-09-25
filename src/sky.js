@@ -12,6 +12,7 @@ export const WEATHER_BY_ZONE = {
   academy: ['clear', 'clear', 'clear', 'cloudy', 'rain', 'storm'],
   emberfall: ['clear', 'ash', 'ash'],
   dragonspire: ['snow', 'snow', 'blizzard', 'clear'],
+  glacier: ['snow', 'snow', 'blizzard', 'clear', 'snow'],
   homestead: ['clear', 'clear', 'cloudy', 'rain'],
   rift: ['clear'],
   arena: ['clear'],
@@ -42,7 +43,7 @@ export class Sky {
     this.onThunder = null;
     const scene = world.scene;
     // the sun, drawn on the sky dome
-    this.sunDisc = new THREE.Mesh(new THREE.SphereGeometry(16, 20, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false }));
+    this.sunDisc = new THREE.Mesh(new THREE.SphereGeometry(13, 20, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false }));
     world.sky.add(this.sunDisc);
     this.moon = world.sky.children.find(c => c.isMesh);
     this.stars = world.sky.children.find(c => c.isPoints);
@@ -146,9 +147,9 @@ export class Sky {
     const dir = new THREE.Vector3(Math.cos(a) * 0.8, Math.sin(a), 0.35).normalize();
     const light = this.nightK > 0.5 ? dir.clone().negate() : dir;
     w.sun.position.set(focus.x + light.x * 50, Math.max(12, light.y * 60), focus.z + light.z * 50 + 10);
-    this.sunDisc.position.copy(dir).multiplyScalar(360);
+    this.sunDisc.position.copy(dir).multiplyScalar(290);
     this.sunDisc.visible = dir.y > -0.1 && zoneId !== 'rift';
-    if (this.moon) { this.moon.position.copy(dir).multiplyScalar(-340); this.moon.visible = this.nightK > 0.02 || this.sunHeight < 0.2; }
+    if (this.moon) { this.moon.position.copy(dir).multiplyScalar(-280); this.moon.visible = this.nightK > 0.02 || this.sunHeight < 0.2; }
     if (this.stars) this.stars.material.opacity = Math.min(1, this.nightK + (1 - this.dayK) * 0.25);
     // the player's lantern
     this.lantern.intensity = zoneId === 'rift' ? 1.2 : this.nightK * 2.2;

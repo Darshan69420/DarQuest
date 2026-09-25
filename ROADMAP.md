@@ -4,11 +4,30 @@ The plan to take DarQuest from a two-chapter demo to a full RPG. Each phase ends
 
 ## Where it stands now
 
-- **Two zones** (Starfall Academy with Hollow Lane, and Emberfall Wilds), with 14 quests and 2 bosses.
-- **Real-time combat:** 6 schools, about 45 spells, dodging and targeting.
-- **Progression and loot:** 20 gear items, 6 pets, levels up to about 16.
-- **Extras:** difficulty modes, a minimap, and generated sound and music.
-- **Not yet tuned:** combat balance. It has only been tested in a slow headless browser, not played by hand.
+Built so far (see the README for the full feature list):
+
+- **Four story chapters, 30 main quests, 5 bosses:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax) and Glacierreach (Queen Sylvara). The Pale Magister is set up as the villain behind them all.
+- **Real-time combat:** 6 schools, 100+ spells, dodging, combos, ground telegraphs, flying and summoning bosses, and six dragon shouts.
+- **RPG depth:** talent trees (3 branches per school), gear rarities with random bonus stats and legendary powers, 8 gear slots, 9 pets, companions.
+- **RuneScape-style skills:** 9 skills from 1 to 99, gathering nodes, crafting stations and recipes.
+- **Roguelike and endgame:** the Endless Rift with boons and permanent upgrades, the Arena of Stars, Slayer tasks.
+- **World systems:** day/night with weather, mounts, waystones and fast travel, a Minecraft-style Homestead, a bestiary, 45 achievements and titles.
+- **Shipping:** save slots, settings and rebindable keys, a GitHub Pages workflow and an installable web manifest.
+- **Still to tune:** balance. It has only been tested in a slow headless browser, not played by hand.
+
+### Progress by phase
+
+| Phase | Status |
+| --- | --- |
+| 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
+| 2. RPG depth | ✅ Mostly done (talents, gear rarity, crafting). Still to do: a secondary school, set bonuses, a bank |
+| 3. World and story | 🟡 4 of 6 worlds (Stormspire, Thornwood and the Hollow Deep remain) |
+| 4. Dungeons and bosses | 🟡 The Endless Rift and boss mechanics. Still to do: hand-built dungeons with puzzles |
+| 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
+| 6. Endgame | 🟡 Arena and Slayer done. Still to do: level cap 50, weekly challenges, New Game+ |
+| 7. Presentation | 🟡 Per-zone music, weather and aurora. Still to do: accessibility options |
+| 8. Ship it | 🟡 Pages workflow and manifest ready. Turn on Pages in the repo settings |
+| 9. Multiplayer | ⬜ Not started |
 
 ## The vision
 

@@ -11,6 +11,8 @@ export const SLAYER_TIERS = [
   { level: 20, ids: ['obsidian_golem', 'magma_serpent'] },
   { level: 30, ids: ['wyrmling', 'dragon_cultist'] },
   { level: 40, ids: ['drake', 'wyvern'] },
+  { level: 50, ids: ['snow_wolf', 'frost_wraith', 'yeti'] },
+  { level: 60, ids: ['ice_golem', 'frost_drake'] },
 ];
 
 export const SLAYER_SHOP = [

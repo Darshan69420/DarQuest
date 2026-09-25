@@ -986,11 +986,11 @@ function shaman() {
 }
 
 // A lumbering rock giant with a single glowing eye.
-function golem({ lava = false, scale = 1, helm = false } = {}) {
+function golem({ lava = false, scale = 1, helm = false, ice = false } = {}) {
   const g = new THREE.Group();
   const body = group(g);
-  const rock = mat(lava ? 0x5e3a30 : 0x4a4268), rock2 = mat(lava ? 0x74483a : 0x5e5684);
-  const glowC = lava ? 0xff6a1a : 0xb46bff;
+  const rock = mat(lava ? 0x5e3a30 : ice ? 0x8ab8d8 : 0x4a4268), rock2 = mat(lava ? 0x74483a : ice ? 0xc8e4f8 : 0x5e5684);
+  const glowC = lava ? 0xff6a1a : ice ? 0x4dc8ff : 0xb46bff;
   const glow = glowMat(glowC, 2.4);
   add(body, new THREE.DodecahedronGeometry(0.85, 1), rock, 0, 1.55, 0, { s: [1.15, 1, 0.9] });
   add(body, sph(0.22, 16, 10), glow, 0, 1.6, 0.7);
@@ -1178,6 +1178,12 @@ export function makeEnemy(kind) {
     case 'wyvern': return makeDragon({ color: 0x3a5a8a, belly: 0x9fd6ff, wing: 0x2a3a6a, horn: 0xdff6ff, legs: 2, wings: 2, hover: 2.2, size: 0.95, eye: 0x4dc8ff });
     case 'elder_dragon': return makeDragon({ color: 0x8a1a1a, belly: 0xe0a040, wing: 0x4a0a14, horn: 0x2a1a1a, wings: 2, size: 2.6, frill: true, eye: 0xffe040 });
     case 'cultist': return cultist();
+    case 'snow_wolf': { const w = quadruped({ color: 0xe8eef8, mane: 0xb8c8e0, ears: 'wolf', tail: 'bushy', legLen: 0.95, neck: 0.55, glow: 0x6fd3ff, saddle: false }); w.scale.setScalar(1.1); return w; }
+    case 'frost_wraith': return shade(0xa8d8f0, 0xffffff);
+    case 'ice_golem': return golem({ ice: true, scale: 1.15 });
+    case 'yeti': return yeti();
+    case 'frost_drake': return makeDragon({ color: 0x9fd6ff, belly: 0xffffff, wing: 0x4d7ab0, horn: 0xdff6ff, wings: 2, size: 1.35, eye: 0x4dc8ff, frill: true });
+    case 'frost_queen': return frostQueen();
     case 'shade': return shade();
     case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
   }
@@ -2409,6 +2415,70 @@ function shade(color = 0x6a5aa0, eye = 0x9fe6ff) {
   return finish(g, 0.028, 0.08);
 }
 
+// A shaggy mountain giant.
+function yeti() {
+  const g = new THREE.Group();
+  const body = group(g);
+  const fur = mat(0xf0f4fa), fur2 = mat(0xd8e0ec), skin = mat(0x6a8ab0);
+  add(body, sph(0.95, 16, 12), fur, 0, 1.9, 0, { s: [1.1, 1.05, 0.9] });
+  add(body, sph(0.6, 14, 10), fur2, 0, 1.5, 0.45, { s: [1, 1.1, 0.6] });
+  const head = group(body, 0, 3.0, 0.2);
+  add(head, sph(0.5, 14, 10), fur, 0, 0, 0);
+  add(head, sph(0.34, 14, 10), skin, 0, -0.05, 0.3, { s: [1, 0.85, 0.6] });
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.09, { iris: 0x4dc8ff });
+    e.position.set(s * 0.13, 0.05, 0.44);
+    head.add(e);
+    add(head, new THREE.ConeGeometry(0.08, 0.3, 6), mat(0xe8dcc0), s * 0.35, 0.3, 0, { rz: -s * 0.6 });
+  }
+  add(head, new THREE.CircleGeometry(0.14, 14, Math.PI, Math.PI), basic(0x2a1020), 0, -0.2, 0.5, { shadow: false });
+  for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.04, 0.12, 4), basic(0xffffff), s * 0.07, -0.21, 0.51, { rx: Math.PI, shadow: false });
+  const arms = [-1, 1].map(s => {
+    const a = group(body, s * 1.0, 2.4, 0);
+    limb(a, V3(0, 0, 0), V3(s * 0.3, -1.0, 0.2), 0.3, 0.26, fur, 10);
+    add(a, sph(0.3, 12, 8), skin, s * 0.32, -1.2, 0.25, { s: [1, 0.8, 1.1] });
+    return a;
+  });
+  for (const s of [-1, 1]) {
+    limb(body, V3(s * 0.45, 1.1, 0), V3(s * 0.5, 0.2, 0.05), 0.3, 0.26, fur, 10);
+    add(body, sph(0.3, 12, 8), skin, s * 0.5, 0.12, 0.2, { s: [1, 0.5, 1.4] });
+  }
+  g.scale.setScalar(1.15);
+  g.userData.anim = (t, moving) => {
+    arms.forEach((a, i) => { a.rotation.x = moving ? Math.sin(t * 5 + i * Math.PI) * 0.5 : Math.sin(t * 1.2 + i) * 0.08; });
+    body.rotation.z = moving ? Math.sin(t * 5) * 0.08 : 0;
+    body.position.y = moving ? Math.abs(Math.sin(t * 5)) * 0.12 : Math.sin(t * 1.4) * 0.03;
+    head.rotation.y = Math.sin(t * 0.6) * 0.25;
+  };
+  return finish(g, 0.03, 0.08);
+}
+
+// Queen Sylvara: an ice sorceress with a crown of frozen spikes and a ring of shards.
+function frostQueen() {
+  const g = makeWizard({ robe: 0xdff6ff, hat: 0x9fd6ff, trim: 0x4dc8ff, gem: 0x9fe6ff, hatStyle: 'hood', hair: 0xf8fcff, skin: 0xd8e8f8, eyeColor: 0x4dc8ff });
+  const head = g.userData.head;
+  for (let i = 0; i < 7; i++) {
+    const a = -0.9 + (i / 6) * 1.8;
+    add(head, new THREE.ConeGeometry(0.05, 0.35 + (i === 3 ? 0.25 : 0), 5), glowMat(0x9fe6ff, 2), Math.sin(a) * 0.42, 0.55, Math.cos(a) * 0.12 - 0.05, { rz: -a * 0.3 });
+  }
+  const shards = [];
+  for (let i = 0; i < 6; i++) {
+    const m = add(g, new THREE.OctahedronGeometry(0.2, 0), glowMat(0x9fe6ff, 2), 0, 2, 0, { s: [0.6, 1.6, 0.6], shadow: false });
+    shards.push(m);
+  }
+  const base = g.userData.anim;
+  g.userData.anim = (t, moving) => {
+    base(t, moving);
+    shards.forEach((m, i) => {
+      const a = t * 0.8 + (i / 6) * Math.PI * 2;
+      m.position.set(Math.cos(a) * 1.3, 1.6 + Math.sin(t * 2 + i) * 0.3, Math.sin(a) * 1.3);
+      m.rotation.y = t * 2;
+    });
+  };
+  g.scale.setScalar(1.45);
+  return g;
+}
+
 // The Scaled Cult: a hooded wizard with dragon horns and a bone mask.
 function cultist() {
   const g = makeWizard({ robe: 0x3a0a14, hat: 0x1a0a0a, trim: 0xc0392b, gem: 0xff5a1a, hatStyle: 'hood', skin: 0x8a7a70, eyeColor: 0xff3a2a, hair: 0x1a1010 });
@@ -2534,7 +2604,7 @@ export function makeBanner(color = 0xc0392b) {
 // ---------------------------------------------------------------- mounts
 
 // A four-legged mount with a saddle. `kind` shapes the head, ears, tail and extras.
-function quadruped({ color, dark, mane, size = 1, legLen = 1.1, neck = 0.9, ears = 'horse', antlers = false, tail = 'hair', fire = false, eye = null, glow = null }) {
+function quadruped({ color, dark, mane, size = 1, legLen = 1.1, neck = 0.9, ears = 'horse', antlers = false, tail = 'hair', fire = false, eye = null, glow = null, saddle = true }) {
   const g = new THREE.Group();
   const body = group(g);
   const C = mat(color), D = mat(dark ?? darker(color, 0.7)), M = mat(mane ?? darker(color, 0.5));
@@ -2585,10 +2655,14 @@ function quadruped({ color, dark, mane, size = 1, legLen = 1.1, neck = 0.9, ears
   else if (tail === 'bushy') add(tl, sph(0.22, 12, 8), M, 0, -0.1, -0.35, { s: [0.8, 0.8, 2] });
   else tube(tl, [[0, -0.1, 0], [0, -0.3, -0.6], [0.1, -0.4, -1.2]], 0.12, C, 12);
   // saddle
-  const saddle = mat(0x7a3a2a), trimM = mat(0xf2c14e);
-  add(body, sph(0.42, 14, 8, 0), saddle, 0, H + 0.42, -0.05, { s: [1, 0.3, 1.2] });
-  add(body, new THREE.TorusGeometry(0.42, 0.04, 6, 18), trimM, 0, H + 0.43, -0.05, { rx: Math.PI / 2, s: [1, 1.2, 1] });
-  for (const s of [-1, 1]) add(body, new THREE.BoxGeometry(0.05, 0.5, 0.3), saddle, s * 0.55, H + 0.1, -0.05, { rz: s * 0.2 });
+  if (saddle) {
+    const saddleM = mat(0x7a3a2a), trimM = mat(0xf2c14e);
+    add(body, sph(0.42, 14, 8), saddleM, 0, H + 0.42, -0.05, { s: [1, 0.3, 1.2] });
+    add(body, new THREE.TorusGeometry(0.42, 0.04, 6, 18), trimM, 0, H + 0.43, -0.05, { rx: Math.PI / 2, s: [1, 1.2, 1] });
+    for (const s of [-1, 1]) add(body, new THREE.BoxGeometry(0.05, 0.5, 0.3), saddleM, s * 0.55, H + 0.1, -0.05, { rz: s * 0.2 });
+  } else {
+    for (let k = 0; k < 5; k++) add(body, new THREE.ConeGeometry(0.1, 0.35, 5), M, 0, H + 0.55, 0.6 - k * 0.3, { rx: -0.5 });
+  }
   const flames = fire ? [flame(body, 0, H + 0.45, 0.45, 0.8), flame(body, 0, H + 0.4, -0.55, 0.8)] : [];
   g.scale.setScalar(size);
   g.userData.saddle = (H + 0.5) * size;
@@ -2634,4 +2708,111 @@ export function makeWaystone(color = 0x7fd8ff) {
   g.userData.anim = (t) => { if (on) { orb.position.y = 3.9 + Math.sin(t * 2) * 0.15; rune.emissiveIntensity = 1.1 + Math.sin(t * 3) * 0.3; } };
   g.userData.setActive(false);
   return finish(g, 0.035, 0.1);
+}
+
+// ------------------------------------------------------------ Glacierreach (Chapter 4)
+
+const iceMat = (color = 0x9fe6ff, glow = 0.3) => mat(color, { transparent: true, opacity: 0.88, emissive: color, emissiveIntensity: glow });
+
+// A cluster of glowing ice shards.
+export function makeIceCrystal(scale = 1, color = 0x9fe6ff) {
+  const g = new THREE.Group();
+  const m = iceMat(color, 0.35);
+  const n = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++) {
+    const h = i === 0 ? rnd(2.6, 3.6) : rnd(1.2, 2.4);
+    add(g, new THREE.OctahedronGeometry(0.5, 0), m, i ? rnd(-0.8, 0.8) : 0, h * 0.42, i ? rnd(-0.8, 0.8) : 0, { s: [0.6, h, 0.6], rx: i ? rnd(-0.4, 0.4) : 0, rz: i ? rnd(-0.4, 0.4) : 0 });
+  }
+  add(g, new THREE.DodecahedronGeometry(0.7, 0), mat(0x8aa0c0), 0, 0.15, 0, { s: [1.4, 0.4, 1.4] });
+  g.scale.setScalar(scale);
+  return finish(g, 0.03, 0.2, true);
+}
+
+// A round ice tower with a glassy spire and glowing windows.
+export function makeIceTower({ r = 3, h = 14 } = {}) {
+  const g = new THREE.Group();
+  const wall = mat(0xcfe6fa), dark = mat(0x8ab0d8), win = glowMat(0x9fe6ff, 1.8);
+  add(g, new THREE.CylinderGeometry(r * 1.18, r * 1.28, 1.2, 14), dark, 0, 0.6, 0);
+  add(g, new THREE.CylinderGeometry(r, r * 1.1, h, 14), wall, 0, h / 2, 0);
+  add(g, new THREE.CylinderGeometry(r * 1.22, r * 1.05, 0.8, 14), dark, 0, h, 0);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    add(g, new THREE.BoxGeometry(0.8, 1, 0.6), wall, Math.sin(a) * r * 1.12, h + 0.85, Math.cos(a) * r * 1.12, { ry: a });
+  }
+  add(g, new THREE.ConeGeometry(r * 0.95, r * 3.6, 14), iceMat(0xaee8ff, 0.4), 0, h + 0.4 + r * 1.8, 0);
+  add(g, new THREE.OctahedronGeometry(r * 0.24), glowMat(0xdff6ff, 2.4), 0, h + 0.8 + r * 3.7, 0);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    for (const y of [h * 0.35, h * 0.7]) {
+      const wg = group(g, Math.sin(a) * (r - 0.02), y, Math.cos(a) * (r - 0.02));
+      wg.rotation.y = a;
+      add(wg, archGeo(0.8, 1.6, 0.22), win, 0, -0.8, 0);
+    }
+  }
+  return finish(g, 0.05, 0.5, true);
+}
+
+// A crenellated wall of packed ice.
+export function makeIceWall(len = 8, h = 6) {
+  const g = new THREE.Group();
+  const wall = mat(0xbcdcf6), cap = mat(0xeef8ff);
+  add(g, new THREE.BoxGeometry(len, h, 1.6), wall, 0, h / 2, 0);
+  add(g, new THREE.BoxGeometry(len + 0.2, 0.5, 2), cap, 0, h, 0);
+  for (let x = -len / 2 + 0.6; x <= len / 2 - 0.3; x += 1.5) add(g, new THREE.BoxGeometry(0.75, 0.85, 1.8), cap, x, h + 0.65, 0);
+  for (let x = -len / 2 + 1.5; x < len / 2; x += 3) add(g, new THREE.ConeGeometry(0.18, 1.2, 6), iceMat(0xdff6ff, 0.2), x, h - 0.9, 0.9, { rx: Math.PI });
+  return finish(g, 0.04, 0.4, true);
+}
+
+// Queen Sylvara's throne, carved from one glacier.
+export function makeIceThrone() {
+  const g = new THREE.Group();
+  const ice = iceMat(0xaee8ff, 0.35), base = mat(0x8ab0d8), frost = mat(0xf0f8ff);
+  add(g, new THREE.CylinderGeometry(5, 5.6, 0.8, 8), base, 0, 0.4, 0);
+  add(g, new THREE.CylinderGeometry(3.6, 4.2, 0.8, 8), frost, 0, 1.2, 0);
+  add(g, new THREE.BoxGeometry(3.2, 1.2, 2.6), ice, 0, 2.2, 0);
+  add(g, new THREE.BoxGeometry(3.4, 6, 0.8), ice, 0, 4.6, -1.2);
+  for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.6, 1.4, 2.4), ice, s * 1.6, 3.2, 0);
+  for (let i = -3; i <= 3; i++) {
+    const h = 3.5 - Math.abs(i) * 0.4;
+    add(g, new THREE.OctahedronGeometry(0.4, 0), iceMat(0xdff6ff, 0.5), i * 0.5, 7.6 + h * 0.3, -1.2, { s: [0.7, h, 0.5] });
+  }
+  add(g, new THREE.OctahedronGeometry(0.5), glowMat(0x7affd0, 2.4), 0, 5.2, -0.75);
+  return finish(g, 0.04, 0.4, true);
+}
+
+// Rippling curtains of light high in the sky. Brightest at night.
+export function makeAurora(world, width = 320, height = 30) {
+  const g = new THREE.Group();
+  const bands = [];
+  for (const [col, y, z, ph] of [[0x7affd0, 44, 170, 0], [0x9a8cff, 56, 200, 2], [0x4dc8ff, 38, 145, 4]]) {
+    const geo = new THREE.PlaneGeometry(width, height, 48, 1);
+    const colors = [];
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const top = pos.getY(i) > 0;
+      const c = new THREE.Color(col).multiplyScalar(top ? 0.15 : 1);
+      colors.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+    m.position.set(0, y, z);
+    m.userData.base = Float32Array.from(pos.array);
+    m.userData.phase = ph;
+    m.frustumCulled = false;
+    g.add(m);
+    bands.push(m);
+  }
+  g.userData.anim = (t) => {
+    const night = world.skyCycle ? 0.25 + world.skyCycle.nightK * 0.75 : 1;
+    for (const b of bands) {
+      const pos = b.geometry.attributes.position, base = b.userData.base;
+      for (let i = 0; i < pos.count; i++) {
+        const x = base[i * 3];
+        pos.setZ(i, Math.sin(x * 0.03 + t * 0.4 + b.userData.phase) * 10 + Math.sin(x * 0.011 - t * 0.23) * 16);
+      }
+      pos.needsUpdate = true;
+      b.material.opacity = (0.3 + Math.sin(t * 0.5 + b.userData.phase) * 0.12) * night;
+    }
+  };
+  return g;
 }

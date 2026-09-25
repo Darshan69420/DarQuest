@@ -387,6 +387,7 @@ function completeQuest(q) {
   announceLevels(levels);
   player.quest = { index: player.quest.index + 1, state: 'available', progress: 0 };
   if (player.quest.index === 7) setTimeout(() => UI.toast('🌀 The <b>Spiral Door</b> in the courtyard has awakened…', 'good'), 1200);
+  if (player.quest.index === 23) setTimeout(() => UI.toast('❄️ <b>Chapter 4: The Frozen Crown.</b> A Spiral Door in the courtyard has frozen over: Glacierreach awaits.', 'good'), 1800);
   if (player.quest.index === 14) setTimeout(() => UI.toast('🐉 <b>Chapter 3: Wings of Ruin.</b> A new Spiral Door has opened in the courtyard: the Dragonspire Peaks await.', 'good'), 1800);
   if (q.reward.voice) setTimeout(() => UI.toast('🗣️ You have the <b>Voice</b>. Read Word Walls to learn dragon shouts!', 'good'), 1200);
   if (!QUESTS[player.quest.index]) setTimeout(() => UI.toast('🏆 <b>Main story complete!</b> You are a legend of Starfall, and dragonborn besides!', 'good'), 1200);
@@ -1042,7 +1043,7 @@ async function playerDefeated() {
     return;
   }
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.</p>
+    <p>You wake up back at ${{ emberfall: 'the Emberfall camp', dragonspire: 'Skyhold Camp', glacier: 'Frostholm' }[zoneAt(world.player.position.x)] || 'Starfall Academy'} with half your health.</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;

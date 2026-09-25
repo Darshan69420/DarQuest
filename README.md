@@ -66,10 +66,14 @@ gallery.html      model gallery: preview every model (?group=foes1, ?model=knigh
 
 ## Roadmap
 
-1. **Chapter 3:** a new world (a frozen sky-city or a sunken ruin), plus dungeons: short instanced areas with a boss at the end.
-2. **Crafting and scrolls:** one-use spell scrolls found as loot, and recipes that turn materials into gear.
-3. **Companions:** hire an NPC wizard of another school to fight beside you (true 2v3 battles).
-4. **Arena (PvP-style):** duel AI "rival wizards" with their own decks for ranked rewards.
-5. **Real art:** replace the code-built models in `models.js` with glTF models and animations.
-6. **Online multiplayer:** a small Node.js server so friends can explore and battle together.
-7. **Publish:** host on GitHub Pages or itch.io so anyone can play from a link.
+The full plan is in [ROADMAP.md](ROADMAP.md). In short, each phase ends with a playable build:
+
+1. **Solid foundation:** combat tuning, a settings menu, save slots, a tutorial, and bug and performance fixes.
+2. **RPG depth:** talent trees, a second school, gear rarity and set bonuses, crafting, and an economy.
+3. **A real world and story:** six worlds (one per school), about 60 main-story quests, branching dialogue, and fast travel.
+4. **Dungeons and bosses:** puzzles, elites, dodge-the-floor boss mechanics, and heroic dungeons.
+5. **Companions and systems:** hired wizards, pets that level up, mounts, a bestiary, and housing.
+6. **Endgame:** level cap 50, the Tower of Trials, an arena, weekly challenges, and New Game+.
+7. **Presentation:** animation, per-world music, polish, and accessibility.
+8. **Ship it:** publish on GitHub Pages or itch.io and run a playtest round.
+9. **Multiplayer (optional):** a small server for towns and co-op dungeons.

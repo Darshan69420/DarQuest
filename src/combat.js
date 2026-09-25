@@ -512,7 +512,7 @@ export class Combat {
     e.model.userData.roar?.();
     sfx('roar');
     this.world.shake(0.5);
-    this.onMessage?.(`${e.def.name} takes to the sky! Use Dragonrend to bring her down.`, 'boss');
+    this.onMessage?.(e.def.flyMsg || `${e.def.name} takes to the sky! Use Dragonrend to bring her down.`, 'boss');
   }
 
   updateFlight(e, dt) {
@@ -530,9 +530,10 @@ export class Combat {
     if (Math.random() < dt * 1.5) sfx('flap');
     if (f.t >= f.next && f.t < f.dur - 2 && !f.forced) {
       f.next = f.t + 1.8 / this.diff.speed;
-      const a = e.def.aoe?.sky_fire || { shape: 'circle', r: 3.4, count: 4, spread: 7, dur: 1.4 };
-      this.queueAoe(e, SPELLS.sky_fire, this.aoeShapes(e, a), a.dur / Math.sqrt(this.diff.speed));
-      w.breathFx(this.mouthPos(e), Math.atan2(w.player.position.x - m.x, w.player.position.z - m.z), 6, 0.5, 0xff7a1a, 20);
+      const fs = e.def.flySpell || 'sky_fire';
+      const a = e.def.aoe?.[fs] || { shape: 'circle', r: 3.4, count: 4, spread: 7, dur: 1.4 };
+      this.queueAoe(e, SPELLS[fs], this.aoeShapes(e, a), a.dur / Math.sqrt(this.diff.speed));
+      w.breathFx(this.mouthPos(e), Math.atan2(w.player.position.x - m.x, w.player.position.z - m.z), 6, 0.5, e.def.flyColor ?? 0xff7a1a, 20);
     }
     if (f.t >= f.dur) {
       e.fly = null;

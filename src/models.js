@@ -1185,6 +1185,12 @@ export function makeEnemy(kind) {
     case 'frost_drake': return makeDragon({ color: 0x9fd6ff, belly: 0xffffff, wing: 0x4d7ab0, horn: 0xdff6ff, wings: 2, size: 1.35, eye: 0x4dc8ff, frill: true });
     case 'frost_queen': return frostQueen();
     case 'pale_warden': return paleWarden();
+    case 'gale_sprite': return galeSprite();
+    case 'stormhorn': { const s = quadruped({ color: 0x5a5a8a, dark: 0x3a3a5a, mane: 0xb46bff, antlers: true, glow: 0xb46bff, legLen: 1.2, neck: 0.95, tail: 'hair', saddle: false }); s.scale.setScalar(1.15); return s; }
+    case 'skyraider': return makeWizard({ robe: 0x3a5a8a, hat: 0x8a1a1a, trim: 0xf2c14e, gem: 0xb46bff, hatStyle: 'hood', goggles: true, backpack: true, hair: 0x6a3a1a, skin: 0xe8b890, eyeColor: 0xb46bff });
+    case 'tempest_golem': { const gm = golem({ scale: 1.2 }); const body = gm.children[0]; for (const [x, y, z, r] of [[0.7, 2.6, -0.2, 0.4], [-0.7, 2.6, -0.2, -0.4], [0, 2.9, -0.4, 0], [0.4, 2.2, -0.6, 0.6]]) add(body, new THREE.OctahedronGeometry(0.28), glowMat(0xb46bff, 2.6), x, y, z, { s: [0.7, 1.8, 0.7], rz: r }); return gm; }
+    case 'thunder_roc': return thunderbird({ size: 0.85 });
+    case 'voltaris': return thunderbird({ size: 1.6, boss: true });
     case 'shade': return shade();
     case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
   }
@@ -2998,4 +3004,199 @@ export function makeCryptStair() {
   add(g, new THREE.BoxGeometry(4.2, 0.5, 0.7), stone, 0, 3.3, -1.6);
   add(g, new THREE.OctahedronGeometry(0.28), glowMat(0x7affd0, 2.2), 0, 3.3, -1.2, { s: [1, 1, 0.3] });
   return finish(g, 0.03, 0.1, true);
+}
+
+// ------------------------------------------------------------ Stormspire (Chapter 5)
+
+// A thunderbird: huge storm-feathered wings with lightning in the quills.
+// Used for Thunder Rocs and for Voltaris, the Storm Herald (boss: true).
+function thunderbird({ size = 1, boss = false } = {}) {
+  const g = new THREE.Group();
+  const body = group(g, 0, 0, 0);
+  const plum = mat(boss ? 0x2a2a5a : 0x3a4a7a), plum2 = mat(boss ? 0x4a3a8a : 0x5a6a9a), belly = mat(0xb8c0e8), gold = mat(0xf2c14e);
+  const bolt = glowMat(0x9ff0ff, 2.4);
+  const hip = group(body, 0, 2.2, 0);
+  add(hip, sph(0.9, 18, 14), plum, 0, 0, 0, { s: [0.95, 0.9, 1.45] });
+  add(hip, sph(0.7, 16, 12), belly, 0, -0.2, 0.35, { s: [0.85, 0.8, 1.1] });
+  // neck and head
+  const neck = group(hip, 0, 0.55, 1.05);
+  limb(neck, V3(0, -0.2, -0.2), V3(0, 0.55, 0.25), 0.42, 0.32, plum, 10);
+  const head = group(neck, 0, 0.8, 0.35);
+  add(head, sph(0.42, 16, 12), plum2, 0, 0, 0, { s: [0.9, 0.95, 1.1] });
+  add(head, new THREE.ConeGeometry(0.2, 0.75, 8), gold, 0, -0.08, 0.6, { rx: Math.PI / 2 });
+  add(head, new THREE.ConeGeometry(0.12, 0.3, 6), gold, 0, -0.22, 0.85, { rx: Math.PI * 0.8 });
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.09, { glow: 0x9ff0ff });
+    e.position.set(s * 0.24, 0.1, 0.3);
+    head.add(e);
+  }
+  for (let i = 0; i < 5; i++) add(head, new THREE.ConeGeometry(0.07, 0.6 + i * 0.08, 5), i % 2 ? bolt : plum2, 0, 0.3 + i * 0.02, -0.15 - i * 0.12, { rx: -1.1 - i * 0.1 });
+  const mouth = group(head, 0, -0.1, 0.95);
+  // wings: layered feathers with glowing lightning quills
+  const wings = [];
+  for (const s of [-1, 1]) {
+    const w = group(hip, s * 0.7, 0.35, 0.1);
+    const span = 3.2;
+    add(w, new THREE.BoxGeometry(span, 0.14, 0.9), plum, s * span / 2, 0, 0.1);
+    for (let k = 0; k < 7; k++) {
+      const x = s * (0.5 + k * 0.45), len = 1.2 + (k < 5 ? k * 0.12 : (6 - k) * 0.2);
+      add(w, new THREE.BoxGeometry(0.34, 0.06, len), k % 2 ? plum2 : plum, x, -0.02, -len / 2 + 0.1, { ry: -s * k * 0.05 });
+      if (k % 2 === 0) add(w, new THREE.BoxGeometry(0.06, 0.08, len * 0.7), bolt, x, 0.03, -len / 2 + 0.2, { noOutline: true, shadow: false });
+    }
+    wings.push({ w, s });
+  }
+  // tail fan
+  for (let k = -3; k <= 3; k++) add(hip, new THREE.BoxGeometry(0.28, 0.06, 1.5), k % 2 ? plum2 : plum, k * 0.16, 0.1, -1.6, { ry: k * 0.12, rx: 0.25 });
+  // legs with talons
+  for (const s of [-1, 1]) {
+    const leg = group(hip, s * 0.4, -0.6, 0.2);
+    limb(leg, V3(0, 0, 0), V3(0, -1.1, 0.1), 0.14, 0.08, gold, 8);
+    for (const a of [-0.5, 0, 0.5]) add(leg, new THREE.ConeGeometry(0.05, 0.35, 5), mat(0x2a2030), Math.sin(a) * 0.15, -1.3, 0.2 + Math.cos(a) * 0.12, { rx: Math.PI / 2.3 });
+  }
+  if (boss) {
+    // a crown of storm-crystals
+    for (let i = 0; i < 5; i++) add(head, new THREE.OctahedronGeometry(0.1), bolt, (i - 2) * 0.12, 0.45, -0.05, { s: [0.7, 1.8, 0.7] });
+  }
+  g.scale.setScalar(size);
+  let flap = 0, roar = 0, last = 0;
+  g.userData.mouth = mouth;
+  g.userData.setFlying = (f) => { flap = f ? 1 : 0; };
+  g.userData.roar = () => { roar = 1; };
+  g.userData.anim = (t, moving) => {
+    const dt = Math.min(0.1, Math.max(0, t - last));
+    last = t;
+    roar = Math.max(0, roar - dt);
+    const speed = flap ? 7 : moving ? 3 : 1.2;
+    const amp = flap ? 0.75 : moving ? 0.25 : 0.08;
+    for (const { w, s } of wings) w.rotation.z = s * (Math.sin(t * speed) * amp + (flap ? 0.1 : -0.15));
+    hip.position.y = 2.2 + (flap ? Math.sin(t * speed) * 0.25 : Math.sin(t * 1.5) * 0.05);
+    neck.rotation.x = -roar * 0.6 + Math.sin(t * 1.1) * 0.05;
+    head.rotation.y = Math.sin(t * 0.7) * 0.3;
+  };
+  return finish(g, 0.035, 0.1);
+}
+
+// A gale sprite: a little whirlwind with a cheeky face.
+function galeSprite() {
+  const g = new THREE.Group();
+  const body = group(g, 0, 0, 0);
+  const air = mat(0xdfe8ff, { emissive: 0x8a9aff, emissiveIntensity: 0.25 });
+  const head = group(body, 0, 1.7, 0);
+  add(head, sph(0.45, 16, 12), air);
+  const face = makeFace(0.45, { eyeR: 0.12, gap: 0.17, eyeY: 0.02, iris: 0x6a3aff, brows: 'angry', browColor: 0x4a3a8a, mouth: 'grin', mouthY: -0.17, mouthW: 0.12 });
+  head.add(face);
+  const rings = [];
+  for (let k = 0; k < 5; k++) {
+    const r = dyn(add(body, new THREE.TorusGeometry(0.5 - k * 0.08, 0.07, 6, 20), mat(k % 2 ? 0xc8d4ff : 0xeef2ff, { transparent: true, opacity: 0.8 }), 0, 1.25 - k * 0.25, 0, { rx: Math.PI / 2, noOutline: true }));
+    rings.push(r);
+  }
+  const bits = [];
+  for (let k = 0; k < 4; k++) bits.push(dyn(add(body, new THREE.OctahedronGeometry(0.08), glowMat(0xb46bff, 2), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t, moving) => {
+    body.position.y = Math.sin(t * 3) * 0.12;
+    rings.forEach((r, k) => { r.rotation.z = t * (4 + k); r.position.x = Math.sin(t * 5 + k) * 0.06 * k; });
+    bits.forEach((b, k) => { const a = t * 4 + k * 1.6; b.position.set(Math.cos(a) * 0.8, 0.8 + k * 0.25, Math.sin(a) * 0.8); });
+    head.rotation.z = moving ? Math.sin(t * 8) * 0.15 : 0;
+  };
+  return finish(g, 0.03, 0.08);
+}
+
+// A floating island: a grassy top on a craggy rock that trails roots and crystals.
+export function makeSkyIsland(r = 16, { grass = 0x5a9a4a, rock = 0x6a6078, crystals = true } = {}) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(r, r * 0.92, 1.4, 28), mat(0x7a6a58), 0, -0.72, 0);
+  add(g, new THREE.ConeGeometry(r * 0.92, r * 1.3, 9), mat(rock), 0, -0.7 - r * 0.65, 0, { rx: Math.PI, shadow: false });
+  add(g, new THREE.ConeGeometry(r * 0.5, r * 0.9, 7), mat(darker(rock, 0.8)), r * 0.35, -1 - r * 0.45, r * 0.2, { rx: Math.PI, shadow: false });
+  add(g, new THREE.ConeGeometry(r * 0.4, r * 0.7, 7), mat(darker(rock, 0.85)), -r * 0.4, -1 - r * 0.35, -r * 0.25, { rx: Math.PI, shadow: false });
+  add(g, new THREE.CylinderGeometry(r * 1.01, r * 1.01, 0.12, 28), mat(grass), 0, -0.02, 0, { noOutline: true });
+  for (let i = 0; i < 10; i++) {
+    const a = Math.random() * Math.PI * 2, d = r * (0.3 + Math.random() * 0.6);
+    limb(g, V3(Math.cos(a) * d, -1.5, Math.sin(a) * d), V3(Math.cos(a) * d * 1.05, -3.5 - Math.random() * 4, Math.sin(a) * d * 1.05), 0.12, 0.03, mat(0x4a3a2a), 5);
+  }
+  if (crystals) for (let i = 0; i < 4; i++) {
+    const a = Math.random() * Math.PI * 2;
+    add(g, new THREE.OctahedronGeometry(0.6 + Math.random() * 0.5), glowMat(0xb46bff, 1.8), Math.cos(a) * r * 0.5, -r * 0.9 - Math.random() * 3, Math.sin(a) * r * 0.5, { s: [0.7, 1.6, 0.7] });
+  }
+  return finish(g, 0.06, 0.6, true);
+}
+
+// A sky pirate airship: a wooden hull hung under a patched balloon, propellers spinning.
+export function makeAirship(sail = 0x8a1a1a) {
+  const g = new THREE.Group();
+  const ship = group(g, 0, 0, 0);
+  dyn(ship);
+  const wood = mat(0x7a4a2a), dark = mat(0x4a2a18), trim = mat(0xf2c14e);
+  add(ship, sph(1.6, 18, 12), wood, 0, 0, 0, { s: [1.3, 0.75, 3.2] });
+  add(ship, new THREE.BoxGeometry(3.6, 0.3, 8.6), dark, 0, 0.9, 0);
+  for (const s of [-1, 1]) add(ship, new THREE.BoxGeometry(0.15, 0.7, 8.4), wood, s * 1.8, 1.3, 0);
+  add(ship, new THREE.ConeGeometry(0.25, 2.2, 6), trim, 0, 0.3, 5.3, { rx: Math.PI / 2 });
+  add(ship, new THREE.CylinderGeometry(0.14, 0.14, 7, 8), dark, 0, 4.4, 0);
+  // the balloon
+  add(ship, sph(2.6, 20, 14), mat(0xd8c8a8), 0, 7.6, 0, { s: [1, 0.9, 2.3] });
+  for (const z of [-3, 0, 3]) add(ship, new THREE.TorusGeometry(2.4, 0.08, 6, 20), mat(0x6a4a2a), 0, 7.6, z, { s: [1, 0.9, 1] });
+  add(ship, new THREE.PlaneGeometry(2.4, 1.6), mat(sail, { side: THREE.DoubleSide }), 0, 3.4, -2.6, { noOutline: true });
+  for (const s of [-1, 1]) for (const z of [-3, 3]) limb(ship, V3(s * 1.7, 1.3, z * 0.9), V3(s * 1.8, 6.2, z * 0.8), 0.03, 0.03, dark, 4);
+  const props = [];
+  for (const s of [-1, 1]) {
+    const pg = dyn(group(ship, s * 2.1, 0.8, -3.6));
+    add(pg, new THREE.BoxGeometry(0.2, 2.2, 0.08), wood);
+    add(pg, new THREE.BoxGeometry(2.2, 0.2, 0.08), wood);
+    props.push(pg);
+  }
+  const seed = Math.random() * 10;
+  g.userData.anim = (t) => {
+    ship.position.y = Math.sin(t * 0.8 + seed) * 0.35;
+    ship.rotation.z = Math.sin(t * 0.6 + seed) * 0.04;
+    for (const p of props) p.rotation.z = t * 8;
+  };
+  return finish(g, 0.05, 0.3);
+}
+
+// A rope bridge of planks between two islands (runs along +z).
+export function makeRopeBridge(len = 20, width = 5) {
+  const g = new THREE.Group();
+  const plank = mat(0x8a6a4a), plank2 = mat(0x7a5a3a), rope = mat(0xc8a878);
+  const n = Math.round(len / 0.7);
+  for (let i = 0; i < n; i++) {
+    const z = -len / 2 + (i + 0.5) * (len / n);
+    const sag = -Math.sin((i / (n - 1)) * Math.PI) * 0.35;
+    add(g, new THREE.BoxGeometry(width, 0.12, len / n * 0.85), i % 2 ? plank : plank2, 0, sag - 0.02, z);
+  }
+  for (const s of [-1, 1]) {
+    for (let i = 0; i <= 4; i++) {
+      const z = -len / 2 + (i / 4) * len;
+      add(g, new THREE.CylinderGeometry(0.08, 0.1, 1.3, 6), plank2, s * width / 2, 0.55, z);
+    }
+    limb(g, V3(s * width / 2, 1.1, -len / 2), V3(s * width / 2, 0.8, 0), 0.04, 0.04, rope, 4);
+    limb(g, V3(s * width / 2, 0.8, 0), V3(s * width / 2, 1.1, len / 2), 0.04, 0.04, rope, 4);
+  }
+  return finish(g, 0.03, 0.2, true);
+}
+
+// A lightning rod: a tall iron spike with a glowing storm-crystal.
+export function makeLightningRod() {
+  const g = new THREE.Group();
+  const iron = mat(0x4a4a5a);
+  add(g, new THREE.CylinderGeometry(0.5, 0.7, 0.6, 8), mat(0x6a6078), 0, 0.3, 0);
+  add(g, new THREE.CylinderGeometry(0.08, 0.14, 6, 8), iron, 0, 3.3, 0);
+  for (const y of [2, 3.5, 5]) add(g, new THREE.TorusGeometry(0.28, 0.05, 6, 14), mat(0xb08a3a), 0, y, 0, { rx: Math.PI / 2 });
+  add(g, new THREE.OctahedronGeometry(0.4), glowMat(0xb46bff, 2.6), 0, 6.6, 0, { s: [0.7, 1.4, 0.7] });
+  return finish(g, 0.03, 0.1, true);
+}
+
+// A dark storm cloud that drifts and flickers.
+export function makeStormCloud(scale = 1) {
+  const g = new THREE.Group();
+  const puffs = group(g);
+  dyn(puffs);
+  for (let k = 0; k < 6; k++) add(puffs, sph(2 + Math.random() * 1.5, 10, 8), mat(k % 2 ? 0x4a4a6a : 0x3a3a58), (k - 2.5) * 2.2, Math.random() * 1.2, Math.random() * 2, { shadow: false, s: [1, 0.65, 1] });
+  const glow = dyn(add(puffs, sph(2.5, 10, 8), basic(0xc8b8ff, { transparent: true, opacity: 0 }), 0, -0.5, 1, { shadow: false, noOutline: true }));
+  const seed = Math.random() * 20;
+  g.scale.setScalar(scale);
+  g.userData.anim = (t) => {
+    puffs.position.x = Math.sin(t * 0.05 + seed) * 6;
+    const f = Math.sin(t * 7 + seed) > 0.985 ? 0.55 : Math.max(0, glow.material.opacity - 0.05);
+    glow.material.opacity = f;
+  };
+  return finish(g, 0.06, 0.5);
 }

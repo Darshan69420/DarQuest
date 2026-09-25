@@ -7,8 +7,9 @@ import {
   makeSignpost, makeHayBale, makeFlowers, makeRoundTree, makeWordWall, makeBones, makeNest, makeSnowPine,
   makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire, makeMount,
   makeHouse, makeIceCrystal, makeIceTower, makeIceWall, makeIceThrone, makeAurora,
+  makeSkyIsland, makeAirship, makeRopeBridge, makeLightningRod, makeStormCloud, makeCrystal,
 } from './models.js';
-import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, NPCS } from './data.js';
+import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
 
 // Word Walls: each teaches the first word of a dragon shout.
@@ -564,4 +565,157 @@ export function buildGlacier(world) {
     world.motes.push(m);
   }
   return { hearth };
+}
+
+// ------------------------------------------------------------ Stormspire (Chapter 5)
+
+export function buildStormspire(world) {
+  const scene = world.scene;
+  const S = SX;
+  // a sea of clouds far below the islands
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0xc8c0e8, roughness: 1 }));
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.set(S + 30, -38, 90);
+  scene.add(sea);
+  for (let i = 0; i < 40; i++) {
+    const c = new THREE.Group();
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshStandardMaterial({ color: k % 2 ? 0xe8e0ff : 0xd8d0f0, roughness: 1 }));
+      m.scale.set(6 + Math.random() * 6, 3 + Math.random() * 2, 5 + Math.random() * 4);
+      m.position.set(k * 6 - 9, Math.random() * 2, Math.random() * 4);
+      c.add(m);
+    }
+    const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 170;
+    c.position.set(S + 30 + Math.cos(a) * r, -30 - Math.random() * 8, 90 + Math.sin(a) * r);
+    scene.add(c);
+  }
+
+  // islands (a little wider than where you can walk) and the rope bridges between them
+  const isles = [
+    [0, 0, 22, 0x5a9a4a], [0, 62, 16, 0x6aaa5a], [60, 62, 16, 0x4a7a5a], [60, 120, 16, 0x5a6a8a], [0, 120, 16, 0x7a8a4a], [0, 180, 22, 0x4a4a6a],
+  ];
+  for (const [dx, dz, r, grass] of isles) world.add(makeSkyIsland(r + 1.4, { grass, rock: dz > 150 ? 0x4a4058 : 0x6a6078 }), S + dx, dz, Math.random() * 6);
+  world.add(makeRopeBridge(29, 5.2), S, 34, 0);
+  world.add(makeRopeBridge(33, 5.2), S + 30, 62, Math.PI / 2);
+  world.add(makeRopeBridge(31, 5.2), S + 60, 91, 0);
+  world.add(makeRopeBridge(33, 5.2), S + 30, 120, Math.PI / 2);
+  world.add(makeRopeBridge(27, 5.2), S, 147, 0);
+
+  // Skyport: a harbour town with airships moored at its edge
+  const fountain = makeFountain();
+  fountain.scale.setScalar(0.85);
+  world.add(fountain, S, 0, 0, 3.1);
+  const houses = [[-16, 8, 1.3], [16, 9, -1.7], [-17, -9, 1.9], [17, -12, -1.3], [-9, -17, 0.3]];
+  houses.forEach(([dx, dz, r], i) => world.add(makeHouse({ w: 6, d: 6, h: 3.8, wall: [0xe8dcc8, 0xd8c8b0, 0xc8d0e0][i % 3], roof: [0x3a4a8a, 0x5a3a8a, 0x2a5a7a][i % 3] }), S + dx, dz, r, 3.8));
+  world.addStation('anvil', S + 13, 15, -2.3);
+  world.addStation('furnace', S + 19, 1, -1.6);
+  world.addStation('alchemy', S - 13, -3, 1.3);
+  world.addStation('range', S - 13, 14, 2.3);
+  world.addStation('workbench', S + 9, -18, -0.3);
+  for (const [dx, dz] of [[-6, 19], [6, 19], [-20, 3], [20, -4], [-4, -20], [5, -21]]) world.add(makeLamp(0xc8b8ff), S + dx, dz, 0, 0.4);
+  for (const [dx, dz] of [[-8, 20], [8, 20]]) world.add(makeBanner(0x3a4a8a), S + dx, dz, 0, 0.3);
+  const dock1 = makeAirship(0x3a4a8a);
+  world.add(dock1, S - 31, 6, Math.PI / 2 + 0.2);
+  dock1.position.y = 1.5;
+  const dock2 = makeAirship(0xc0392b);
+  world.add(dock2, S + 30, -14, -Math.PI / 2 - 0.3);
+  dock2.position.y = 2;
+  world.add(makeWindmill(), S - 14, 19.5, 0.5, 2.5);
+
+  // the Isle of Winds: windmills and wildflowers
+  world.add(makeWindmill(), S - 11, 56, 0.9, 2.5);
+  world.add(makeWindmill(), S + 11, 70, -0.6, 2.5);
+  for (let k = 0; k < 6; k++) world.add(makeFlowers(), S + (Math.random() - 0.5) * 20, 55 + Math.random() * 16, Math.random() * 6);
+  world.addNode('elder', S - 12, 68);
+  world.addNode('herb_glowcap', S + 12, 55);
+  world.addNode('herb_glowcap', S - 3, 74);
+
+  // Thunder Isle: a ring of lightning rods
+  const rods = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    const x = S + 60 + Math.cos(a) * 11.5, z = 62 + Math.sin(a) * 11.5;
+    if (Math.abs(z - 62) < 3 && x < S + 60) continue;   // keep the bridge end clear
+    world.add(makeLightningRod(), x, z, 0, 0.7);
+    rods.push({ x, z, y: 6.6 });
+  }
+  world.add(makeRock(1.2, 0x6a6078), S + 60, 62, 0.4, 1.4);
+  world.addNode('starmetal_rock', S + 69, 56);
+  world.addNode('dragonite_rock', S + 52, 70);
+
+  // the Crystal Spire
+  const spire = makeCrystal(0xb46bff, 6);
+  world.add(spire, S + 60, 120, 0.3, 3.4);
+  for (const [dx, dz, sc] of [[-8, -6, 1.6], [7, 7, 1.8], [8, -7, 1.3], [-7, 8, 1.5]]) world.add(makeCrystal(0x9ff0ff, sc), S + 60 + dx, 120 + dz, Math.random() * 6, 0.9);
+  for (const [dx, dz] of [[-12, 0], [12, 3]]) { world.add(makeLightningRod(), S + 60 + dx, 120 + dz, 0, 0.7); rods.push({ x: S + 60 + dx, z: 120 + dz, y: 6.6 }); }
+  world.addNode('starmetal_rock', S + 69, 128);
+
+  // Raiders' Roost: tents, a campfire and a wrecked airship
+  world.add(tent(0x8a1a1a), S - 10, 116, 1.2, 2.4);
+  world.add(tent(0x3a3a5a), S + 10, 126, -2, 2.4);
+  world.add(campfire(), S + 2, 118, 0, 1.3);
+  world.addStation('range', S + 2, 118, 0, false);
+  const wreck = makeAirship(0x8a1a1a);
+  world.add(wreck, S - 20, 128, 2.6);
+  wreck.rotation.z = 0.35;
+  wreck.position.y = -3;
+  for (const [dx, dz] of [[-7, 108], [8, 109]]) world.add(makeBanner(0x1a1a1a), S + dx, dz, 0, 0.3);
+
+  // the Eye of the Storm: broken pillars, rods and a vortex of cloud overhead
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    if (Math.cos(a) < -0.9) continue;
+    world.add(makeCliff(1.6, 3 + Math.random() * 5, 1.6, 0x5a5070), S + Math.sin(a) * 19, 180 + Math.cos(a) * 19, Math.random(), 1.1);
+  }
+  for (const [dx, dz] of [[-10, 172], [10, 172], [-12, 190], [12, 190]]) { world.add(makeLightningRod(), S + dx, dz, 0, 0.7); rods.push({ x: S + dx, z: dz, y: 6.6 }); }
+  const vortex = new THREE.Group();
+  for (let k = 0; k < 3; k++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(14 + k * 7, 2.2 + k, 8, 32), new THREE.MeshStandardMaterial({ color: k % 2 ? 0x4a4a6a : 0x3a3a58, roughness: 1 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 34 + k * 5;
+    vortex.add(ring);
+  }
+  vortex.userData.anim = (t) => { vortex.rotation.y = t * 0.15; };
+  world.add(vortex, S, 180);
+
+  // storm clouds, and lightning that strikes the rods now and then
+  for (let i = 0; i < 14; i++) world.add(makeStormCloud(1 + Math.random() * 0.8), S - 40 + Math.random() * 140, -20 + Math.random() * 220, Math.random() * 6).position.y = 26 + Math.random() * 14;
+  const boltMat = new THREE.LineBasicMaterial({ color: 0xe8e0ff, transparent: true, opacity: 1, fog: false });
+  const bolt = new THREE.Line(new THREE.BufferGeometry(), boltMat);
+  bolt.visible = false;
+  bolt.frustumCulled = false;
+  const striker = new THREE.Group();
+  striker.add(bolt);
+  let next = 3, until = 0;
+  striker.userData.anim = (t) => {
+    const pp = world.player?.position;
+    if (pp) striker.position.set(pp.x, 0, pp.z);
+    if (t > until) bolt.visible = false;
+    if (t < next || !pp || pp.x < 2850) return;
+    next = t + 2.5 + Math.random() * 4;
+    const rod = rods[Math.floor(Math.random() * rods.length)];
+    const pts = [];
+    let x = rod.x + (Math.random() - 0.5) * 8, z = rod.z + (Math.random() - 0.5) * 8;
+    for (let k = 0; k <= 8; k++) {
+      const y = 40 - (k / 8) * (40 - rod.y);
+      const f = k / 8;
+      pts.push(new THREE.Vector3(x + (rod.x - x) * f + (k < 8 ? (Math.random() - 0.5) * 2.4 : 0) - pp.x, y, z + (rod.z - z) * f + (k < 8 ? (Math.random() - 0.5) * 2.4 : 0) - pp.z));
+    }
+    bolt.geometry.dispose();
+    bolt.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    bolt.visible = true;
+    until = t + 0.18;
+    world.groundBurst?.(rod.x, rod.z, 0xc8b8ff, 8, 2);
+  };
+  world.add(striker, S, 0);
+  // drifting sparks
+  for (let k = 0; k < 60; k++) {
+    const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshBasicMaterial({ color: k % 3 ? 0xc8b8ff : 0x9ff0ff }));
+    m.scale.setScalar(0.06);
+    m.userData.base = new THREE.Vector3(S - 20 + Math.random() * 100, 1 + Math.random() * 8, -20 + Math.random() * 220);
+    m.userData.phase = Math.random() * 10;
+    scene.add(m);
+    world.motes.push(m);
+  }
+  return { fountain };
 }

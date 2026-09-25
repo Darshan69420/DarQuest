@@ -45,6 +45,16 @@ const GROUPS = {
       { id: 'ice_crystal', name: 'Ice crystal', build: () => M.makeIceCrystal(1) },
     ],
   },
+  storm: {
+    title: 'Stormspire',
+    items: [
+      ...[['gale_sprite', 'Gale Sprite'], ['stormhorn', 'Stormhorn Stag'], ['skyraider', 'Skyraider'], ['tempest_golem', 'Tempest Golem'], ['thunder_roc', 'Thunder Roc'], ['voltaris', 'Voltaris']]
+        .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
+      { id: 'airship', name: 'Airship', build: () => { const a = M.makeAirship(); a.scale.setScalar(0.45); return a; } },
+      { id: 'rod', name: 'Lightning rod', build: () => M.makeLightningRod() },
+      { id: 'isle', name: 'Sky island', build: () => { const i = M.makeSkyIsland(3); i.position.y = 2; return i; } },
+    ],
+  },
   skilling: {
     title: 'Skilling & Rift',
     items: [

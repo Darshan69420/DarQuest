@@ -33,6 +33,12 @@ export const LORE = {
   ice_golem: 'Rime Golems, carved by the Queen herself. A pale crystal beats where a heart should be.',
   frost_drake: 'Dragons of the far north, with breath so cold it freezes spells in the air.',
   pale_warden: 'Morvain kept the Pale Magister\'s vault for a hundred years, and forgot how to do anything else.',
+  gale_sprite: 'Little whirlwinds with big opinions. They think bridges are for blowing people off.',
+  stormhorn: 'Stags whose antlers catch lightning. They charge anything taller than themselves.',
+  tempest_golem: 'Crystal-veined guardians that drink lightning until they glow.',
+  skyraider: 'Sky pirates who sold their loyalty to the storm for the right to fly.',
+  thunder_roc: 'Great birds that nest in thunderheads and dive like falling bolts.',
+  voltaris: 'The Storm Herald. The Pale Magister gave him the sky, and he has not let go of it since.',
   sylvara: 'The Queen of the Frozen Crown. Once kind. Then the Pale Magister came to court.',
 };
 
@@ -68,6 +74,7 @@ export const ACHIEVEMENTS = [
   A('weekly_all', 'Weekly Warrior', '📅', 'Finish all three weekly challenges in one week', p => (p.stats_log?.weeklyAll || 0) >= 1, { gold: 800 }),
   A('second_school', 'Dual Scholar', '📚', 'Learn a spell from your second school', p => !!p.second && p.known.some(id => SPELLS[id]?.school === p.second), { gold: 300, title: 'the Versatile' }),
   A('set_full', 'Dressed for the Part', '🔗', 'Wear every piece of a gear set', p => setProgress(p.equipped).some(s => s.count >= s.set.pieces.length), { gold: 500 }),
+  A('voltaris', 'Stormbreaker', '⚡', 'Defeat Voltaris, the Storm Herald', p => (p.bestiary?.voltaris || 0) > 0, { gold: 1500, title: 'Stormbreaker' }),
   A('combo_50', 'Combo Artist', '🌠', 'Land 50 combo strikes', p => (p.stats_log.combos || 0) >= 50, { gold: 200 }),
   A('night_20', 'Night Watch', '🌙', 'Defeat 20 night spirits', p => (p.stats_log.nightKills || 0) >= 20, { gold: 300, title: 'the Night Stalker' }),
   A('hunter_master', 'Know Thy Enemy', '📖', 'Reach Master hunter rank on any foe (100 defeats)', p => Object.values(p.bestiary || {}).some(n => n >= 100), { gold: 500 }),

@@ -146,6 +146,21 @@ export const SPELLS = {
   grave_nova:     { name: 'Grave Nova',      school: 'umbral',  pips: 4, type: 'damage', min: 190, max: 230, target: 'one', enemy: true },
   warden_mend:    { name: 'Warden\'s Mend',  school: 'umbral',  pips: 3, type: 'heal', amount: 500, enemy: true },
 
+  // ---------- Stormspire (Chapter 5) ----------
+  gust:            { name: 'Gust',             school: 'tempest', pips: 1, type: 'damage', min: 250, max: 310, target: 'one', enemy: true },
+  static_charge:   { name: 'Static Charge',    school: 'tempest', pips: 0, type: 'blade', pct: 0.4, enemy: true },
+  thunder_stomp:   { name: 'Thunder Stomp',    school: 'tempest', pips: 3, type: 'damage', min: 440, max: 520, target: 'one', enemy: true },
+  stag_charge:     { name: 'Stag Charge',      school: 'tempest', pips: 3, type: 'damage', min: 420, max: 500, target: 'one', enemy: true },
+  chain_lightning: { name: 'Chain Lightning',  school: 'tempest', pips: 3, type: 'damage', min: 480, max: 560, target: 'one', enemy: true },
+  conductor_pulse: { name: 'Conductor Pulse',  school: 'tempest', pips: 4, type: 'damage', min: 520, max: 600, target: 'one', enemy: true },
+  pirate_shot:     { name: 'Pirate Shot',      school: 'tempest', pips: 2, type: 'damage', min: 320, max: 380, target: 'one', enemy: true },
+  storm_bomb:      { name: 'Storm Bomb',       school: 'tempest', pips: 4, type: 'damage', min: 520, max: 600, target: 'one', enemy: true },
+  sky_dive:        { name: 'Sky Dive',         school: 'tempest', pips: 4, type: 'damage', min: 560, max: 640, target: 'one', enemy: true },
+  thunderclap:     { name: 'Thunderclap',      school: 'tempest', pips: 3, type: 'damage', min: 500, max: 580, target: 'one', enemy: true },
+  storm_call:      { name: 'Storm Call',       school: 'tempest', pips: 5, type: 'damage', min: 620, max: 720, target: 'one', enemy: true },
+  lightning_strike:{ name: 'Lightning Strike', school: 'tempest', pips: 4, type: 'damage', min: 520, max: 600, target: 'one', enemy: true },
+  raider_grog:     { name: 'Raider\'s Grog',   school: 'verdant', pips: 3, type: 'heal', amount: 1400, enemy: true },
+
   // ---------- Pet spells (cast for free when a pet "may-casts") ----------
   pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
   pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
@@ -155,6 +170,7 @@ export const SPELLS = {
   pet_leech:      { name: 'Pet: Bat Leech',  school: 'umbral',  pips: 0, type: 'drain', min: 80, max: 120, heal: 0.6, target: 'one', pet: true },
   pet_void:       { name: 'Pet: Void Gaze',  school: 'umbral',  pips: 0, type: 'damage', min: 150, max: 210, target: 'one', pet: true },
   pet_aurora:     { name: 'Pet: Aurora Mend', school: 'frost',  pips: 0, type: 'heal', amount: 260, pet: true },
+  pet_bolt:       { name: 'Pet: Thunder Peep', school: 'tempest', pips: 0, type: 'damage', min: 240, max: 320, target: 'one', pet: true },
   pet_skyfire:    { name: 'Pet: Skyfire',    school: 'tempest', pips: 0, type: 'damage', min: 200, max: 280, target: 'one', pet: true },
 };
 
@@ -329,6 +345,51 @@ export const ENEMIES = {
     drops: [],
   },
 
+  // ---------------- Chapter 5: Stormspire ----------------
+  gale_sprite: {
+    name: 'Gale Sprite', school: 'tempest', level: 28, hp: 2300, xp: 980, gold: [60, 90], model: 'gale_sprite',
+    spells: ['gust', 'gust', 'static_charge', 'chain_lightning'], resist: { tempest: 0.4 }, boost: { verdant: 0.25 },
+    speed: 4.2, aggro: 9,
+    drops: [{ item: 'windstep_boots', chance: 0.05 }, { mat: 'glowcap', chance: 0.3, n: 2 }],
+  },
+  stormhorn: {
+    name: 'Stormhorn Stag', school: 'tempest', level: 29, hp: 3300, xp: 1080, gold: [65, 95], model: 'stormhorn',
+    spells: ['stag_charge', 'thunder_stomp', 'gust'], resist: { tempest: 0.4 }, boost: { verdant: 0.25 },
+    speed: 3.6, aggro: 8,
+    drops: [{ item: 'stormcaller_hood', chance: 0.05 }, { mat: 'moonwood_logs', chance: 0.3, n: 2 }],
+  },
+  tempest_golem: {
+    name: 'Tempest Golem', school: 'tempest', level: 31, hp: 4200, xp: 1250, gold: [75, 110], model: 'tempest_golem',
+    spells: ['conductor_pulse', 'chain_lightning', 'static_charge'], resist: { tempest: 0.5, arcane: 0.2 }, boost: { verdant: 0.3 },
+    speed: 1.9, aggro: 6,
+    drops: [{ item: 'thunderstaff', chance: 0.05 }, { mat: 'starmetal_ore', chance: 0.4, n: 2 }, { mat: 'diamond', chance: 0.08 }],
+  },
+  skyraider: {
+    name: 'Skyraider', school: 'tempest', level: 30, hp: 3000, xp: 1150, gold: [90, 130], model: 'skyraider',
+    spells: ['pirate_shot', 'pirate_shot', 'storm_bomb', 'raider_grog'], resist: { tempest: 0.3 }, boost: { verdant: 0.2 },
+    speed: 3, aggro: 9,
+    drops: [{ item: 'stormcaller_robe', chance: 0.05 }, { item: 'storm_sigil', chance: 0.04 }],
+  },
+  thunder_roc: {
+    name: 'Thunder Roc', school: 'tempest', level: 32, hp: 4400, xp: 1400, gold: [80, 120], model: 'thunder_roc',
+    spells: ['sky_dive', 'chain_lightning', 'gust'], resist: { tempest: 0.5 }, boost: { verdant: 0.3 },
+    speed: 3.4, aggro: 10,
+    drops: [{ item: 'stormfeather_ring', chance: 0.05 }, { pet: 'thunderchick', chance: 0.02 }],
+  },
+  voltaris: {
+    name: 'Voltaris, the Storm Herald', school: 'tempest', level: 35, hp: 22000, xp: 13000, gold: [1800, 2400], model: 'voltaris', boss: true,
+    spells: ['chain_lightning', 'thunderclap', 'storm_call', 'chain_lightning', 'gust'],
+    resist: { tempest: 0.55 }, boost: { verdant: 0.25 }, speed: 2.2, aggro: 18, powerPipChance: 0.6,
+    flySpell: 'lightning_strike', flyColor: 0x9ff0ff, flyMsg: 'Voltaris rides the storm! Dodge the lightning, or use Dragonrend to drag him down.',
+    phases: [
+      { at: 0.75, say: 'The Magister gave me the sky. You will never touch it!', fly: { dur: 15, radius: 14 } },
+      { at: 0.5, say: 'Winds! Tear this wizard from my island!', summon: ['gale_sprite', 'gale_sprite'], blade: 0.3 },
+      { at: 0.25, say: 'I AM THE STORM!', fly: { dur: 14, radius: 12 }, blade: 0.45 },
+    ],
+    reactions: [{ school: 'verdant', say: 'Roots and mud? Pathetic!', cast: 'thunderclap' }],
+    drops: [{ item: 'crown_of_thunder', chance: 1 }, { item: 'voltaris_mantle', chance: 0.6 }, { item: 'heart_of_the_storm', chance: 0.5 }, { item: 'stormfeather_ring', chance: 0.4 }, { mat: 'diamond', chance: 1, n: 4 }, { pet: 'thunderchick', chance: 0.6 }],
+  },
+
   // ---------------- Chapter 4: Glacierreach ----------------
   snow_wolf: {
     name: 'Snowfang Wolf', school: 'frost', level: 22, hp: 1900, xp: 620, gold: [40, 60], model: 'snow_wolf',
@@ -408,6 +469,18 @@ const AOE = {
   ice_golem:       { glacier_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, ice_lance: { shape: 'line', len: 14, width: 2, dur: 1 } },
   frost_wraith:    { ice_lance: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
   frost_drake:     { frost_breath: { shape: 'cone', r: 12, angle: 0.9, dur: 1.3, breath: true }, glacier_slam: { shape: 'circle', at: 'self', r: 6, dur: 1.2 } },
+  gale_sprite:     { chain_lightning: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
+  stormhorn:       { stag_charge: { shape: 'line', len: 12, width: 2.6, dur: 1.1, charge: true }, thunder_stomp: { shape: 'circle', at: 'self', r: 4.5, dur: 1.1 } },
+  tempest_golem:   { conductor_pulse: { shape: 'circle', at: 'self', r: 5.5, dur: 1.3 }, chain_lightning: { shape: 'line', len: 16, width: 2, dur: 1.1 } },
+  skyraider:       { storm_bomb: { shape: 'circle', r: 3, count: 3, spread: 5, dur: 1.3 } },
+  thunder_roc:     { sky_dive: { shape: 'line', len: 14, width: 2.6, dur: 1.2, charge: true }, chain_lightning: { shape: 'line', len: 16, width: 2, dur: 1.1 } },
+  voltaris: {
+    chain_lightning: { shape: 'line', len: 22, width: 2.6, dur: 1.1 },
+    thunderclap: { shape: 'circle', at: 'self', r: 8, dur: 1.3 },
+    storm_call: { shape: 'circle', r: 3.2, count: 7, spread: 10, dur: 1.6 },
+    lightning_strike: { shape: 'circle', r: 3.4, count: 4, spread: 7, dur: 1.4 },
+    landing_quake: { shape: 'circle', at: 'self', r: 7, dur: 0.8 },
+  },
   pale_warden: {
     soul_rend: { shape: 'line', len: 18, width: 2.4, dur: 1.1 },
     bone_storm: { shape: 'circle', r: 3, count: 5, spread: 8, dur: 1.4 },
@@ -435,7 +508,7 @@ const AOE = {
 for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
+const RANGED = { skyraider: 12, voltaris: 14, thunder_roc: 5, gale_sprite: 10, pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
@@ -443,11 +516,13 @@ for (const e of Object.values(ENEMIES)) {
 ENEMIES.magma_guard.speed = 2.2;
 ENEMIES.vorathrax.attackRate = 1.7;
 ENEMIES.sylvara.attackRate = 1.6;
+ENEMIES.voltaris.attackRate = 1.6;
 ENEMIES.magma_serpent.speed = 0;
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
 const GX = 2300; // Glacierreach (see GLACIER_X)
+const SX = 3300; // Stormspire (see STORM_X)
 
 export const SPAWNS = [
   { enemy: 'gloomsprig', x: -4, z: 52, r: 4 },
@@ -503,6 +578,14 @@ export const SPAWNS = [
   ...[[70, 100], [82, 110], [78, 96], [72, 113]].map(([dx, z]) => ({ enemy: 'ice_golem', x: GX + dx, z, r: 2 })),
   ...[[76, 134], [73, 150], [79, 162]].map(([dx, z]) => ({ enemy: 'frost_drake', x: GX + dx, z, r: 3 })),
   { enemy: 'sylvara', x: GX + 76, z: 198, r: 0 },
+
+  // Stormspire
+  ...[[-6, 56], [6, 60], [-4, 68], [8, 70], [0, 64]].map(([dx, z]) => ({ enemy: 'gale_sprite', x: SX + dx, z, r: 4 })),
+  ...[[54, 56], [66, 58], [58, 70], [66, 68]].map(([dx, z]) => ({ enemy: 'stormhorn', x: SX + dx, z, r: 4 })),
+  ...[[54, 116], [66, 114], [58, 126], [64, 124]].map(([dx, z]) => ({ enemy: 'tempest_golem', x: SX + dx, z, r: 2 })),
+  ...[[-6, 114], [6, 116], [-4, 126], [7, 126], [0, 120]].map(([dx, z]) => ({ enemy: 'skyraider', x: SX + dx, z, r: 3 })),
+  ...[[0, 140], [0, 150], [-6, 166]].map(([dx, z]) => ({ enemy: 'thunder_roc', x: SX + dx, z, r: 2 })),
+  { enemy: 'voltaris', x: SX, z: 186, r: 0 },
 ];
 
 export const NPCS = {
@@ -577,6 +660,21 @@ export const NPCS = {
     name: 'Quartermaster Hesk', title: 'Dragonforged Gear', x: 1411, z: -7, robe: 0x4a4a5a, hat: 0x2a2a34, trim: 0xff7a1a, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x5a3a2a, skin: 0xd8a888,
     stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
+  },
+  aeris: {
+    name: 'Captain Aeris Windward', title: 'Skyport Harbourmaster', x: 3300 + 7, z: 6, robe: 0x3a5a8a, hat: 0x1a2a4a, trim: 0xf2c14e, goggles: true, hair: 0xe8c070, skin: 0xe8b890, eyeColor: 0x4dc8ff, backpack: true,
+    lines: ['Welcome to Skyport, the highest harbour in the world! Mind the edge. It is a long way down.',
+            'Since Voltaris came, no ship dares leave the harbour. The storm follows us wherever we fly.'],
+  },
+  tavi: {
+    name: 'Stormcaller Tavi', title: 'Keeper of the Lightning Rods', x: 3300 - 8, z: -2, robe: 0xb46bff, hat: 0x3a1a6a, trim: 0x9ff0ff, hair: 0xf2f0ff, skin: 0xc89878, eyeColor: 0x9ff0ff, glasses: true,
+    lines: ['The rods drink the lightning and keep the islands afloat. If the storm breaks them, Skyport falls.',
+            'Earth grounds a storm. Verdant magic hits these foes hard.'],
+  },
+  breck: {
+    name: 'Breck Cloudhammer', title: 'Skyport Outfitter', x: 3300 + 12, z: -8, robe: 0x6a4a2a, hat: 0x3a2a1a, trim: 0xb46bff, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x8a4a2a, skin: 0xe0a880,
+    stock: ['stormcaller_hood', 'stormcaller_robe', 'windstep_boots', 'thunderstaff', 'storm_sigil'],
+    lines: ['Lightning-proof cloth, wind-proof boots, and a staff that sings in a thunderstorm. What will it be?'],
   },
   pennywhistle: {
     name: 'Pennywhistle', title: 'Starfall Bank', x: -9, z: -15, robe: 0x2a5a3a, hat: 0x1a3a2a, trim: 0xf2c14e, service: 'bank', hatStyle: 'wizard', glasses: true, beard: true, hair: 0xe8e0d0, skin: 0xf0c8a8,
@@ -818,6 +916,56 @@ export const QUESTS = [
     done: 'Sylvara is free, and Glacierreach begins to thaw. And the Pale Magister... so he was behind Hollowmere, Pyrrhon, the dragons and the Queen. Chapter 4 is complete, archmage. Wherever he hides, the next Spiral Door will lead us to him. Rest and grow stronger. You will need everything you have.',
     reward: { xp: 16000, gold: 2500, tp: 3 },
   },
+  // ---------------- Chapter 5: Eye of the Storm ----------------
+  {
+    id: 'q31', name: 'A Letter from the Sky', giver: 'orvyn', turnIn: 'aeris',
+    objective: { type: 'talk', npc: 'aeris' },
+    offer: 'An airship dropped a letter in the courtyard this morning, sealed with a lightning bolt. Captain Aeris of Skyport begs for help: a storm-creature has trapped her city in the clouds. A Spiral Door has opened in the north-west of the courtyard. Go to Stormspire.',
+    done: 'You came through the Door? Then Starfall answered! Voltaris, the Storm Herald, has wrapped our islands in a storm that never ends. Nothing can fly in or out.',
+    reward: { xp: 6000, gold: 400 },
+  },
+  {
+    id: 'q32', name: 'Winds Unbound', giver: 'aeris', turnIn: 'aeris',
+    objective: { type: 'defeat', enemy: 'gale_sprite', count: 5 },
+    offer: 'Cross the bridge north to the Isle of Winds. Gale Sprites have taken over the windmills and blow travellers off the bridges. Calm 5 of them.',
+    done: 'The windmills are turning again! Stormcaller Tavi has been waiting to meet you.',
+    reward: { xp: 7000, gold: 450, potions: 1 },
+  },
+  {
+    id: 'q33', name: 'Stormhorn Stampede', giver: 'tavi', turnIn: 'tavi',
+    objective: { type: 'defeat', enemy: 'stormhorn', count: 4 },
+    offer: 'East of the Isle of Winds is Thunder Isle, where our lightning rods stand. Stormhorn Stags charge the rods and knock them down. Drive off 4 of them.',
+    done: 'The rods stand tall again. And look: one stag carried a pale rune on its collar. The Magister\'s mark, again.',
+    reward: { xp: 7500, gold: 500, tp: 1 },
+  },
+  {
+    id: 'q34', name: 'Conductors', giver: 'tavi', turnIn: 'tavi',
+    objective: { type: 'defeat', enemy: 'tempest_golem', count: 4 },
+    offer: 'North of Thunder Isle, the Crystal Spire hums with stolen lightning. Tempest Golems guard it and pulse with power. Shatter 4 of them before they overload the islands.',
+    done: 'The Spire is quiet. Now only the pirates stand between us and the storm\'s eye.',
+    reward: { xp: 8000, gold: 550 },
+  },
+  {
+    id: 'q35', name: 'Pirates of the Upper Air', giver: 'aeris', turnIn: 'aeris',
+    objective: { type: 'defeat', enemy: 'skyraider', count: 5 },
+    offer: 'The Skyraiders made a deal with Voltaris: he lets them fly, and they rob everyone else. Their roost is west of the Crystal Spire. Take down 5 of them.',
+    done: 'Ha! The Skyraiders won\'t forget you. Their captain\'s logbook says Voltaris answers to someone called the Pale Magister.',
+    reward: { xp: 8500, gold: 700, potions: 1 },
+  },
+  {
+    id: 'q36', name: 'Wings of Thunder', giver: 'aeris', turnIn: 'aeris',
+    objective: { type: 'defeat', enemy: 'thunder_roc', count: 3 },
+    offer: 'The last bridge leads north to the Eye of the Storm, and Thunder Rocs guard it. They dive like falling lightning. Bring down 3 of them.',
+    done: 'The way to the Eye is open. Tavi says there is one last thing you should know before you go.',
+    reward: { xp: 9000, gold: 750, tp: 1 },
+  },
+  {
+    id: 'q37', name: 'Eye of the Storm', giver: 'tavi', turnIn: 'orvyn',
+    objective: { type: 'defeat', enemy: 'voltaris', count: 1 },
+    offer: 'Voltaris waits in the Eye of the Storm. He flies up into the clouds and rains lightning, calls storms across the ground, and claps thunder around himself. Dodge, bring him down, and end this storm. Then tell Orvyn what you have learned.',
+    done: 'The storm is over, and Skyport is free... And the Pale Magister has a name at last: Malvoren. He was my student, long ago. The brightest I ever had, and the hungriest. Chapter 5 is complete. I fear the next Door will lead us to him.',
+    reward: { xp: 22000, gold: 3500, tp: 3 },
+  },
 ];
 
 export const SHOP = {
@@ -896,6 +1044,17 @@ export const GEAR = {
   crown_of_the_sky:  { name: 'Crown of the Sky Tyrant', slot: 'hat', level: 22, stats: { hp: 320, dmg: 13, pip: 8, acc: 4 }, color: 0x8a1a1a },
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
+
+  // ---------- Stormspire (Chapter 5) ----------
+  stormcaller_hood:  { name: 'Stormcaller Hood',    slot: 'hat',     level: 29, stats: { hp: 380, dmg: 14, resist: 7 }, color: 0x3a3a7a, price: 4200 },
+  stormcaller_robe:  { name: 'Stormcaller Robe',    slot: 'robe',    level: 30, stats: { hp: 680, resist: 18, dmg: 6 }, color: 0x4a3a8a, price: 4800 },
+  windstep_boots:    { name: 'Windstep Boots',      slot: 'boots',   level: 29, stats: { hp: 280, acc: 9, pip: 5 }, price: 3800 },
+  thunderstaff:      { name: 'Thunderstaff',        slot: 'wand',    level: 31, stats: { dmg: 27, pip: 9, acc: 6 }, price: 5600 },
+  storm_sigil:       { name: 'Storm Sigil',         slot: 'amulet',  level: 31, stats: { hp: 460, dmg: 14, resist: 9 }, price: 5000 },
+  crown_of_thunder:  { name: 'Crown of Thunder',    slot: 'hat',     level: 35, stats: { hp: 520, dmg: 19, pip: 10, acc: 7 }, color: 0x9ff0ff },
+  voltaris_mantle:   { name: 'Voltaris\' Mantle',   slot: 'cloak',   level: 35, stats: { hp: 460, dmg: 12, resist: 10 }, color: 0x2a2a5a },
+  heart_of_the_storm:{ name: 'Heart of the Storm',  slot: 'offhand', level: 35, stats: { dmg: 22, acc: 8, heal: 6 }, color: 0xb46bff },
+  stormfeather_ring: { name: 'Stormfeather Ring',   slot: 'ring',    level: 33, stats: { dmg: 13, acc: 8, hp: 180 } },
 
   // ---------- the Hollow Undercroft (Warden's set) ----------
   wardens_cowl:      { name: 'Warden\'s Cowl',      slot: 'hat',     level: 14, stats: { hp: 200, dmg: 9, resist: 5 }, color: 0x2a2438 },
@@ -979,6 +1138,7 @@ export const PETS = {
   frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
   bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
   storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+  thunderchick: { name: 'Thunderchick', school: 'tempest', kind: 'owl', color: 0x9ff0ff, spell: 'pet_bolt', chance: 0.25, stats: { dmg: 6, acc: 4 } },
   aurora_wisp:  { name: 'Aurora Wisp',  school: 'frost',   kind: 'sprite', color: 0x7affd0, spell: 'pet_aurora', chance: 0.25, stats: { heal: 10, resist: 4 } },
   stormwing:    { name: 'Stormwing Wyrmling', school: 'tempest', kind: 'drake', color: 0x4dc8ff, spell: 'pet_skyfire', chance: 0.25, stats: { dmg: 5, acc: 3 } },
   voidling:     { name: 'Voidling',     school: 'umbral',  kind: 'voidling', color: 0xc542ff, spell: 'pet_void', chance: 0.25, stats: { dmg: 4, hp: 20 }, special: 'Rift upgrade from Warden Nyx' },
@@ -1072,6 +1232,25 @@ export const ZONES = {
     atmosphere: { fog: 0x8ab0d8, top: 0x0a1a40, mid: 0x4a7ab8, bottom: 0xc8e8ff, hemi: 0xe0f0ff, fogNear: 40, fogFar: 190 },
     music: 'frost',
   },
+  stormspire: {
+    name: 'Stormspire',
+    regions: [
+      { type: 'circle', x: 3300, z: 0, r: 22 },
+      { type: 'rect', x0: 3300 - 2.6, x1: 3300 + 2.6, z0: 20, z1: 48 },
+      { type: 'circle', x: 3300, z: 62, r: 16 },
+      { type: 'rect', x0: 3300 + 14, x1: 3300 + 46, z0: 59.4, z1: 64.6 },
+      { type: 'circle', x: 3300 + 60, z: 62, r: 16 },
+      { type: 'rect', x0: 3300 + 57.4, x1: 3300 + 62.6, z0: 76, z1: 106 },
+      { type: 'circle', x: 3300 + 60, z: 120, r: 16 },
+      { type: 'rect', x0: 3300 + 14, x1: 3300 + 46, z0: 117.4, z1: 122.6 },
+      { type: 'circle', x: 3300, z: 120, r: 16 },
+      { type: 'rect', x0: 3300 - 2.6, x1: 3300 + 2.6, z0: 134, z1: 160 },
+      { type: 'circle', x: 3300, z: 180, r: 22 },
+    ],
+    spawn: { x: 3300, z: -10, heading: 0 },
+    atmosphere: { fog: 0x7a7aaa, top: 0x1a1a4a, mid: 0x5a5a9a, bottom: 0xd0c8f0, hemi: 0xe0d8ff, fogNear: 60, fogFar: 240 },
+    music: 'storm',
+  },
   undercroft: {
     name: 'The Hollow Undercroft',
     regions: UNDER_ROOMS.map(r => r.type === 'circle' ? { ...r, x: UNDER_X + r.x } : { ...r, x0: UNDER_X + r.x0, x1: UNDER_X + r.x1 }),
@@ -1095,7 +1274,8 @@ export const ZONES = {
 };
 export const DRAGON_X = 1400;
 export const GLACIER_X = 2300;
-export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export const STORM_X = 3300;
+export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 2850 ? 'stormspire' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [
@@ -1104,6 +1284,12 @@ export const AREAS = [
   { id: 'bonefield', name: 'The Bone Field', x0: 1370, x1: 1430, z0: 84, z1: 130, music: 'dragon' },
   { id: 'cliffs', name: 'Wyvern Cliffs', x0: 1462, x1: 1506, z0: 84, z1: 125, music: 'dragon' },
   { id: 'roost', name: "The Dragon's Roost", x0: 1455, x1: 1515, z0: 165, z1: 225, music: 'dragon' },
+  { id: 'skyport', name: 'Skyport', x0: 3300 - 24, x1: 3300 + 24, z0: -24, z1: 20, music: 'storm' },
+  { id: 'windisle', name: 'The Isle of Winds', x0: 3300 - 18, x1: 3300 + 18, z0: 46, z1: 80, music: 'storm' },
+  { id: 'thunderisle', name: 'Thunder Isle', x0: 3300 + 42, x1: 3300 + 78, z0: 44, z1: 80, music: 'storm' },
+  { id: 'crystalspire', name: 'The Crystal Spire', x0: 3300 + 42, x1: 3300 + 78, z0: 102, z1: 138, music: 'storm' },
+  { id: 'raidersroost', name: 'Raiders\' Roost', x0: 3300 - 18, x1: 3300 + 18, z0: 102, z1: 138, music: 'battle' },
+  { id: 'stormeye', name: 'The Eye of the Storm', x0: 3300 - 24, x1: 3300 + 24, z0: 158, z1: 204, music: 'boss' },
   { id: 'frostholm', name: 'Frostholm', x0: 2300 - 26, x1: 2300 + 26, z0: -26, z1: 20, music: 'frost' },
   { id: 'mirrorlake', name: 'The Mirror Lake', x0: 2300 - 28, x1: 2300 + 28, z0: 80, z1: 132, music: 'frost' },
   { id: 'caverns', name: 'The Rime Caverns', x0: 2300 + 58, x1: 2300 + 95, z0: 86, z1: 124, music: 'frost' },
@@ -1122,6 +1308,8 @@ export const PORTALS = [
   { id: 'portal_dragon', x: -26, z: -4, to: { x: 1400, z: -8, heading: 0 }, dest: 'Dragonspire Peaks', unlock: 14, rot: Math.PI / 2, color: 0x4dc8ff },
   { id: 'portal_dragon_back', x: 1400, z: -19, to: { x: -13, z: -4, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_glacier', x: -22, z: -19, to: { x: 2300, z: -8, heading: 0 }, dest: 'Glacierreach', unlock: 23, rot: 0.86, color: 0xdff6ff },
+  { id: 'portal_storm', x: -17, z: 25, to: { x: 3300, z: -8, heading: 0 }, dest: 'Stormspire', unlock: 30, rot: 2.54, color: 0xc8b8ff },
+  { id: 'portal_storm_back', x: 3300, z: -18, to: { x: -14.5, z: 21.5, heading: 2.54 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_glacier_back', x: 2300, z: -20, to: { x: -18, z: -15, heading: 0.86 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_home', x: 64, z: 16, to: { x: -2800, z: 21, heading: Math.PI }, dest: 'Your Homestead', unlock: 0, color: 0x7affb0 },
   { id: 'portal_home_back', x: -2800, z: 26, to: { x: 64, z: 12, heading: Math.PI }, dest: 'Millbrook Meadow', unlock: 0, color: 0x7affb0 },
@@ -1151,6 +1339,9 @@ export const WAYSTONES = [
   { id: 'ws_bonefield', name: 'The Bone Field', zone: 'dragonspire', x: 1395, z: 89 },
   { id: 'ws_roost', name: 'Roost Approach', zone: 'dragonspire', x: 1480, z: 124 },
   { id: 'ws_home', name: 'Your Homestead', zone: 'homestead', x: -2792, z: 22 },
+  { id: 'ws_skyport', name: 'Skyport', zone: 'stormspire', x: 3300 - 5, z: 12 },
+  { id: 'ws_spire', name: 'The Crystal Spire', zone: 'stormspire', x: 3300 + 52, z: 112 },
+  { id: 'ws_eye', name: 'Eye of the Storm Bridge', zone: 'stormspire', x: 3300 + 9, z: 166 },
   { id: 'ws_frostholm', name: 'Frostholm', zone: 'glacier', x: 2300 - 4, z: 12 },
   { id: 'ws_lake', name: 'The Mirror Lake', zone: 'glacier', x: 2300 - 6, z: 82 },
   { id: 'ws_castle', name: 'Castle Stair', zone: 'glacier', x: 2300 + 72, z: 124 },
@@ -1168,4 +1359,5 @@ export const FOUNTAINS = [
   { id: 'fountain', name: 'Wellspring', x: 0, z: 0, r: 5.2 },
   { id: 'spring_ember', name: 'Cooling Spring', x: X - 9, z: -7, r: 4.5 },
   { id: 'hearth_glacier', name: 'Frostholm Hearth', x: GLACIER_X, z: 0, r: 5.5 },
+  { id: 'fountain_storm', name: 'Skyport Fountain', x: STORM_X, z: 0, r: 5.2 },
 ];

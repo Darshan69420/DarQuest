@@ -131,6 +131,10 @@ export const SETS = {
     bonus: [{ n: 2, stats: { resist: 6 } }, { n: 4, stats: { hp: 200 }, mods: { lifesteal: 0.05 }, desc: 'Heal for 5% of the damage you deal' }] },
   winter: { name: 'Winter\'s Embrace', pieces: ['frostweave_hood', 'glacial_robe', 'rimewalker_boots', 'icicle_staff', 'winterheart'],
     bonus: [{ n: 2, stats: { resist: 6 } }, { n: 3, stats: { hp: 250 } }, { n: 5, mods: { nova: 1 }, desc: 'Dodging blasts nearby foes with a frost nova' }] },
+  stormcaller: { name: 'Stormcaller', pieces: ['stormcaller_hood', 'stormcaller_robe', 'windstep_boots', 'thunderstaff', 'storm_sigil'],
+    bonus: [{ n: 2, stats: { acc: 6 } }, { n: 3, stats: { hp: 300 } }, { n: 5, stats: { dmg: 10 }, mods: { chain: 0.2 }, desc: 'Hits have a 20% chance to arc to another foe' }] },
+  herald: { name: 'Storm Herald', pieces: ['crown_of_thunder', 'voltaris_mantle', 'heart_of_the_storm', 'stormfeather_ring'],
+    bonus: [{ n: 2, stats: { dmg: 10 } }, { n: 4, stats: { hp: 400 }, mods: { cd: -0.12 }, desc: 'Spell cooldowns recover 12% faster' }] },
   frozen_crown: { name: 'The Frozen Crown', pieces: ['crown_of_winter', 'sylvaras_mirror', 'aurora_cloak'],
     bonus: [{ n: 2, stats: { dmg: 8, heal: 6 } }, { n: 3, mods: { regen: 0.006 }, desc: 'Regenerate 0.6% health every second' }] },
 };

@@ -14,6 +14,7 @@ export const WEATHER_BY_ZONE = {
   emberfall: ['clear', 'ash', 'ash'],
   dragonspire: ['snow', 'snow', 'blizzard', 'clear'],
   glacier: ['snow', 'snow', 'blizzard', 'clear', 'snow'],
+  stormspire: ['storm', 'cloudy', 'storm', 'rain', 'clear'],
   homestead: ['clear', 'clear', 'cloudy', 'rain'],
   rift: ['clear'],
   arena: ['clear'],

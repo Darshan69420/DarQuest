@@ -59,12 +59,14 @@ export class Gatherer {
     a.t = 0;
     a.swing = gatherTime(p, def);
     if (Math.random() > gatherChance(p, def)) return;
-    addItem(p, def.item);
+    // Moonfish only bite at night
+    const item = def.skill === 'fishing' && w.skyCycle?.isNight && skillLevel(p, 'fishing') >= 15 && Math.random() < 0.25 ? 'raw_moonfish' : def.item;
+    addItem(p, item);
     const levels = addSkillXp(p, def.skill, def.xp);
     const gem = def.skill === 'mining' ? rollGem() : null;
     if (gem) addItem(p, gem);
     p.stats_log.gathered++;
-    w.float(w.player, `+1 ${ITEMS[def.item].name}`, 'gain');
+    w.float(w.player, `+1 ${ITEMS[item].name}`, 'gain');
     if (Math.random() < def.deplete) {
       w.depleteNode(node);
       this.stop();

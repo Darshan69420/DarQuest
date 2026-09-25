@@ -175,6 +175,7 @@ export const RECIPES = {
   cooked_trout:   R('range', 10, 16, { raw_trout: 1 }, { item: 'cooked_trout' }, { burn: true }),
   berry_tart:     R('range', 15, 22, { wildberries: 4 }, { item: 'berry_tart' }, { burn: true }),
   cooked_salmon:  R('range', 20, 24, { raw_salmon: 1 }, { item: 'cooked_salmon' }, { burn: true }),
+  cooked_moonfish:R('range', 15, 30, { raw_moonfish: 1 }, { item: 'cooked_moonfish' }, { burn: true }),
   hearty_stew:    R('range', 25, 40, { raw_salmon: 1, glowcap: 1, moonleaf: 1 }, { item: 'hearty_stew' }, { burn: true }),
   cooked_lavafish:R('range', 35, 45, { raw_lavafish: 1 }, { item: 'cooked_lavafish' }, { burn: true }),
   cooked_frostcod:R('range', 45, 60, { raw_frostcod: 1 }, { item: 'cooked_frostcod' }, { burn: true }),

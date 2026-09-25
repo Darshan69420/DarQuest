@@ -262,6 +262,20 @@ export const ENEMIES = {
     drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { item: 'molten_band', chance: 0.4 }, { item: 'grimoire_of_ash', chance: 0.3 }, { pet: 'ember_drake', chance: 1 }],
   },
 
+  // ---------------- night-only ----------------
+  lane_wraith: {
+    name: 'Lane Wraith', school: 'umbral', level: 6, hp: 540, xp: 150, gold: [14, 24], model: 'shade', night: true,
+    spells: ['shade_bite', 'shade_bite', 'wither'], resist: { umbral: 0.4 }, boost: { arcane: 0.2 },
+    speed: 2.6, aggro: 8,
+    drops: [{ item: 'starweave_cloak', chance: 0.05 }, { mat: 'moonleaf', chance: 0.4, n: 2 }],
+  },
+  meadow_wisp: {
+    name: 'Will-o\'-the-Wisp', school: 'verdant', level: 3, hp: 280, xp: 70, gold: [6, 12], model: 'meadow_wisp', night: true,
+    spells: ['twig_lash', 'chill_touch'], resist: { verdant: 0.3 }, boost: { blaze: 0.2 },
+    speed: 2.4, aggro: 6,
+    drops: [{ mat: 'glowcap', chance: 0.3 }, { mat: 'sunpetal', chance: 0.3 }],
+  },
+
   // ---------------- Chapter 3: Dragonspire Peaks ----------------
   wyrmling: {
     name: 'Wyrmling', school: 'blaze', level: 14, hp: 950, xp: 280, gold: [22, 36], model: 'wyrmling', dragon: true,
@@ -846,6 +860,12 @@ export const PORTALS = [
 ];
 PORTALS[0].rot = Math.PI / 2;
 PORTALS[0].color = 0xff7a3d;
+
+// Spirits that rise at dusk and fade at dawn.
+export const NIGHT_SPAWNS = [
+  { enemy: 'lane_wraith', x: -3, z: 60, r: 5 }, { enemy: 'lane_wraith', x: 3, z: 92, r: 5 }, { enemy: 'lane_wraith', x: 0, z: 118, r: 5 },
+  { enemy: 'meadow_wisp', x: 72, z: -12, r: 6 }, { enemy: 'meadow_wisp', x: 102, z: 32, r: 6 }, { enemy: 'meadow_wisp', x: 62, z: 38, r: 6 },
+];
 
 // Healing fountains.
 export const FOUNTAINS = [

@@ -1178,6 +1178,8 @@ export function makeEnemy(kind) {
     case 'wyvern': return makeDragon({ color: 0x3a5a8a, belly: 0x9fd6ff, wing: 0x2a3a6a, horn: 0xdff6ff, legs: 2, wings: 2, hover: 2.2, size: 0.95, eye: 0x4dc8ff });
     case 'elder_dragon': return makeDragon({ color: 0x8a1a1a, belly: 0xe0a040, wing: 0x4a0a14, horn: 0x2a1a1a, wings: 2, size: 2.6, frill: true, eye: 0xffe040 });
     case 'cultist': return cultist();
+    case 'shade': return shade();
+    case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
   }
   return sprig();
 }
@@ -2373,6 +2375,38 @@ export function makeDragon(o = {}) {
     jaw.rotation.x = breath > 0 || roar > 0 ? 0.55 : Math.max(0, Math.sin(t * 0.7)) * 0.08;
   };
   return finish(g, 0.028 / size + 0.004, 0.06);
+}
+
+// A hooded ghost that only walks the world at night.
+function shade(color = 0x6a5aa0, eye = 0x9fe6ff) {
+  const g = new THREE.Group();
+  const body = group(g, 0, 0.4, 0);
+  const robe = mat(color), dark = mat(darker(color, 0.5));
+  add(body, new THREE.ConeGeometry(0.65, 1.8, 10, 1, true), robe, 0, 0.9, 0, { rx: Math.PI });
+  add(body, new THREE.ConeGeometry(0.66, 1.8, 10, 1, true), dark, 0, 0.9, 0, { rx: Math.PI, s: [0.97, 1, 0.97] });
+  const hood = group(body, 0, 1.95, 0.05);
+  add(hood, sph(0.45, 14, 10), robe, 0, 0, -0.05, { s: [1, 1.15, 1] });
+  add(hood, sph(0.36, 14, 10), basic(0x0a0614), 0, -0.05, 0.14, { s: [0.9, 1, 0.6] });
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.07, { glow: eye });
+    e.position.set(s * 0.13, 0, 0.36);
+    hood.add(e);
+  }
+  add(hood, new THREE.ConeGeometry(0.2, 0.5, 8), robe, 0, 0.38, -0.2, { rx: -0.8 });
+  const hands = [-1, 1].map(s => dyn(add(body, sph(0.12, 10, 8), mat(0xc8d0ff, { emissive: eye, emissiveIntensity: 0.4 }), s * 0.6, 1.2, 0.3)));
+  const wisps = [0, 1, 2].map(() => dyn(add(g, sph(0.08, 6, 4), basic(eye), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t, moving) => {
+    body.position.y = 0.4 + Math.sin(t * 2) * 0.15;
+    body.rotation.z = Math.sin(t * 1.3) * 0.06;
+    hands.forEach((h, i) => { h.position.y = 1.2 + Math.sin(t * 3 + i * 2) * 0.15; });
+    wisps.forEach((w, i) => {
+      const k = (t * 0.5 + i / 3) % 1;
+      w.position.set(Math.sin(i * 2 + t) * 0.3, 0.3 + k * 0.8, -0.3 - k * 0.6);
+      w.scale.setScalar(1 - k);
+    });
+    body.rotation.x = moving ? 0.15 : 0;
+  };
+  return finish(g, 0.028, 0.08);
 }
 
 // The Scaled Cult: a hooded wizard with dragon horns and a bone mask.

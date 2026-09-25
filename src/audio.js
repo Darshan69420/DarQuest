@@ -174,6 +174,11 @@ export function sfx(name, school = 'arcane') {
       tone(220, 0.6, { type: 'square', vol: 0.08, slide: 0.5, when: 0.05 });
       break;
     case 'flap': noise(0.3, { vol: 0.25, freq: 250, sweep: 0.5 }); break;
+    case 'thunder':
+      noise(2.5, { vol: 0.5, freq: 180, sweep: 0.4 });
+      noise(1.2, { vol: 0.35, freq: 600, sweep: 0.2, when: 0.1 });
+      tone(45, 2, { type: 'sine', vol: 0.25, slide: 0.7 });
+      break;
   }
 }
 

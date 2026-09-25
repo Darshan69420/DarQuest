@@ -49,6 +49,8 @@ export const ITEMS = {
   raw_frostcod:   { name: 'Raw Frostcod',    type: 'fish', value: 26, ...chip('🐟', '#dff6ff') },
   raw_dragoneel:  { name: 'Raw Dragon Eel',  type: 'fish', value: 40, ...chip('🐟', '#9a4dff') },
 
+  raw_moonfish:   { name: 'Raw Moonfish',    type: 'fish', value: 14, ...chip('🐟', '#e0e8ff') },
+  cooked_moonfish:{ name: 'Moonfish Supper',  type: 'food', value: 26, heal: 320, regen: true, ...chip('🍢', '#e0e8ff') },
   cooked_minnow:  { name: 'Grilled Minnow',  type: 'food', value: 4,  heal: 70,  ...chip('🍢', '#9fd6ff') },
   cooked_trout:   { name: 'Baked Trout',     type: 'food', value: 9,  heal: 160, ...chip('🍢', '#8ab07a') },
   cooked_salmon:  { name: 'Seared Salmon',   type: 'food', value: 16, heal: 260, ...chip('🍢', '#ff9a8a') },

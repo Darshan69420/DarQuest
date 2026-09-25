@@ -6,7 +6,9 @@ import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
+  ENEMIES, NIGHT_SPAWNS,
 } from './data.js';
+import { WEATHER_INFO } from './sky.js';
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
@@ -175,6 +177,7 @@ function startGame(p, isNew) {
   checkArea();
   showZoneName(area.name);
   homestead.load(p);
+  world.skyCycle.time = p.clock ?? 0.32;
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
@@ -662,6 +665,26 @@ function doShout() {
   }
 }
 
+// ------------------------------------------------------------ night
+
+let nightActive = false;
+let nightFoes = [];
+world.skyCycle.onThunder = () => Audio.sfx('thunder');
+
+// At dusk spirits rise in Hollow Lane and Millbrook Meadow; at dawn they fade away.
+function setNight(on) {
+  nightActive = on;
+  if (on) {
+    nightFoes = NIGHT_SPAWNS.map(sp => world.addEnemy(ENEMIES[sp.enemy], sp.x, sp.z, sp.r));
+    for (const e of nightFoes) combat.initEnemy(e);
+    if (player && zoneAt(world.player.position.x) === 'academy') UI.toast('🌙 Night falls. Spirits drift through Hollow Lane and the meadow… (foes give +15% XP at night)', 'quest');
+  } else {
+    for (const e of nightFoes) if (world.enemies.includes(e)) { world.defeat(e.model); setTimeout(() => { if (world.enemies.includes(e)) world.removeEnemy(e); }, 1000); e.state = 'dead'; }
+    nightFoes = [];
+    if (player && zoneAt(world.player.position.x) === 'academy') UI.toast('🌅 Dawn breaks over Starfall.', 'quest');
+  }
+}
+
 // ------------------------------------------------------------ the Homestead (building)
 
 const homestead = new Homestead({
@@ -745,7 +768,8 @@ function buildHotbar() {
 function rewardKill(e) {
   const diff = DIFFICULTIES[player.difficulty];
   const def = e.def;
-  const xp = Math.round(def.xp * diff.reward);
+  const moonlit = world.skyCycle.isNight && !def.rift;
+  const xp = Math.round(def.xp * diff.reward * (moonlit ? 1.15 : 1));
   const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')));
   if (def.rift) {
     rift.onKill(e);
@@ -753,7 +777,7 @@ function rewardKill(e) {
     rift.run.xp += xp;
   }
   player.gold += gold;
-  world.float(e.model, `+${xp} XP`, 'xp');
+  world.float(e.model, `+${xp} XP${moonlit ? ' 🌙' : ''}`, 'xp');
   const quest = recordKill(player, def.id);
   player.stats_log.kills++;
   sideProgress('defeat', def.id);
@@ -874,6 +898,10 @@ world.onTick = (dt) => {
     SK.updateBuffs(player);
     RU.updateRiftHud(rift.run);
     checkArea();
+    const sky = world.skyCycle, wi = WEATHER_INFO[sky.weather];
+    $('#clock').textContent = `${sky.clockText()}${wi.icon ? ' · ' + wi.icon : ''}`;
+    $('#clock').title = `${sky.isNight ? 'Night: spirits roam and foes give +15% XP' : 'Day'}${wi.icon ? ' · ' + wi.name : ''}`;
+    if (sky.isNight !== nightActive) setNight(sky.isNight);
     const fps = $('#fps');
     fps.classList.toggle('hidden', !settings.showFps);
     if (settings.showFps) fps.textContent = `${Math.round(world.fps)} FPS`;
@@ -881,6 +909,7 @@ world.onTick = (dt) => {
   saveTimer += dt;
   if (saveTimer > 5) {
     saveTimer = 0;
+    player.clock = world.skyCycle.time;
     if (!rift.active) player.pos = { x: world.player.position.x, z: world.player.position.z };
     save(player);
   }

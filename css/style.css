@@ -339,7 +339,8 @@ kbd { font: 800 13px var(--body); background: #1a1240; border: 2px solid #8e7ad6
 .ab-fill { height: 100%; background: linear-gradient(90deg, #7fd8ff, #c8ffb0); }
 
 /* ---------------------------------------------------------------- the Endless Rift */
-#rift-hud { right: 16px; top: 276px; width: 150px; padding: 8px 10px; border-color: rgba(197,66,255,.7); }
+#rift-hud { right: 16px; top: 300px; width: 150px; padding: 8px 10px; border-color: rgba(197,66,255,.7); }
+#clock { position: absolute; right: 16px; top: 270px; width: 150px; text-align: center; font: 800 13px var(--body); color: #fff; text-shadow: 0 1px 3px #000, 0 0 6px #000; pointer-events: auto; cursor: default; }
 .rh-top { display: flex; justify-content: space-between; font-weight: 800; }
 .rh-boons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .rh-boons:empty { display: none; }
@@ -422,7 +423,8 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
   .hud-quest { width: auto; left: 10px; right: auto; top: auto; bottom: 10px; max-width: calc(100vw - 150px); padding: 8px 10px; }
   .hud-buttons { right: 10px; bottom: 10px; display: grid; grid-template-columns: repeat(2, 40px); gap: 6px; }
   #minimap { right: 10px; top: 10px; width: 104px; height: 104px; }
-  #rift-hud { right: 10px; top: 120px; width: 110px; }
+  #rift-hud { right: 10px; top: 140px; width: 110px; }
+  #clock { right: 10px; top: 116px; width: 104px; font-size: 11px; }
   .hud-player { width: calc(100vw - 134px); max-width: 220px; }
   .btn.round { width: 40px; height: 40px; font-size: 17px; }
   #prompt { bottom: auto; top: 128px; font-size: 13px; }

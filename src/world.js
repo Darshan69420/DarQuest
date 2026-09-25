@@ -9,6 +9,7 @@ import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
+import { Sky } from './sky.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 // Shortest signed angle from b to a.
@@ -129,6 +130,7 @@ export class World {
     this.ringGeo = new THREE.RingGeometry(0.8, 1, 40);
 
     this.buildEnvironment();
+    this.skyCycle = new Sky(this);
     this.applyQuality();
     onSettings((k) => {
       if (k === 'quality' || k === '*') this.applyQuality();
@@ -1231,26 +1233,27 @@ export class World {
 
   // ------------------------------------------------------------ main loop
 
-  // Blend fog, sky and light colours toward the current zone's mood.
-  updateAtmosphere(dt) {
+  // Blend fog, sky and light toward the zone's mood, the time of day and the weather.
+  updateAtmosphere(dt, focus) {
     const zone = this.player ? zoneAt(this.player.position.x) : 'academy';
     if (zone !== this.zone) {
       this.zone = zone;
       this.onZoneChange?.(zone);
     }
-    const a = ZONES[zone].atmosphere;
+    const a = this.skyCycle.update(dt, zone, this.camera, focus);
     const u = this.sky.material.uniforms;
     const k = this.atmo ? 1 - Math.exp(-dt * 2) : 1;
     this.atmo = true;
-    this.scene.fog.color.lerp(new THREE.Color(a.fog), k);
-    this.scene.fog.near += ((a.fogNear ?? 50) - this.scene.fog.near) * k;
-    this.scene.fog.far += ((a.fogFar ?? 170) - this.scene.fog.far) * k;
-    this.hemi.intensity += ((a.hemiI ?? 1.3) - this.hemi.intensity) * k;
-    this.sun.intensity += ((a.sunI ?? 2.2) - this.sun.intensity) * k;
-    u.top.value.lerp(new THREE.Color(a.top), k);
-    u.mid.value.lerp(new THREE.Color(a.mid), k);
-    u.bottom.value.lerp(new THREE.Color(a.bottom), k);
-    this.hemi.color.lerp(new THREE.Color(a.hemi), k);
+    this.scene.fog.color.lerp(a.fog, k);
+    this.scene.fog.near += (a.fogNear - this.scene.fog.near) * k;
+    this.scene.fog.far += (a.fogFar - this.scene.fog.far) * k;
+    this.hemi.intensity += (a.hemiI - this.hemi.intensity) * Math.max(k, this.skyCycle.flash);
+    this.sun.intensity += (a.sunI - this.sun.intensity) * k;
+    this.sun.color.lerp(a.sunColor, k);
+    u.top.value.lerp(a.top, k);
+    u.mid.value.lerp(a.mid, k);
+    u.bottom.value.lerp(a.bottom, k);
+    this.hemi.color.lerp(a.hemi, k);
   }
 
   frame() {
@@ -1320,12 +1323,11 @@ export class World {
 
     // keep the shadow camera and sky centred on the action
     const focus = this.player ? this.player.position : V();
-    this.sun.position.set(focus.x + 30, 50, focus.z + 20);
     this.sun.target.position.copy(focus);
     this.sky.position.copy(this.camera.position);
 
     if (this.player) this.updatePet(dt);
-    this.updateAtmosphere(dt);
+    this.updateAtmosphere(dt, focus);
 
     this.onTick?.(dt);
     this.updateLabels();

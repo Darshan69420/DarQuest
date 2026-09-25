@@ -66,6 +66,10 @@ function upgrade(p) {
   p.achievements ??= {};
   p.title ??= null;
   p.slayer ??= { task: null, points: 0, streak: 0, tasks: 0 };
+  p.companions ??= [];
+  p.companion ??= null;
+  p.companionMode ??= 'fight';
+  p.arena ??= { rank: 0, duel: 0, tokens: 0, wins: 0, champion: false };
   return p;
 }
 

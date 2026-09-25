@@ -1,6 +1,8 @@
 // The World Atlas (fast travel between waystones) and the stable (mounts).
-import { MOUNTS, WAYSTONES, ZONES } from './data.js';
-import { openModal, closeModal, esc, toast } from './ui.js';
+import { MOUNTS, WAYSTONES, ZONES, SCHOOLS, GEAR } from './data.js';
+import { openModal, closeModal, esc, toast, statsText } from './ui.js';
+import { COMPANIONS } from './companions.js';
+import { ARENA_RANKS, ARENA_SHOP, rivalFor, arenaRewards } from './arena.js';
 
 // Where each land sits on the atlas (percent of the map) and how the Spiral Doors join them.
 const LANDS = {
@@ -55,4 +57,64 @@ export function openStable(p, { unlocked, onBuy, onChoose }) {
     body.querySelectorAll('[data-choose]').forEach(b => b.addEventListener('click', () => { onChoose(b.dataset.choose); render(body); }));
   };
   openModal('🐴 Millbrook Stables', '', render);
+}
+
+// ------------------------------------------------------------ the Starfall Inn (companions)
+
+export function openInn(p, { onHire, onChoose, onMode }) {
+  const render = (body) => {
+    body.innerHTML = `<p class="modal-note">Gold: <b>🪙 ${p.gold}</b> · One companion travels with you at a time. They follow you, fight your foes, and grow stronger as you level up.</p>
+      <div class="set-row"><span>Orders</span><div class="set-choice">${[['fight', '⚔️ Fight with me'], ['passive', '🕊️ Stay out of fights']].map(([k, l]) => `<button class="btn small ${p.companionMode === k ? 'primary' : ''}" data-mode="${k}">${l}</button>`).join('')}
+        ${p.companion ? '<button class="btn small" data-choose="">Send home</button>' : ''}</div></div>
+      ${Object.values(COMPANIONS).map(c => {
+        const sc = SCHOOLS[c.school];
+        const owned = p.companions.includes(c.id);
+        const active = p.companion === c.id;
+        const btn = active ? '<span class="card-tag ok">With you</span>' : owned ? `<button class="btn small primary" data-choose="${c.id}">Bring along</button>`
+          : `<button class="btn small primary" data-hire="${c.id}" ${p.gold < c.price || p.level < c.level ? 'disabled' : ''}>${p.level < c.level ? `Lv ${c.level}` : `Hire · 🪙 ${c.price}`}</button>`;
+        return `<div class="gear-row ${active ? 'active' : ''}"><div class="gear-icon" style="color:${sc.css}">${sc.icon}</div>
+          <div class="gear-info"><b>${esc(c.name)}</b> <small>${sc.name} ${c.role}</small><br><span>${esc(c.desc)}</span></div>${btn}</div>`;
+      }).join('')}`;
+    body.querySelectorAll('[data-hire]').forEach(b => b.addEventListener('click', () => {
+      const c = COMPANIONS[b.dataset.hire];
+      if (p.gold < c.price) return;
+      p.gold -= c.price;
+      onHire(c.id);
+      toast(`🤝 <b>${esc(c.name)}</b> joins you!`, 'good');
+      render(body);
+    }));
+    body.querySelectorAll('[data-choose]').forEach(b => b.addEventListener('click', () => { onChoose(b.dataset.choose || null); render(body); }));
+    body.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { onMode(b.dataset.mode); render(body); }));
+  };
+  openModal('🍺 The Starfall Inn', '', render);
+}
+
+// ------------------------------------------------------------ the Arena of Stars
+
+export function openArena(p, { onFight, onBuy }) {
+  const render = (body) => {
+    const a = p.arena;
+    const done = a.champion;
+    const rank = ARENA_RANKS[Math.min(a.rank, ARENA_RANKS.length - 1)];
+    const rival = done ? null : rivalFor(a.rank, a.duel, p.level);
+    const rw = arenaRewards(a.rank, p.level);
+    body.innerHTML = `<div class="arena-ranks">${ARENA_RANKS.map((r, i) => `<div class="ar ${i < a.rank || a.champion ? 'won' : i === a.rank ? 'now' : ''}" style="--rc:${r.color}"><span>${r.icon}</span><b>${r.name}</b><small>${i < a.rank || a.champion ? 'Won' : i === a.rank ? `${a.duel}/${r.duels}` : `${r.duels} duels`}</small></div>`).join('')}</div>
+      ${done ? '<p class="modal-note">🏆 You are the <b>Starfall Champion</b>! The crowd chants your name. You can still spend tokens below.</p>'
+        : `<div class="journal-q main"><b>Next opponent: ${esc(rival.name)}</b> <small>${SCHOOLS[rival.school].icon} ${SCHOOLS[rival.school].name} · Level ${rival.level}</small>
+          <br><span>${rank.icon} ${rank.name} duel ${a.duel + 1} of ${rank.duels}. Win: 🪙 ${rw.gold} · ${rw.tokens} Arena Tokens · ${rw.xp} XP.</span>
+          <br><small>Rivals dodge, heal, and throw big spells you must step out of. Losing costs nothing.</small></div>
+          <p><button class="btn primary big" id="fight">⚔️ Enter the arena</button></p>`}
+      <h3 class="sub-h">🎟️ Token shop <small>(you have ${a.tokens})</small></h3>
+      ${ARENA_SHOP.map(s => { const g = GEAR[s.id]; return `<div class="gear-row rar-epic"><div class="gear-icon">🎁</div><div class="gear-info"><b style="color:#c542ff">${esc(g.name)}</b> <small>Epic · Lv ${g.level}</small><br><span>${statsText(g.stats)}</span></div>
+        <button class="btn small primary" data-buy="${s.id}" ${a.tokens < s.cost ? 'disabled' : ''}>🎟️ ${s.cost}</button></div>`; }).join('')}`;
+    body.querySelector('#fight')?.addEventListener('click', () => { closeModal(); onFight(rival); });
+    body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
+      const s = ARENA_SHOP.find(x => x.id === b.dataset.buy);
+      if (p.arena.tokens < s.cost) return;
+      p.arena.tokens -= s.cost;
+      onBuy(s.id);
+      render(body);
+    }));
+  };
+  openModal('🏟️ Arena of Stars', '', render);
 }

@@ -439,6 +439,16 @@ export const NPCS = {
             'Fall in there and you keep half your shards. Leave through a Rift Exit and you keep them all.',
             'Shrines in the Rift grant boons. They fade when your run ends, but the shards do not.'],
   },
+  rosalind: {
+    name: 'Innkeeper Rosalind', title: 'The Starfall Inn', x: -19, z: 17, robe: 0xa0603a, hat: 0x6a3a20, trim: 0xf0d8a0, service: 'inn', hatStyle: 'hood', hair: 0xc0392b, skin: 0xf0c8a8, eyeColor: 0x3a6ea5,
+    lines: ['Travelling alone is for heroes in songs. Real adventurers bring friends!',
+            'My regulars will fight at your side, for a fee. They do love a good brawl.'],
+  },
+  vex: {
+    name: 'Arenamaster Vex', title: 'Arena of Stars', x: 19, z: -17, robe: 0x5a1a4a, hat: 0x2a0a24, trim: 0xf2c14e, service: 'arena', hatStyle: 'helmet', hair: 0x1a1010, skin: 0xc68a5e, eyeColor: 0xc542ff,
+    lines: ['The crowd wants blood! Well, sparkles. Magical sparkles. Close enough.',
+            'Win duels to climb the ranks: Bronze, Silver, Gold, Platinum... and then the Champion herself.'],
+  },
   grimm: {
     name: 'Slayer Master Grimm', title: 'Monster Hunter', x: -9.5, z: 22.5, robe: 0x2a2a34, hat: 0x3a3a48, trim: 0xc0392b, service: 'slayer', hatStyle: 'helmet', beard: true, hair: 0x3a3a3a, skin: 0xb88a6a, eyeColor: 0x8a1a1a,
     lines: ['Every monster has a weakness. Mine is that I cannot stop hunting them.',
@@ -734,6 +744,10 @@ export const GEAR = {
   storm_orb:         { name: 'Storm Orb',           slot: 'offhand', level: 16, stats: { dmg: 9, acc: 4 }, color: 0xb46bff },
   elder_codex:       { name: 'Elder Codex',         slot: 'offhand', level: 20, stats: { dmg: 11, heal: 8, pip: 4 }, color: 0x6a4aa0 },
   eye_of_vorathrax:  { name: 'Eye of Vorathrax',    slot: 'offhand', level: 22, stats: { dmg: 14, acc: 6 }, color: 0xffd23d },
+  gladiator_helm:    { name: 'Gladiator Helm',      slot: 'hat',     level: 10, stats: { hp: 150, dmg: 6, resist: 4 }, color: 0xc0a040 },
+  gladiator_robe:    { name: 'Gladiator Robe',      slot: 'robe',    level: 12, stats: { hp: 260, resist: 8, dmg: 4 }, color: 0x8a1a3a },
+  gladiator_boots:   { name: 'Gladiator Boots',     slot: 'boots',   level: 10, stats: { hp: 90, acc: 4, pip: 3 } },
+  champions_orb:     { name: 'Champion\'s Orb',     slot: 'offhand', level: 18, stats: { dmg: 12, acc: 5, heal: 5 }, color: 0xc542ff },
   slayer_helm:       { name: 'Slayer Helm',         slot: 'hat',     level: 8,  stats: { hp: 110, dmg: 6, acc: 3 }, color: 0x3a3a48 },
   slayer_band:       { name: 'Slayer\'s Band',      slot: 'ring',    level: 12, stats: { dmg: 7, acc: 5 } },
   reaper_cloak:      { name: 'Reaper Cloak',        slot: 'cloak',   level: 16, stats: { hp: 190, dmg: 7, pip: 4 }, color: 0x1a1020 },
@@ -825,6 +839,13 @@ export const ZONES = {
     atmosphere: { fog: 0x6a7a94, top: 0x1a2440, mid: 0x5a6a8c, bottom: 0xffb080, hemi: 0xd0dcff, fogNear: 45, fogFar: 190 },
     music: 'dragon',
   },
+  arena: {
+    name: 'Arena of Stars',
+    regions: [{ type: 'circle', x: -4200, z: 0, r: 23.5 }],
+    spawn: { x: -4200, z: 16, heading: Math.PI },
+    atmosphere: { fog: 0x3a2050, top: 0x0a0620, mid: 0x3a2060, bottom: 0xff9a5a, hemi: 0xffd8c0, fogNear: 60, fogFar: 200 },
+    music: 'academy',
+  },
   homestead: {
     name: 'Your Homestead',
     regions: [{ type: 'circle', x: -2800, z: 0, r: 30 }],
@@ -847,7 +868,7 @@ export const ZONES = {
   },
 };
 export const DRAGON_X = 1400;
-export function zoneAt(x) { return x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [

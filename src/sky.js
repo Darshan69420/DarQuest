@@ -14,6 +14,7 @@ export const WEATHER_BY_ZONE = {
   dragonspire: ['snow', 'snow', 'blizzard', 'clear'],
   homestead: ['clear', 'clear', 'cloudy', 'rain'],
   rift: ['clear'],
+  arena: ['clear'],
 };
 export const WEATHER_INFO = {
   clear: { icon: '', name: 'Clear' },

@@ -8,7 +8,9 @@ import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
   ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS,
 } from './data.js';
-import { openAtlas, openStable } from './ui_world.js';
+import { openAtlas, openStable, openInn, openArena } from './ui_world.js';
+import { Companion, COMPANIONS } from './companions.js';
+import { ARENA_X, ARENA_RANKS, arenaRewards } from './arena.js';
 import { checkAchievements, hunterBonus, displayName } from './achievements.js';
 import { assignTask, slayerKill, slayerBonus } from './slayer.js';
 import { openJournal, openSlayer } from './ui_journal.js';
@@ -159,7 +161,7 @@ function buildTitle() {
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
-  if (p.pos && zoneAt(p.pos.x) === 'rift') p.pos = null;
+  if (p.pos && (zoneAt(p.pos.x) === 'rift' || zoneAt(p.pos.x) === 'arena')) p.pos = null;
   if (p.rift?.run) {
     const kept = Math.floor((p.rift.run.shards || 0) / 2);
     p.rift.shards += kept;
@@ -183,6 +185,7 @@ function startGame(p, isNew) {
   showZoneName(area.name);
   homestead.load(p);
   world.skyCycle.time = p.clock ?? 0.32;
+  if (p.companion) companion.spawn(p.companion);
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
@@ -770,6 +773,83 @@ extraServices.push({
   }),
 });
 
+// ------------------------------------------------------------ companions & the arena
+
+const companion = new Companion({ world, combat, getPlayer: () => player, onMessage: (t) => UI.combatMessage(t) });
+
+extraServices.push({
+  npc: 'rosalind', label: '🤝 Companions',
+  action: () => openInn(player, {
+    onHire: (id) => { player.companions.push(id); player.companion = id; companion.spawn(id); refresh(); save(player); },
+    onChoose: (id) => { player.companion = id; if (id) companion.spawn(id); else companion.despawn(); save(player); },
+    onMode: (m) => { player.companionMode = m; save(player); },
+  }),
+});
+
+let duel = null;
+
+function startDuel(def) {
+  fadeThen(() => {
+    gatherer.stop();
+    world.dismount();
+    duel = { def };
+    world.teleport({ x: ARENA_X, z: 16, heading: Math.PI });
+    player.hp = player.maxHp;
+    player.mana = player.maxMana;
+    const e = world.addEnemy(def, ARENA_X, -14, 0);
+    combat.initEnemy(e);
+    duel.e = e;
+    world.arenaCheer = 0.6;
+    const el = $('#countdown');
+    ['3', '2', '1', 'FIGHT!'].forEach((txt, i) => setTimeout(() => {
+      el.textContent = txt;
+      el.classList.remove('hidden');
+      Audio.sfx(i < 3 ? 'click' : 'boss');
+      if (i === 3) setTimeout(() => el.classList.add('hidden'), 700);
+    }, 400 + i * 800));
+    UI.toast(`⚔️ <b>${UI.esc(def.name)}</b> steps into the arena!`, 'quest');
+  });
+}
+
+function arenaWin() {
+  if (!duel) return;
+  const a = player.arena;
+  const rw = arenaRewards(a.rank, player.level);
+  player.gold += rw.gold;
+  a.tokens += rw.tokens;
+  a.wins++;
+  const levels = gainXp(player, rw.xp);
+  a.duel++;
+  let msg = `🏆 <b>Victory!</b> +${rw.gold} gold · +${rw.tokens} 🎟️ · +${rw.xp} XP`;
+  if (a.duel >= ARENA_RANKS[a.rank].duels) {
+    if (a.rank === ARENA_RANKS.length - 1) { a.champion = true; msg += '<br>You are the <b>STARFALL CHAMPION</b>!'; }
+    else { a.rank++; a.duel = 0; msg += `<br>Promoted to <b>${ARENA_RANKS[a.rank].icon} ${ARENA_RANKS[a.rank].name}</b>!`; }
+  }
+  world.arenaCheer = 1;
+  UI.toast(msg, 'good legendary');
+  Audio.sfx('victory');
+  announceLevels(levels);
+  save(player);
+  setTimeout(() => leaveArena(), 3500);
+}
+
+function leaveArena(instant = false) {
+  if (!duel) return;
+  if (duel.e && world.enemies.includes(duel.e)) world.removeEnemy(duel.e);
+  duel = null;
+  world.arenaCheer = 0;
+  const go = () => { world.teleport({ x: 15, z: -13, heading: 0 }); refresh(); save(player); };
+  if (instant) go(); else fadeThen(go);
+}
+
+extraServices.push({
+  npc: 'vex', label: '🏟️ The Arena',
+  action: () => openArena(player, {
+    onFight: startDuel,
+    onBuy: (id) => { const r = giveItem(player, id, 'epic'); UI.toast(`🎁 <b style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</b> · press C to equip`, 'good'); save(player); },
+  }),
+});
+
 // ------------------------------------------------------------ night
 
 let nightActive = false;
@@ -882,6 +962,7 @@ function rewardKill(e) {
   const moonlit = world.skyCycle.isNight && !def.rift;
   const xp = Math.round(def.xp * diff.reward * (moonlit ? 1.15 : 1));
   const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')));
+  if (def.rival) setTimeout(arenaWin, 800);
   if (def.rift) {
     rift.onKill(e);
     rift.run.gold += gold;
@@ -938,6 +1019,16 @@ async function playerDefeated() {
   Audio.sfx('defeat');
   const diff = DIFFICULTIES[player.difficulty];
   await new Promise(r => setTimeout(r, 900));
+  if (duel) {
+    await UI.resultScreen(`<h2 class="lose">Defeated</h2><p>${UI.esc(duel.def.name)} wins this round. The crowd groans… but they'll cheer again when you come back.</p><p class="tip">Tip: rivals dodge some spells and throw big area attacks. Watch the ground, keep moving, and bring potions.</p>`);
+    leaveArena(true);
+    player.hp = player.maxHp;
+    player.mana = player.maxMana;
+    world.mode = 'explore';
+    refresh();
+    save(player);
+    return;
+  }
   if (rift.active) {
     const summary = rift.end('death');
     world.teleport({ x: 17, z: 12, heading: Math.PI });
@@ -981,6 +1072,7 @@ world.onTick = (dt) => {
   if (buffsChanged) recalc(player);
   world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed') + (world.mounted ? MOUNTS[player.activeMount]?.speed || 0 : 0);
   rift.update(dt);
+  companion.update(dt);
   if (inHomestead()) {
     homestead.update(dt);
     if (!player.home.init) {
@@ -1037,7 +1129,7 @@ world.onTick = (dt) => {
   if (saveTimer > 5) {
     saveTimer = 0;
     player.clock = world.skyCycle.time;
-    if (!rift.active) player.pos = { x: world.player.position.x, z: world.player.position.z };
+    if (!rift.active && !duel) player.pos = { x: world.player.position.x, z: world.player.position.z };
     save(player);
   }
 };
@@ -1054,6 +1146,7 @@ function toggleMute() {
 function openGameMenu() {
   UI.openMenu([
     { label: '▶ Resume', primary: true },
+    ...(duel ? [{ label: '🏳️ Forfeit the duel', action: () => leaveArena() }] : []),
     ...(rift.active ? [{ label: '🏳️ Abandon Rift run (keep half)', action: () => fadeThen(() => {
       const summary = rift.end('abandon');
       world.teleport({ x: 17, z: 12, heading: Math.PI });

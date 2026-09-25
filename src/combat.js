@@ -213,7 +213,7 @@ export class Combat {
     const critChance = 0.05 + (st.acc || 0) / 100 + this.rm('crit');
     const critMult = 1.5 + this.rm('critDmg');
     const hitMult = () => {
-      if (isPet) return (1 + dmgBonus) * (1 + this.rm('petPower'));
+      if (isPet) return (1 + dmgBonus) * (1 + this.rm('petPower')) * power;
       let m = (1 + dmgBonus) * power * (1 + this.rm('dmg') + this.rm('berserk') * (1 - this.p.hp / this.p.maxHp));
       if (!isPet) {
         for (const b of this.hero.blades) m *= 1 + b;
@@ -354,6 +354,13 @@ export class Combat {
 
   damageEnemy(e, amount, school, color, crit = false, knock = false) {
     if (e.state === 'dead') return 0;
+    // arena rivals sometimes blink out of the way
+    if (e.def.evade && Math.random() < e.def.evade) {
+      this.world.float(e.model, 'Evaded!', 'fizzle');
+      this.world.knock(e, this.world.player.position, 3);
+      this.aggro(e);
+      return 0;
+    }
     let m = (1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0)) * (e.def.takenMult || 1);
     for (const t of e.mods.traps) m *= 1 + t;
     for (const s of e.mods.shields) m *= 1 - s;

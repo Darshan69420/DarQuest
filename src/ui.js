@@ -462,6 +462,8 @@ export function openHelp() {
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
     <h3>Journal, Bestiary, Achievements &amp; Slayer</h3>
     <p><b>J</b> opens your Journal: quests, the <b>Bestiary</b> (every foe you defeat, with lore; the more of one kind you defeat, the harder you hit them) and 40 <b>Achievements</b> that pay gold and unlock <b>titles</b> to show after your name. <b>Slayer Master Grimm</b>, south of the courtyard, hands out kill tasks: they level the <b>Slayer</b> skill and earn points for slayer gear.</p>
+    <h3>Companions &amp; the Arena</h3>
+    <p><b>Innkeeper Rosalind</b> (west side of the courtyard) hires out six companions from other schools: a frost guardian, a healer, a lightning striker, a life-leech, a pyromancer and a tactician. They follow you and fight (or stay out of it, if you order them to). <b>Arenamaster Vex</b> (east side) runs the <b>Arena of Stars</b>: duel rival wizards to climb from Bronze to Starfall Champion, and spend Arena Tokens on the gladiator set.</p>
     <h3>Mounts &amp; travel</h3>
     <p>Stablemaster Juno in Millbrook Meadow sells mounts; press <b>X</b> to ride (you hop off when a battle starts). Some mounts are earned: a Void Stalker from the deep Rift and a Sky Drake from Vorathrax. Touch <b>waystones</b> to remember them, then open the <b>World Atlas</b> (<b>N</b>, or click the minimap) to fast-travel.</p>
     <h3>Day, night &amp; weather</h3>

@@ -85,6 +85,9 @@ export const ACHIEVEMENTS = [
   A('full_kit', 'Dressed for Adventure', '🎒', 'Wear something in all 8 gear slots', p => Object.keys(SLOTS).every(s => p.equipped?.[s]), { gold: 300 }),
   A('blocks_100', 'Builder', '🧱', 'Have 100 blocks placed at your Homestead', p => (p.home?.blocks?.length || 0) >= 100, { gold: 300 }),
   A('blocks_500', 'Architect', '🏛️', 'Have 500 blocks placed at your Homestead', p => (p.home?.blocks?.length || 0) >= 500, { gold: 1500, title: 'the Architect' }),
+  A('arena_gold', 'Crowd Favourite', '🥇', 'Reach Gold rank in the Arena of Stars', p => (p.arena?.rank || 0) >= 2, { gold: 800 }),
+  A('arena_champion', 'Arena Champion', '🏆', 'Defeat Grand Magus Elyndra and become Starfall Champion', p => !!p.arena?.champion, { gold: 3000, title: 'the Champion' }),
+  A('companion', 'Better Together', '🤝', 'Hire a companion', p => (p.companions?.length || 0) >= 1, { gold: 100 }),
   A('rich', 'Fat Purse', '💰', 'Hold 10,000 gold at once', p => p.gold >= 10000, { title: 'the Wealthy' }),
 ];
 export const ACH = Object.fromEntries(ACHIEVEMENTS.map(a => [a.id, a]));

@@ -10,6 +10,7 @@ import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 import { Sky } from './sky.js';
+import { buildArena } from './arena.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 // Shortest signed angle from b to a.
@@ -296,6 +297,7 @@ export class World {
       if (x > 20 && Math.abs(z) < 11) continue;   // and the east gate to the meadow
       if (Math.hypot(x - 21, z - 17) < 7) continue; // and the Rift Gate
       if (PORTALS.some(pt => Math.hypot(x - pt.x, z - pt.z) < 5)) continue;
+      if (Object.values(NPCS).some(n => Math.hypot(x - n.x, z - n.z) < 3.5)) continue;
       if (z < -24 && Math.abs(x) < 20) continue;  // academy front
       const tree = i % 2 ? makeTree(0.9 + Math.random() * 0.3) : makeRoundTree(0.9 + Math.random() * 0.3, [0xd36fae, 0xf29a6b, 0xb46bff][i % 3]);
       this.add(tree, x, z, Math.random() * 6, 1.2);
@@ -365,6 +367,7 @@ export class World {
     const dragon = buildDragonspire(this);
     buildWordWalls(this);
     buildHomestead(this);
+    buildArena(this);
     this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
@@ -409,7 +412,7 @@ export class World {
 
   // Puts an enemy in the world. Enemies added later (dungeons, events) never respawn.
   addEnemy(def, x, z, wanderR = 3, temporary = true) {
-    const model = makeEnemy(def.model);
+    const model = def.buildModel ? def.buildModel() : makeEnemy(def.model);
     if (def.scale) model.scale.multiplyScalar(def.scale);
     model.userData.height = measure(model);
     const box = new THREE.Box3().setFromObject(model);

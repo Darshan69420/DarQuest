@@ -52,6 +52,8 @@ Every key can be changed in **Settings → Keys**.
 - **Gear, pets and side quests:** 45+ gear pieces (drops, shops and crafting), 8 pets, the Gatherers' Guild quest chain, and a quest journal.
 - **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 40 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
+- **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
+- **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
 - **Mounts and fast travel:** six mounts (Starfall Steed, Dire Wolf, Emberback, Frost Elk, Void Stalker, Sky Drake), waystones across the world, and a World Atlas to fast-travel between them.
 - **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
 - **Difficulty:** Normal, Heroic or Legendary.
@@ -74,6 +76,8 @@ src/talents.js    talent trees for every school
 src/sky.js        day/night cycle and weather
 src/achievements.js  the bestiary lore and achievements
 src/slayer.js     Slayer tasks
+src/companions.js hireable companions
+src/arena.js      the Arena of Stars and rival wizards
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects

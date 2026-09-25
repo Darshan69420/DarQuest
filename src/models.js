@@ -1972,7 +1972,7 @@ export function makeSprout() {
 // Ripples and a fish that leaps now and then. water: 'water' | 'lava' | 'ice'
 export function makeFishSpot(water = 'water') {
   const g = new THREE.Group();
-  const color = water === 'lava' ? 0xffc040 : water === 'ice' ? 0xffffff : 0xdff6ff;
+  const color = water === 'lava' ? 0xffc040 : water === 'ice' ? 0xffffff : water === 'cloud' ? 0xf0e8ff : water === 'soul' ? 0xe8c0ff : 0xdff6ff;
   const rings = [0, 1, 2].map(() => {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.58, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
@@ -1981,7 +1981,7 @@ export function makeFishSpot(water = 'water') {
     return m;
   });
   const fish = group(g);
-  const fc = water === 'lava' ? 0xff5a1a : water === 'ice' ? 0xbfe8ff : 0x7ab0d0;
+  const fc = water === 'lava' ? 0xff5a1a : water === 'ice' ? 0xbfe8ff : water === 'cloud' ? 0xc8b8ff : water === 'soul' ? 0xd06aff : 0x7ab0d0;
   add(fish, sph(0.16, 10, 8), mat(fc), 0, 0, 0, { s: [0.55, 0.8, 1.6] });
   add(fish, new THREE.ConeGeometry(0.14, 0.25, 4), mat(darker(fc, 0.8)), 0, 0, -0.32, { rx: -Math.PI / 2, s: [0.3, 1, 1] });
   const bubbles = [0, 1, 2, 3].map(() => add(g, sph(0.05, 6, 4), basic(color), 0, 0, 0, { shadow: false }));
@@ -2206,6 +2206,8 @@ export function makeNode(model, depleted = false) {
     case 'emberwood': return depleted ? makeStump(0x3e302c) : makeFireTree(1.05);
     case 'elder': return depleted ? makeStump(0x3a2a3a) : makeElder(1.1);
     case 'dragonwood': return depleted ? makeStump(0x5a1a1a) : makeDragonwood(1.05);
+    case 'skyoak': return depleted ? makeStump(0x6a6a8a) : makeRoundTree(1.1, 0x8ab0e8);
+    case 'heartwood': return depleted ? makeStump(0x4a3020) : makeRoundTree(1.25, 0x9fff7a);
     case 'herb': return depleted ? makeSprout() : makeHerb(model.color);
     case 'mushroom': return depleted ? makeSprout() : makeMushroom(model.color);
     case 'berry': return makeBerryBush(!depleted);

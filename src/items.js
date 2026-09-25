@@ -15,6 +15,8 @@ export const ITEMS = {
   emberite_ore:   { name: 'Emberite Ore',    type: 'ore', value: 22, ...chip('🪨', '#ff5a1a') },
   starmetal_ore:  { name: 'Starmetal Ore',   type: 'ore', value: 32, ...chip('🪨', '#9fd6ff') },
   dragonite_ore:  { name: 'Dragonite Ore',   type: 'ore', value: 50, ...chip('🪨', '#9a4dff') },
+  voidstone_ore:  { name: 'Voidstone Ore',   type: 'ore', value: 70, ...chip('🪨', '#d06aff') },
+  stormglass:     { name: 'Stormglass',      type: 'gem', value: 180, ...chip('🔷', '#c8b8ff') },
 
   copper_bar:     { name: 'Copper Bar',      type: 'bar', value: 8,   ...chip('🧱', '#d4803a') },
   iron_bar:       { name: 'Iron Bar',        type: 'bar', value: 16,  ...chip('🧱', '#8f98a8') },
@@ -23,6 +25,7 @@ export const ITEMS = {
   emberite_bar:   { name: 'Emberite Bar',    type: 'bar', value: 55,  ...chip('🧱', '#ff5a1a') },
   starmetal_bar:  { name: 'Starmetal Bar',   type: 'bar', value: 80,  ...chip('🧱', '#9fd6ff') },
   dragonite_bar:  { name: 'Dragonite Bar',   type: 'bar', value: 125, ...chip('🧱', '#9a4dff') },
+  voidstone_bar:  { name: 'Voidstone Bar',   type: 'bar', value: 180, ...chip('🧱', '#d06aff') },
 
   sapphire:       { name: 'Sapphire',        type: 'gem', value: 40,  ...chip('💎', '#3a7ae0') },
   emerald:        { name: 'Emerald',         type: 'gem', value: 60,  ...chip('💎', '#2ecc71') },
@@ -37,6 +40,8 @@ export const ITEMS = {
   emberwood_logs: { name: 'Emberwood Logs',  type: 'log', value: 20, ...chip('🪵', '#ff7a3d') },
   elder_logs:     { name: 'Elder Logs',      type: 'log', value: 30, ...chip('🪵', '#6a4aa0') },
   dragonwood_logs:{ name: 'Dragonwood Logs', type: 'log', value: 46, ...chip('🪵', '#c0392b') },
+  skyoak_logs:    { name: 'Skyoak Logs',     type: 'log', value: 60, ...chip('🪵', '#8ab0e8') },
+  heartwood_logs: { name: 'Heartwood Logs',  type: 'log', value: 80, ...chip('🪵', '#9fff7a') },
 
   planks:         { name: 'Planks',          type: 'plank', value: 5,  ...chip('🟫', '#b8864a') },
   fine_planks:    { name: 'Fine Planks',     type: 'plank', value: 18, ...chip('🟫', '#8aa060') },
@@ -48,6 +53,8 @@ export const ITEMS = {
   raw_lavafish:   { name: 'Raw Lavafish',    type: 'fish', value: 18, ...chip('🐟', '#ff5a1a') },
   raw_frostcod:   { name: 'Raw Frostcod',    type: 'fish', value: 26, ...chip('🐟', '#dff6ff') },
   raw_dragoneel:  { name: 'Raw Dragon Eel',  type: 'fish', value: 40, ...chip('🐟', '#9a4dff') },
+  raw_skyray:     { name: 'Raw Sky Ray',     type: 'fish', value: 55, ...chip('🐟', '#c8b8ff') },
+  raw_soulfish:   { name: 'Raw Soulfish',    type: 'fish', value: 75, ...chip('🐟', '#d06aff') },
 
   raw_moonfish:   { name: 'Raw Moonfish',    type: 'fish', value: 14, ...chip('🐟', '#e0e8ff') },
   cooked_moonfish:{ name: 'Moonfish Supper',  type: 'food', value: 26, heal: 320, regen: true, ...chip('🍢', '#e0e8ff') },
@@ -57,6 +64,8 @@ export const ITEMS = {
   cooked_lavafish:{ name: 'Smoky Lavafish',  type: 'food', value: 30, heal: 420, ...chip('🍢', '#ff5a1a') },
   cooked_frostcod:{ name: 'Frostcod Fillet', type: 'food', value: 42, heal: 540, ...chip('🍢', '#dff6ff') },
   cooked_dragoneel:{ name: 'Dragon Eel Steak', type: 'food', value: 64, heal: 750, ...chip('🍢', '#9a4dff') },
+  cooked_skyray:  { name: 'Grilled Sky Ray',  type: 'food', value: 85, heal: 1100, ...chip('🍢', '#c8b8ff') },
+  soulfish_stew:  { name: 'Soulfish Stew',    type: 'food', value: 120, heal: 1600, regen: true, ...chip('🍲', '#d06aff') },
   berry_tart:     { name: 'Berry Tart',      type: 'food', value: 12, heal: 200, ...chip('🥧', '#8a5ad0') },
   hearty_stew:    { name: 'Hearty Stew',     type: 'food', value: 35, heal: 480, regen: true, ...chip('🍲', '#c9a24a') },
   wildberries:    { name: 'Wildberries',     type: 'food', value: 1,  heal: 35,  ...chip('🫐', '#6a5ad0') },
@@ -69,6 +78,8 @@ export const ITEMS = {
   emberroot:      { name: 'Emberroot',       type: 'herb', value: 18, ...chip('🌶️', '#ff5a1a') },
   frostbloom:     { name: 'Frostbloom',      type: 'herb', value: 26, ...chip('❄️', '#dff6ff') },
   dragons_tongue: { name: "Dragon's Tongue", type: 'herb', value: 40, ...chip('🌺', '#e8455c') },
+  starbloom:      { name: 'Starbloom',       type: 'herb', value: 55, ...chip('✴️', '#fff0a0') },
+  nightshade:     { name: 'Nightshade',      type: 'herb', value: 70, ...chip('🍄', '#d06aff') },
 
   mana_tonic:     { name: 'Mana Tonic',        type: 'potion', value: 15, use: 'mana', amount: 0.6, ...chip('🧪', '#3a7ae0') },
   greater_potion: { name: 'Greater Healing',   type: 'potion', value: 40, use: 'heal', amount: 0.8, ...chip('🧪', '#ff5fa2') },
@@ -77,20 +88,26 @@ export const ITEMS = {
   swift_draught:  { name: 'Swiftness Draught', type: 'potion', value: 25, use: 'buff', buff: 'swift', ...chip('⚗️', '#5fdc6a') },
   sage_brew:      { name: "Sage's Brew",       type: 'potion', value: 45, use: 'buff', buff: 'sage', ...chip('⚗️', '#b46bff') },
   dragonfire_ward:{ name: 'Dragonfire Ward',   type: 'potion', value: 90, use: 'buff', buff: 'dragonward', ...chip('⚗️', '#c0392b') },
+  storm_elixir:   { name: 'Storm Elixir',      type: 'potion', value: 110, use: 'buff', buff: 'tempo', ...chip('⚗️', '#b46bff') },
+  void_draught:   { name: 'Void Draught',      type: 'potion', value: 140, use: 'buff', buff: 'voidskin', ...chip('⚗️', '#3a1a4a') },
+  archmage_elixir:{ name: 'Archmage\'s Elixir', type: 'potion', value: 220, use: 'buff', buff: 'archmage', ...chip('⚗️', '#f2c14e') },
 
   // ---------- tools (best one in your bag is used automatically) ----------
   copper_pickaxe: { name: 'Copper Pickaxe',  type: 'tool', value: 10,  tool: { skill: 'mining', power: 1 },      ...chip('⛏️', '#d4803a') },
   iron_pickaxe:   { name: 'Iron Pickaxe',    type: 'tool', value: 60,  tool: { skill: 'mining', power: 2 },      ...chip('⛏️', '#8f98a8') },
   gold_pickaxe:   { name: 'Gold Pickaxe',    type: 'tool', value: 180, tool: { skill: 'mining', power: 3 },      ...chip('⛏️', '#f2c14e') },
   dragonite_pickaxe: { name: 'Dragonite Pickaxe', type: 'tool', value: 600, tool: { skill: 'mining', power: 5 }, ...chip('⛏️', '#9a4dff') },
+  voidstone_pickaxe: { name: 'Voidstone Pickaxe', type: 'tool', value: 900, tool: { skill: 'mining', power: 6 }, ...chip('⛏️', '#d06aff') },
   copper_axe:     { name: 'Copper Axe',      type: 'tool', value: 10,  tool: { skill: 'woodcutting', power: 1 }, ...chip('🪓', '#d4803a') },
   iron_axe:       { name: 'Iron Axe',        type: 'tool', value: 60,  tool: { skill: 'woodcutting', power: 2 }, ...chip('🪓', '#8f98a8') },
   gold_axe:       { name: 'Gold Axe',        type: 'tool', value: 180, tool: { skill: 'woodcutting', power: 3 }, ...chip('🪓', '#f2c14e') },
   dragonite_axe:  { name: 'Dragonite Axe',   type: 'tool', value: 600, tool: { skill: 'woodcutting', power: 5 }, ...chip('🪓', '#9a4dff') },
+  voidstone_axe:  { name: 'Voidstone Axe',   type: 'tool', value: 900, tool: { skill: 'woodcutting', power: 6 }, ...chip('🪓', '#d06aff') },
   twig_rod:       { name: 'Twig Fishing Rod', type: 'tool', value: 8,  tool: { skill: 'fishing', power: 1 },     ...chip('🎣', '#9a6a3a') },
   willow_rod:     { name: 'Willow Rod',      type: 'tool', value: 60,  tool: { skill: 'fishing', power: 2 },     ...chip('🎣', '#8aa060') },
   moonwood_rod:   { name: 'Moonwood Rod',    type: 'tool', value: 180, tool: { skill: 'fishing', power: 3 },     ...chip('🎣', '#d36fae') },
   dragonwood_rod: { name: 'Dragonwood Rod',  type: 'tool', value: 600, tool: { skill: 'fishing', power: 5 },     ...chip('🎣', '#c0392b') },
+  skyoak_rod:     { name: 'Skyoak Rod',      type: 'tool', value: 900, tool: { skill: 'fishing', power: 6 },     ...chip('🎣', '#8ab0e8') },
   herb_shears:    { name: 'Herb Shears',     type: 'tool', value: 60,  tool: { skill: 'foraging', power: 2 },    ...chip('✂️', '#8f98a8') },
   silver_sickle:  { name: 'Silver Sickle',   type: 'tool', value: 200, tool: { skill: 'foraging', power: 3 },    ...chip('🌙', '#dfe6f0') },
 
@@ -124,6 +141,9 @@ export const BUFFS = {
   swift:      { name: 'Swiftness',       icon: '💨', dur: 240, speed: 0.25 },
   sage:       { name: "Sage's Focus",    icon: '🔮', dur: 240, stats: { pip: 10, acc: 5 } },
   dragonward: { name: 'Dragonfire Ward', icon: '🐉', dur: 300, stats: { resist: 20 }, fireResist: 0.4 },
+  tempo:      { name: 'Storm Tempo',     icon: '⚡', dur: 300, stats: { pip: 15, acc: 8 } },
+  voidskin:   { name: 'Voidskin',        icon: '🌑', dur: 300, stats: { resist: 25, hp: 400 } },
+  archmage:   { name: 'Archmage\'s Might', icon: '🌟', dur: 300, stats: { dmg: 25, pip: 10, acc: 6 } },
   regen:      { name: 'Well Fed',        icon: '🍲', dur: 60 },
 };
 

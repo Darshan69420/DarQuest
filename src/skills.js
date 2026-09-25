@@ -61,6 +61,8 @@ export const NODE_TYPES = {
   emberite_rock:  { name: 'Emberite Rock',   ...rock(35, 'emberite_ore', 45, 3.4, 0.8, 25, 0xff5a1a) },
   starmetal_rock: { name: 'Starmetal Rock',  ...rock(45, 'starmetal_ore', 60, 3.6, 0.85, 35, 0x9fd6ff) },
   dragonite_rock: { name: 'Dragonite Rock',  ...rock(60, 'dragonite_ore', 90, 4, 0.9, 50, 0x9a4dff) },
+  stormglass_rock:{ name: 'Stormglass Vein', ...rock(68, 'stormglass', 100, 4.2, 0.9, 60, 0xc8b8ff) },
+  voidstone_rock: { name: 'Voidstone Rock',  ...rock(75, 'voidstone_ore', 120, 4.5, 0.9, 70, 0xd06aff) },
 
   tree:           { name: 'Tree',            ...tree(1, 'logs', 8, 2, 0.25, 10, 'pine') },
   oak:            { name: 'Oak Tree',        ...tree(10, 'oak_logs', 16, 2.4, 0.2, 14, 'oak') },
@@ -69,6 +71,8 @@ export const NODE_TYPES = {
   emberwood:      { name: 'Emberwood Tree',  ...tree(35, 'emberwood_logs', 45, 3.2, 0.2, 24, 'emberwood') },
   elder:          { name: 'Elder Tree',      ...tree(50, 'elder_logs', 70, 3.6, 0.15, 30, 'elder') },
   dragonwood:     { name: 'Dragonwood Tree', ...tree(60, 'dragonwood_logs', 90, 4, 0.15, 40, 'dragonwood') },
+  skyoak:         { name: 'Skyoak Tree',     ...tree(68, 'skyoak_logs', 100, 4.2, 0.15, 45, 'skyoak') },
+  heartwood_tree: { name: 'Heartwood Tree',  ...tree(80, 'heartwood_logs', 140, 4.6, 0.15, 55, 'heartwood') },
 
   fish_minnow:    { name: 'Minnow Shoal',    ...fish(1, 'raw_minnow', 8, 2.4, 'water') },
   fish_trout:     { name: 'Trout Pool',      ...fish(10, 'raw_trout', 16, 2.8, 'water') },
@@ -76,6 +80,8 @@ export const NODE_TYPES = {
   fish_lava:      { name: 'Lavafish Vent',   ...fish(35, 'raw_lavafish', 45, 3.2, 'lava') },
   fish_frost:     { name: 'Frostcod Hole',   ...fish(45, 'raw_frostcod', 60, 3.4, 'ice') },
   fish_eel:       { name: 'Dragon Eel Pool', ...fish(60, 'raw_dragoneel', 90, 3.8, 'lava') },
+  fish_skyray:    { name: 'Cloud Shoal',     ...fish(70, 'raw_skyray', 105, 4, 'cloud') },
+  fish_soul:      { name: 'Soul Eddy',       ...fish(85, 'raw_soulfish', 140, 4.4, 'soul') },
 
   berry_bush:     { name: 'Berry Bush',      ...herb(1, 'wildberries', 5, 1.4, 0.34, 15, 'berry', 0x6a5ad0) },
   herb_moonleaf:  { name: 'Moonleaf',        ...herb(1, 'moonleaf', 8, 1.6, 0.5, 12, 'herb', 0x9fe6c0) },
@@ -84,6 +90,8 @@ export const NODE_TYPES = {
   herb_emberroot: { name: 'Emberroot',       ...herb(30, 'emberroot', 38, 2.2, 0.55, 20, 'herb', 0xff5a1a) },
   herb_frostbloom:{ name: 'Frostbloom',      ...herb(40, 'frostbloom', 52, 2.4, 0.55, 24, 'herb', 0xdff6ff) },
   herb_dragons_tongue: { name: "Dragon's Tongue", ...herb(55, 'dragons_tongue', 75, 2.6, 0.6, 30, 'herb', 0xe8455c) },
+  herb_starbloom: { name: 'Starbloom',       ...herb(65, 'starbloom', 90, 2.8, 0.6, 35, 'herb', 0xfff0a0) },
+  herb_nightshade:{ name: 'Nightshade',      ...herb(80, 'nightshade', 120, 3, 0.6, 40, 'mushroom', 0xd06aff) },
 };
 for (const [id, n] of Object.entries(NODE_TYPES)) n.id = id;
 
@@ -131,6 +139,7 @@ export const RECIPES = {
   emberite_bar:   R('furnace', 35, 36, { emberite_ore: 1, stone: 1 }, { item: 'emberite_bar' }),
   starmetal_bar:  R('furnace', 45, 50, { starmetal_ore: 1, iron_ore: 1 }, { item: 'starmetal_bar' }),
   dragonite_bar:  R('furnace', 60, 80, { dragonite_ore: 2, emberite_ore: 1 }, { item: 'dragonite_bar' }),
+  voidstone_bar:  R('furnace', 75, 110, { voidstone_ore: 2, dragonite_ore: 1 }, { item: 'voidstone_bar' }),
 
   // building blocks for your Homestead
   block_stone:    R('furnace', 1, 3, { stone: 1 }, { item: 'block_stone', n: 2 }),
@@ -152,6 +161,11 @@ export const RECIPES = {
   emberite_band:  R('anvil', 39, 130, { emberite_bar: 2, ruby: 1 }, { gear: 'emberite_band' }),
   starmetal_ring: R('anvil', 49, 190, { starmetal_bar: 2, diamond: 1 }, { gear: 'starmetal_ring' }),
   dragonite_ring: R('anvil', 63, 330, { dragonite_bar: 2, diamond: 1 }, { gear: 'dragonite_ring' }),
+  stormglass_ring:R('anvil', 70, 360, { dragonite_bar: 2, stormglass: 2 }, { gear: 'stormglass_ring' }),
+  voidstone_pickaxe:R('anvil', 76, 320, { voidstone_bar: 3 }, { item: 'voidstone_pickaxe' }),
+  voidstone_axe:  R('anvil', 76, 320, { voidstone_bar: 3 }, { item: 'voidstone_axe' }),
+  voidforged_boots:R('anvil', 82, 420, { voidstone_bar: 3, dragon_scale: 2 }, { gear: 'voidforged_boots' }),
+  void_amulet:    R('anvil', 90, 520, { voidstone_bar: 4, stormglass: 2, diamond: 1 }, { gear: 'void_amulet' }),
   iron_pickaxe:   R('anvil', 10, 26, { iron_bar: 2 }, { item: 'iron_pickaxe' }),
   iron_axe:       R('anvil', 10, 26, { iron_bar: 2 }, { item: 'iron_axe' }),
   herb_shears:    R('anvil', 12, 18, { iron_bar: 1 }, { item: 'herb_shears' }),
@@ -181,6 +195,8 @@ export const RECIPES = {
   cooked_lavafish:R('range', 35, 45, { raw_lavafish: 1 }, { item: 'cooked_lavafish' }, { burn: true }),
   cooked_frostcod:R('range', 45, 60, { raw_frostcod: 1 }, { item: 'cooked_frostcod' }, { burn: true }),
   cooked_dragoneel:R('range', 60, 90, { raw_dragoneel: 1 }, { item: 'cooked_dragoneel' }, { burn: true }),
+  cooked_skyray:  R('range', 70, 110, { raw_skyray: 1 }, { item: 'cooked_skyray' }, { burn: true }),
+  soulfish_stew:  R('range', 85, 140, { raw_soulfish: 1, nightshade: 1 }, { item: 'soulfish_stew' }, { burn: true }),
 
   // alchemy table
   healing_potion: R('alchemy', 1, 10, { moonleaf: 2 }, { potions: 1 }),
@@ -191,6 +207,9 @@ export const RECIPES = {
   elixir_stone:   R('alchemy', 32, 45, { emberroot: 1, glowcap: 1 }, { item: 'elixir_stone' }),
   sage_brew:      R('alchemy', 42, 60, { frostbloom: 1, sunpetal: 2 }, { item: 'sage_brew' }),
   dragonfire_ward:R('alchemy', 55, 85, { dragons_tongue: 1, frostbloom: 1, emberroot: 1 }, { item: 'dragonfire_ward' }),
+  storm_elixir:   R('alchemy', 68, 100, { starbloom: 1, glowcap: 2 }, { item: 'storm_elixir' }),
+  void_draught:   R('alchemy', 80, 120, { nightshade: 1, frostbloom: 1, starbloom: 1 }, { item: 'void_draught' }),
+  archmage_elixir:R('alchemy', 92, 180, { nightshade: 2, starbloom: 2, dragons_tongue: 1 }, { item: 'archmage_elixir' }),
 
   // workbench
   planks:         R('workbench', 1, 6, { logs: 1 }, { item: 'planks' }),
@@ -211,6 +230,9 @@ export const RECIPES = {
   elder_staff:    R('workbench', 52, 130, { elder_logs: 3, emerald: 1 }, { gear: 'elder_staff' }),
   dragonwood_rod: R('workbench', 60, 150, { dragonwood_logs: 3 }, { item: 'dragonwood_rod' }),
   dragonwood_staff:R('workbench', 64, 240, { dragonwood_logs: 4, diamond: 1, dragon_scale: 1 }, { gear: 'dragonwood_staff' }),
+  skyoak_rod:     R('workbench', 68, 170, { skyoak_logs: 3 }, { item: 'skyoak_rod' }),
+  skyoak_staff:   R('workbench', 72, 280, { skyoak_logs: 4, stormglass: 1 }, { gear: 'skyoak_staff' }),
+  heartwood_greatstaff:R('workbench', 95, 600, { heartwood_logs: 5, voidstone_bar: 2, diamond: 2 }, { gear: 'heartwood_greatstaff' }),
 };
 for (const [id, r] of Object.entries(RECIPES)) r.id = id;
 

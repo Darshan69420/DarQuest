@@ -628,6 +628,11 @@ export function buildStormspire(world) {
   world.add(makeWindmill(), S + 11, 70, -0.6, 2.5);
   for (let k = 0; k < 6; k++) world.add(makeFlowers(), S + (Math.random() - 0.5) * 20, 55 + Math.random() * 16, Math.random() * 6);
   world.addNode('elder', S - 12, 68);
+  world.addNode('skyoak', S + 13, 64);
+  world.addNode('skyoak', S - 6, 51);
+  world.addNode('herb_starbloom', S + 4, 76);
+  world.addNode('fish_skyray', S - 24.5, -6);
+  world.addNode('fish_skyray', S + 23.5, 7);
   world.addNode('herb_glowcap', S + 12, 55);
   world.addNode('herb_glowcap', S - 3, 74);
 
@@ -650,6 +655,9 @@ export function buildStormspire(world) {
   for (const [dx, dz, sc] of [[-8, -6, 1.6], [7, 7, 1.8], [8, -7, 1.3], [-7, 8, 1.5]]) world.add(makeCrystal(0x9ff0ff, sc), S + 60 + dx, 120 + dz, Math.random() * 6, 0.9);
   for (const [dx, dz] of [[-12, 0], [12, 3]]) { world.add(makeLightningRod(), S + 60 + dx, 120 + dz, 0, 0.7); rods.push({ x: S + 60 + dx, z: 120 + dz, y: 6.6 }); }
   world.addNode('starmetal_rock', S + 69, 128);
+  world.addNode('stormglass_rock', S + 52, 128);
+  world.addNode('stormglass_rock', S + 70, 67);
+  world.addNode('herb_starbloom', S + 66, 110);
 
   // Raiders' Roost: tents, a campfire and a wrecked airship
   world.add(tent(0x8a1a1a), S - 10, 116, 1.2, 2.4);
@@ -799,6 +807,8 @@ export function buildThornwood(world) {
   world.addNode('herb_glowcap', T - 52, 84);
   world.addNode('herb_glowcap', T - 68, 72);
   world.addNode('silver_rock', T - 64, 88);
+  world.addNode('heartwood_tree', T + 12, 72);
+  world.addNode('heartwood_tree', T - 13, 150);
 
   // the Blighted Grove and the Heartwood
   for (let k = 0; k < 16; k++) {
@@ -885,6 +895,13 @@ export function buildHollowDeep(world) {
   // the Ossuary: piles of bones and sarcophagi
   for (const [dx, dz] of [[-10, -8], [10, 8], [-9, 9], [8, -10]]) world.add(makeBones(true), H + 60 + dx, 66 + dz, Math.random() * 6);
   world.addNode('dragonite_rock', H + 70, 60);
+  world.addNode('voidstone_rock', H + 50, 70);
+  world.addNode('voidstone_rock', H + 66, 76);
+  world.addNode('voidstone_rock', H - 17, -6);
+  world.addNode('herb_nightshade', H + 9, 76);
+  world.addNode('herb_nightshade', H - 11, 118);
+  world.addNode('fish_soul', H - 18.5, 66);
+  world.addNode('fish_soul', H - 17.5, 58);
   // the Echo Halls: pillars in a ring
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;

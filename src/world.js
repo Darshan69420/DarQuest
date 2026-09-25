@@ -632,7 +632,7 @@ export class World {
     const empty = def.deplete > 0 ? place(makeNode(def.model, true)) : null;
     if (empty) empty.visible = false;
     if (full.userData.anim) this.animated.push(full);
-    const col = { rock: 1.1, pine: 0.7, oak: 0.9, willow: 0.8, moonwood: 0.7, emberwood: 0.7, elder: 1.2, dragonwood: 1.0 }[kind] || 0;
+    const col = { rock: 1.1, pine: 0.7, oak: 0.9, willow: 0.8, moonwood: 0.7, emberwood: 0.7, elder: 1.2, dragonwood: 1.0, skyoak: 0.8, heartwood: 1.0 }[kind] || 0;
     if (col) this.colliders.push({ x, z, r: col });
     const reach = kind === 'fish' ? 3.6 : col ? col + 1.9 : 1.9;
     const node = { id: 'node:' + this.nodes.length, def, x, z, full, empty, depleted: false, respawnAt: 0, r: reach };

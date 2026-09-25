@@ -44,6 +44,8 @@ const DEFAULTS = {
   showFps: false,
   autoCam: true,          // camera drifts behind you while walking forward (modern controls)
   damageNumbers: true,
+  hints: true,            // tutorial hint cards the first time you meet something new
+  beacon: true,           // a beam of light over wherever your quest leads
   postfx: true,           // bloom, vignette and colour grading (Medium and High quality)
   worldScaling: false,    // foes everywhere grow with your level (always on in New Game+)
   uiScale: 1,             // size of menus, the HUD and text

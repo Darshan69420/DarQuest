@@ -581,7 +581,10 @@ export function openSettings(tab = 'audio', onClose) {
     if (tab === 'controls') inner = choice('controls', 'Movement', [['modern', 'Modern'], ['classic', 'Classic']])
       + '<p class="modal-note"><b>Modern:</b> W A S D move relative to the camera, drag to look around. <b>Classic:</b> W / S walk, A / D turn.</p>'
       + slider('camSens', 'Camera sensitivity', 0.3, 2, 0.1) + toggle('autoCam', 'Auto camera', 'Camera swings behind you when you tap to walk');
-    if (tab === 'gameplay') inner = toggle('worldScaling', 'World scaling', 'Foes in every land grow with your level, so old zones stay a challenge and give more XP and gold')
+    if (tab === 'gameplay') inner = toggle('hints', 'Tutorial hints', 'A short tip the first time you meet something new')
+      + (uiHooks.resetHints ? '<p><button class="btn small" id="reset-hints">Show every hint again</button></p>' : '')
+      + toggle('beacon', 'Quest beacon', 'A beam of light over wherever your quest leads')
+      + toggle('worldScaling', 'World scaling', 'Foes in every land grow with your level, so old zones stay a challenge and give more XP and gold')
       + '<p class="modal-note">New Game+ always scales the world, whatever this setting says. The Rift, the Undercroft and the Arena always match your level.</p>';
     if (tab === 'access') inner = slider('uiScale', 'Text & menu size', 0.8, 1.4, 0.05)
       + toggle('colorblind', 'Colour-blind friendly', 'Danger zones on the ground turn amber with bright edges, and health bars get stripes')
@@ -594,6 +597,7 @@ export function openSettings(tab = 'audio', onClose) {
       <div class="settings">${inner}</div>
       ${tab !== 'keys' ? '<p><button class="btn small" id="reset-set">Reset to defaults</button></p>' : ''}`;
     body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; listening = null; render(body); }));
+    body.querySelector('#reset-hints')?.addEventListener('click', (e) => { uiHooks.resetHints(); e.target.textContent = 'Done!'; e.target.disabled = true; });
     // the menu-size slider applies when you let go, so the window doesn't resize under the mouse
     body.querySelectorAll('[data-set]').forEach(inp => inp.addEventListener(inp.dataset.set === 'uiScale' ? 'change' : 'input', () => {
       setSetting(inp.dataset.set, +inp.value);

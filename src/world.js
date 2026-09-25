@@ -1031,6 +1031,7 @@ export class World {
   setNpcMarker(id, marker, side = false) {
     const npc = this.npcs.find(n => n.id === id);
     if (!npc) return;
+    npc.marker = marker;
     const m = npc.label.el.querySelector('.marker');
     m.textContent = marker;
     m.className = 'marker' + (marker ? ' on' : '') + (side ? ' side' : '');
@@ -1263,6 +1264,60 @@ export class World {
     });
   }
 
+  // A soft beam of golden light over wherever the quest leads. It fades out as you arrive.
+  setBeacon(t, dt) {
+    if (!this.beacon) {
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { color: { value: new THREE.Color(0xffd66e) }, alpha: { value: 0 }, time: { value: 0 } },
+        vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+          void main() {
+            vUv = uv;
+            vec4 wp = modelMatrix * vec4(position, 1.0);
+            vN = mat3(modelMatrix) * normal;
+            vV = cameraPosition - wp.xyz;
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }`,
+        fragmentShader: `uniform vec3 color; uniform float alpha; uniform float time; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+          void main() {
+            float edge = pow(abs(dot(normalize(vN.xz), normalize(vV.xz + 1e-4))), 2.0);
+            float h = pow(1.0 - vUv.y, 1.6) * smoothstep(0.0, 0.015, vUv.y);
+            float ripple = 0.8 + 0.2 * sin(time * 3.0 - vUv.y * 60.0);
+            gl_FragColor = vec4(color * 1.4, edge * h * ripple * alpha);
+          }`,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      });
+      const geo = new THREE.CylinderGeometry(0.75, 1.05, 70, 20, 1, true);
+      geo.translate(0, 35, 0);
+      const beam = new THREE.Mesh(geo, mat);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.45, 36), new THREE.MeshBasicMaterial({ color: 0xffd66e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.1;
+      this.beacon = new THREE.Group();
+      this.beacon.add(beam, ring);
+      for (const m of [beam, ring]) m.renderOrder = 3;
+      this.beacon.userData = { a: 0, mat, ring, t: 0 };
+      this.beacon.visible = false;
+      this.scene.add(this.beacon);
+    }
+    const b = this.beacon, u = b.userData;
+    let want = 0;
+    if (t && settings.beacon !== false && this.mode === 'explore') {
+      // a new destination: fade in afresh rather than slide across the map
+      if (Math.hypot(t.x - b.position.x, t.z - b.position.z) > 3) { u.a = 0; b.position.set(t.x, 0, t.z); }
+      const pp = this.player.position;
+      want = THREE.MathUtils.clamp((Math.hypot(t.x - pp.x, t.z - pp.z) - 7) / 12, 0, 1);
+    }
+    u.a += (want - u.a) * Math.min(1, dt * 2.5);
+    u.t += dt;
+    b.visible = u.a > 0.01;
+    if (!b.visible) return;
+    u.mat.uniforms.alpha.value = u.a * 0.85;
+    u.mat.uniforms.time.value = u.t;
+    const pulse = (u.t * 0.7) % 1;
+    u.ring.scale.setScalar(0.6 + pulse * 1.6);
+    u.ring.material.opacity = u.a * (1 - pulse) * 0.8;
+  }
+
   aura(obj, color) {
     const base = obj.position.clone();
     for (let i = 0; i < 24; i++) {
@@ -1326,6 +1381,8 @@ export class World {
   telegraph(spec) {
     // colour-blind mode draws every danger zone in amber, which reads clearly on any ground
     const color = settings.colorblind ? 0xffb000 : spec.color ?? 0xff4030;
+    const pp = this.player?.position;
+    if (pp && Math.hypot(spec.x - pp.x, spec.z - pp.z) < (spec.r || spec.len || 4) + 3) this.dangerAt = this.time;
     const g = new THREE.Group();
     g.position.set(spec.x, 0.08 + Math.random() * 0.02, spec.z);
     g.rotation.y = spec.dir || 0;

@@ -90,6 +90,8 @@ function upgrade(p) {
   p.choices ??= {};
   p.petXp ??= {};
   p.heard ??= {};
+  // tutorial hints: wizards who were already on their way when hints arrived skip them
+  p.hints ??= p.level > 2 || p.quest.index > 2 ? { _old: 1 } : {};
   if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
 }

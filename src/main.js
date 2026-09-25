@@ -39,10 +39,14 @@ import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
 import { ITEMS, BUFFS, removeItem, pickFood } from './items.js';
 import { npcSideQuests, accept as acceptSideQuest, complete as completeSideQuest, sideEvent, rewardText, goalText } from './sidequests.js';
 import * as SK from './ui_skills.js';
+import { Hints } from './hints.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
 const minimap = new Minimap($('#minimap'), world);
+const hints = new Hints($('#hint'));
+hints.onSeen = () => player && save(player);
+UI.uiHooks.resetHints = () => { if (player) { player.hints = {}; hints.reset(); save(player); } };
 let player = null;
 let hudTimer = 0;
 let achTimer = 0;
@@ -192,10 +196,11 @@ function startGame(p, isNew) {
   homestead.load(p);
   world.skyCycle.time = p.clock ?? 0.32;
   if (p.companion) companion.spawn(p.companion);
+  hints.reset();
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
-      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D (drag the mouse to look around), or tap the ground. Fight with keys 1 to 5 and dodge with Space: when you see red on the ground, get out of it! When you see a "!" above someone's head, talk to them with E. Press Esc for the menu and settings. Come and find me in front of the Academy!`,
+      `Welcome to Starfall Academy, ${UI.esc(p.name)}! ${d.hp > 1 ? `${d.name} difficulty? Brave! ` : ''}Dark things are stirring beyond the Spiral Doors, and we need every young wizard we can find. Come and find me in front of the Academy: just follow the beam of light. ${settings.hints ? 'I will send you a tip whenever you meet something new.' : ''}`,
       [{ label: 'Let\'s go!', primary: true }, { label: 'How to play', action: UI.openHelp }]), 700);
   }
 }
@@ -1373,14 +1378,17 @@ world.onTick = (dt) => {
   }
   if (player.buffs.regen > 0 && player.hp > 0) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.025 * dt);
   UI.updateHotbar(combat.hotbar());
-  minimap.update(dt, questTargetPos());
+  const goal = questTargetPos();
+  minimap.update(dt, goal);
+  world.setBeacon(goal, dt);
   hudTimer += dt;
   if (hudTimer > 0.25) {
     hudTimer = 0;
     UI.updateHUD(player);
     UI.updateTarget(combat.target);
     const near = UI.isDialogOpen() ? null : world.nearestInteractable();
-    const key = keyLabel(keyFor('interact'));
+    // phones tap the prompt itself instead of pressing a key
+    const key = matchMedia('(pointer: coarse)').matches ? '👆 Tap' : keyLabel(keyFor('interact'));
     let text = '';
     if (near && !gatherer.busy) {
       const f = FOUNTAINS.find(x => x.id === near.id);
@@ -1393,6 +1401,17 @@ world.onTick = (dt) => {
       else text = f ? `${key}: use the ${f.name}` : pt ? `${key}: use the Spiral Door` : NPCS[near.id] ? `${key}: talk to ${NPCS[near.id].name}` : '';
     }
     UI.setPrompt(text);
+    const pp = world.player.position;
+    const close = (x, z, r) => Math.abs(x - pp.x) < r && Math.abs(z - pp.z) < r && Math.hypot(x - pp.x, z - pp.z) < r;
+    hints.update({
+      p: player, pos: pp, inCombat: combat.inCombat, hp: player.hp / player.maxHp,
+      danger: world.time - (world.dangerAt ?? -99) < 0.6,
+      markerNear: world.npcs.some(n => n.marker && close(n.model.position.x, n.model.position.z, 14)),
+      nodeNear: !!near?.id.startsWith('node:'),
+      portalNear: PORTALS.some(pt => close(pt.x, pt.z, 9)),
+      night: world.skyCycle.isNight, mounted: world.mounted,
+      talking: UI.isDialogOpen(), paused: UI.isDialogOpen(),
+    }, 0.25);
     SK.updateActionBar(gatherer.progress());
     SK.updateBuffs(player);
     RU.updateRiftHud(rift.run);
@@ -1403,7 +1422,6 @@ world.onTick = (dt) => {
     if (sky.isNight !== nightActive) setNight(sky.isNight);
     achTimer += 0.25;
     if (achTimer > 2) { achTimer = 0; checkAch(); checkWeekly(); }
-    const pp = world.player.position;
     for (const ws of WAYSTONES) if (Math.abs(ws.x - pp.x) + Math.abs(ws.z - pp.z) < 9 && !player.waystones.includes(ws.id)) discoverWaystone(ws);
     const fps = $('#fps');
     fps.classList.toggle('hidden', !settings.showFps);
@@ -1438,6 +1456,8 @@ function openGameMenu() {
       setTimeout(() => UI.resultScreen(RU.runSummaryHTML(summary)).then(() => refresh()), 400);
     }) }] : []),
     ...(undercroft.active ? [{ label: '🏳️ Leave the Undercroft', action: () => undercroft.hooks.leave() }] : []),
+    ...(player.activeMount ? [{ label: world.mounted ? '🐴 Dismount' : '🐴 Ride your mount', action: toggleMount }] : []),
+    ...(inHomestead() ? [{ label: homestead.building ? '🔨 Stop building' : '🔨 Build mode', action: toggleBuild }] : []),
     { label: '⚙️ Settings', action: () => UI.openSettings() },
     { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
@@ -1506,6 +1526,10 @@ $('#btn-skills').addEventListener('click', () => inExplore() && SK.openSkills(pl
 $('#btn-bag').addEventListener('click', () => inExplore() && SK.openBag(player, { onUse: useItem, onChange: () => { refresh(); save(player); } }));
 $('#btn-journal').addEventListener('click', () => inExplore() && openJournal(player, { onTitle: () => { refresh(); save(player); }, onClaim: claimWeekly }));
 $('#btn-help').addEventListener('click', () => UI.openHelp());
+$('#prompt').addEventListener('click', () => {
+  const near = inExplore() && !UI.isDialogOpen() && world.nearestInteractable();
+  if (near) world.onInteract?.(near.id);
+});
 $('#btn-menu').addEventListener('click', () => inExplore() && openGameMenu());
 onSettings((k) => { if (k === 'keys' && player) buildHotbar(); });
 
@@ -1557,7 +1581,7 @@ setInterval(() => {
 
 // Handy for testing from the browser console.
 window.darquest = {
-  world, combat, UI, rift, homestead, undercroft,
+  world, combat, UI, rift, homestead, undercroft, hints,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

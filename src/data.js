@@ -797,18 +797,29 @@ export const ZONES = {
     atmosphere: { fog: 0x6a7a94, top: 0x1a2440, mid: 0x5a6a8c, bottom: 0xffb080, hemi: 0xd0dcff, fogNear: 45, fogFar: 190 },
     music: 'dragon',
   },
+  homestead: {
+    name: 'Your Homestead',
+    regions: [{ type: 'circle', x: -2800, z: 0, r: 30 }],
+    walk: 'homeWalk',
+    freeCam: true,
+    spawn: { x: -2800, z: 20, heading: Math.PI },
+    atmosphere: { fog: 0x9ab8e0, top: 0x3a6ac0, mid: 0x8ab8f0, bottom: 0xffc0a0, hemi: 0xe0ecff, fogNear: 60, fogFar: 240 },
+    music: 'home',
+  },
   // the Endless Rift is rebuilt for every floor (see rift.js)
   rift: {
     name: 'The Endless Rift',
     regions: [],
     grid: true,
+    walk: 'riftWalk',
+    freeCam: true,
     spawn: { x: -1400, z: 0, heading: 0 },
     atmosphere: { fog: 0x1a0a2e, top: 0x05020a, mid: 0x2a1045, bottom: 0x5a2a8a, hemi: 0xb09aff, fogNear: 22, fogFar: 80, hemiI: 1.1, sunI: 1.2 },
     music: 'rift',
   },
 };
 export const DRAGON_X = 1400;
-export function zoneAt(x) { return x < -1000 ? 'rift' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [
@@ -830,6 +841,8 @@ export const PORTALS = [
   { id: 'portal_ember', x: X, z: -17, to: { x: -13, z: 10, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0 },
   { id: 'portal_dragon', x: -26, z: -4, to: { x: 1400, z: -8, heading: 0 }, dest: 'Dragonspire Peaks', unlock: 14, rot: Math.PI / 2, color: 0x4dc8ff },
   { id: 'portal_dragon_back', x: 1400, z: -19, to: { x: -13, z: -4, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
+  { id: 'portal_home', x: 64, z: 16, to: { x: -2800, z: 21, heading: Math.PI }, dest: 'Your Homestead', unlock: 0, color: 0x7affb0 },
+  { id: 'portal_home_back', x: -2800, z: 26, to: { x: 64, z: 12, heading: Math.PI }, dest: 'Millbrook Meadow', unlock: 0, color: 0x7affb0 },
 ];
 PORTALS[0].rot = Math.PI / 2;
 PORTALS[0].color = 0xff7a3d;

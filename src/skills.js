@@ -131,6 +131,16 @@ export const RECIPES = {
   starmetal_bar:  R('furnace', 45, 50, { starmetal_ore: 1, iron_ore: 1 }, { item: 'starmetal_bar' }),
   dragonite_bar:  R('furnace', 60, 80, { dragonite_ore: 2, emberite_ore: 1 }, { item: 'dragonite_bar' }),
 
+  // building blocks for your Homestead
+  block_stone:    R('furnace', 1, 3, { stone: 1 }, { item: 'block_stone', n: 2 }),
+  block_brick:    R('furnace', 5, 6, { stone: 1, copper_ore: 1 }, { item: 'block_brick', n: 3 }),
+  block_glass:    R('furnace', 8, 6, { stone: 2 }, { item: 'block_glass', n: 2 }),
+  block_crystal:  R('furnace', 22, 20, { sapphire: 1 }, { item: 'block_crystal', n: 4 }),
+  block_gold:     R('furnace', 30, 25, { gold_bar: 1 }, { item: 'block_gold', n: 2 }),
+  block_dragon:   R('furnace', 55, 40, { dragon_scale: 1 }, { item: 'block_dragon', n: 3 }),
+  block_lantern:  R('anvil', 10, 12, { iron_bar: 1, logs: 1 }, { item: 'block_lantern', n: 2 }),
+  block_ice:      R('alchemy', 40, 20, { frostbloom: 1 }, { item: 'block_ice', n: 4 }),
+
   // anvil
   copper_pickaxe: R('anvil', 1, 10, { copper_bar: 1 }, { item: 'copper_pickaxe' }),
   copper_axe:     R('anvil', 1, 10, { copper_bar: 1 }, { item: 'copper_axe' }),
@@ -182,6 +192,12 @@ export const RECIPES = {
 
   // workbench
   planks:         R('workbench', 1, 6, { logs: 1 }, { item: 'planks' }),
+  block_wood:     R('workbench', 1, 3, { planks: 1 }, { item: 'block_wood', n: 4 }),
+  block_log:      R('workbench', 1, 3, { logs: 1 }, { item: 'block_log', n: 2 }),
+  block_leaves:   R('workbench', 1, 3, { moonleaf: 1 }, { item: 'block_leaves', n: 3 }),
+  block_door:     R('workbench', 3, 6, { planks: 2 }, { item: 'block_door', n: 1 }),
+  block_moon:     R('workbench', 30, 18, { moonwood_logs: 1 }, { item: 'block_moon', n: 4 }),
+  block_ember:    R('workbench', 35, 22, { emberwood_logs: 1 }, { item: 'block_ember', n: 4 }),
   twig_rod:       R('workbench', 1, 10, { logs: 2 }, { item: 'twig_rod' }),
   oak_wand:       R('workbench', 5, 24, { oak_logs: 2 }, { gear: 'oak_wand' }),
   fine_planks:    R('workbench', 20, 20, { willow_logs: 1 }, { item: 'fine_planks' }),

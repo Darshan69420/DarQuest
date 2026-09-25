@@ -7,7 +7,7 @@ import {
 } from './models.js';
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
-import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls } from './maps.js';
+import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -362,6 +362,7 @@ export class World {
     const ember = buildEmberfall(this);
     const dragon = buildDragonspire(this);
     buildWordWalls(this);
+    buildHomestead(this);
     this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
@@ -475,7 +476,10 @@ export class World {
       down = { x: e.clientX, y: e.clientY, t: performance.now(), lastX: e.clientX, lastY: e.clientY, moved: 0, button: e.button };
       this.canvas.setPointerCapture(e.pointerId);
     });
+    this.mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     this.canvas.addEventListener('pointermove', (e) => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
       if (!down) return;
       const dx = e.clientX - down.lastX, dy = e.clientY - down.lastY;
       down.lastX = e.clientX;
@@ -664,8 +668,8 @@ export class World {
 
   walkable(x, z) {
     const zone = ZONES[zoneAt(x)];
-    if (zone.grid) {
-      if (!this.riftWalk?.(x, z)) return false;
+    if (zone.walk) {
+      if (!this[zone.walk]?.(x, z)) return false;
       for (const c of this.colliders) if ((x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return false;
       return true;
     }
@@ -727,7 +731,7 @@ export class World {
       this.dashT -= dt;
       const p = this.player.position;
       const nx = p.x + this.dashDir.x * 22 * dt, nz = p.z + this.dashDir.z * 22 * dt;
-      if (this.walkable(nx, nz)) p.set(nx, 0, nz);
+      if (this.walkable(nx, nz)) { p.x = nx; p.z = nz; }
     }
     const moving = speed !== 0;
     this.isMoving = moving;
@@ -738,7 +742,7 @@ export class World {
       this.moveDir = { x: mx, z: mz };
       const step = Math.abs(speed) * dt;
       const nx = p.x + mx * step, nz = p.z + mz * step;
-      if (this.walkable(nx, nz)) p.set(nx, 0, nz);
+      if (this.walkable(nx, nz)) { p.x = nx; p.z = nz; }
       else if (this.walkable(nx, p.z)) p.x = nx;
       else if (this.walkable(p.x, nz)) p.z = nz;
       else this.moveTarget = null;
@@ -772,9 +776,9 @@ export class World {
     const yaw = this.viewYaw;
     const p = this.player.position;
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, Math.max(1.2, this.camHeight + 1.2 + this.camDist * 0.15 + this.camPitch), p.z - Math.cos(yaw) * this.camDist),
+      pos: V(p.x - Math.sin(yaw) * this.camDist, p.y + Math.max(1.2, this.camHeight + 1.2 + this.camDist * 0.15 + this.camPitch), p.z - Math.cos(yaw) * this.camDist),
       // look a little ahead so enemies in front are not hidden behind the hat
-      look: V(p.x + Math.sin(yaw) * 3.5, 1.4, p.z + Math.cos(yaw) * 3.5),
+      look: V(p.x + Math.sin(yaw) * 3.5, p.y + 1.4, p.z + Math.cos(yaw) * 3.5),
     };
   }
 
@@ -1305,7 +1309,7 @@ export class World {
       this.camera.lookAt(look);
     } else {
       ({ pos, look } = this.followCam());
-      if (!ZONES[zoneAt(this.player.position.x)].grid) pos = this.safeCam(look, pos);
+      if (!ZONES[zoneAt(this.player.position.x)].freeCam) pos = this.safeCam(look, pos);
       this.camera.position.lerp(pos, 1 - Math.exp(-7 * dt));
       this.camera.lookAt(look);
     }

@@ -33,6 +33,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | Materials bag | `I` |
 | Quest journal | `J` |
 | Eat food / drink potion | `F` / `H` |
+| Build mode (at your Homestead) | `G` |
 | Menu & settings | `Esc` |
 
 Every key can be changed in **Settings → Keys**.
@@ -45,6 +46,7 @@ Every key can be changed in **Settings → Keys**.
 - **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
 - **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy and Woodworking, each from level 1 to 99. Gather in Millbrook Meadow and beyond, then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
+- **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear, pets and side quests:** 45+ gear pieces (drops, shops and crafting), 8 pets, the Gatherers' Guild quest chain, and a quest journal.
 - **Difficulty:** Normal, Heroic or Legendary.
 - **Quality of life:** three save slots with export and import, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, generated music, and a touch joystick on phones.
@@ -60,6 +62,9 @@ src/skills.js     the 8 gathering/crafting skills, resource nodes and recipes
 src/sidequests.js side quests (the Gatherers' Guild and more)
 src/rift.js       the Endless Rift: floor generation, boons, upgrades
 src/shouts.js     dragon shouts
+src/homestead.js  building with blocks on your floating island
+src/gear.js       item rarities, bonus stats and legendary powers
+src/talents.js    talent trees for every school
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects

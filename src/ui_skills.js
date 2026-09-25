@@ -116,7 +116,7 @@ export function openCrafting(p, type, onCraft) {
         const burn = burnChance(p, r);
         return `<div class="recipe ${locked ? 'locked' : ''} ${ok ? 'can' : ''}">
           ${outChip(r)}
-          <div class="r-info"><b>${esc(outName(r))}</b> <small>Lv ${r.level} · ${r.xp} XP${burn > 0 && !locked ? ` · ${Math.round(burn * 100)}% burn` : ''}</small>
+          <div class="r-info"><b>${esc(outName(r))}${r.out.n > 1 ? ` ×${r.out.n}` : ''}</b> <small>Lv ${r.level} · ${r.xp} XP${burn > 0 && !locked ? ` · ${Math.round(burn * 100)}% burn` : ''}</small>
             <div class="r-in">${Object.entries(r.inputs).map(([id, need]) => `<span class="${bagCount(p, id) >= need ? 'have' : 'miss'}">${chip(id)} ${bagCount(p, id)}/${need}</span>`).join('')}</div>
             ${r.out.gear ? `<div class="r-stats">${statsText(GEAR[r.out.gear].stats)} · needs level ${GEAR[r.out.gear].level}</div>` : ''}</div>
           <div class="gear-btns">${locked ? `<span class="card-tag lock">Needs ${SKILLS[skill].name} ${r.level}</span>`

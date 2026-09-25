@@ -18,6 +18,7 @@ import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
 import { openShouts } from './ui_dragon.js';
 import { itemName, itemColor, craftRarity, rollRarity, RARITIES } from './gear.js';
+import { Homestead, BLOCK_IDS, BLOCKS, HOME_X } from './homestead.js';
 import { settings, actionOf, onSettings, keyFor, keyLabel } from './settings.js';
 import { Gatherer } from './skilling.js';
 import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
@@ -173,6 +174,7 @@ function startGame(p, isNew) {
   area = null;
   checkArea();
   showZoneName(area.name);
+  homestead.load(p);
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
@@ -660,6 +662,64 @@ function doShout() {
   }
 }
 
+// ------------------------------------------------------------ the Homestead (building)
+
+const homestead = new Homestead({
+  world,
+  getPlayer: () => player,
+  hooks: {
+    sfx: (n) => Audio.sfx(n),
+    message: (t) => UI.combatMessage(t),
+    changed: () => { renderBuildBar(); save(player); },
+  },
+});
+
+function inHomestead() { return zoneAt(world.player.position.x) === 'homestead'; }
+
+// Blocks you own, then blocks you could craft, so the palette is always the same order.
+function paletteIds() { return BLOCK_IDS.filter(id => (player.bag[id] || 0) > 0).concat(BLOCK_IDS.filter(id => !(player.bag[id] > 0))); }
+
+function renderBuildBar() {
+  const el = $('#build-bar');
+  if (!homestead.building) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `<div class="bb-title">🧱 Build mode · click to place · right-click to break · <b>${keyLabel(keyFor('build'))}</b> to stop</div>
+    <div class="bb-blocks">${paletteIds().slice(0, 14).map((id, i) => `<button class="bb-block ${homestead.selected === id && !homestead.removeMode ? 'on' : ''} ${player.bag[id] ? '' : 'none'}" data-block="${id}" title="${ITEMS[id].name}">${SK.chip(id, player.bag[id] || 0)}${i < 9 ? `<span>${i + 1}</span>` : ''}</button>`).join('')}
+      <button class="bb-block ${homestead.removeMode ? 'on' : ''}" data-remove="1" title="Break blocks">⛏️<span>0</span></button></div>`;
+  el.querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', () => { homestead.selected = b.dataset.block; homestead.removeMode = false; renderBuildBar(); }));
+  el.querySelector('[data-remove]').addEventListener('click', () => { homestead.removeMode = !homestead.removeMode; renderBuildBar(); });
+}
+
+function toggleBuild() {
+  if (!inHomestead()) return UI.combatMessage('You can only build at your Homestead: take the green Spiral Door in Millbrook Meadow.');
+  homestead.building = !homestead.building;
+  homestead.removeMode = false;
+  if (homestead.building && !(player.bag[homestead.selected] > 0)) homestead.selected = paletteIds()[0];
+  Audio.sfx('click');
+  renderBuildBar();
+  if (homestead.building && !BLOCK_IDS.some(id => player.bag[id] > 0)) UI.toast('You have no blocks yet. Craft them at the workbench (wood, logs, leaves, doors) or the furnace (stone, brick, glass)!');
+}
+
+// A little cabin to start from, the first time you arrive.
+function starterCabin() {
+  const set = (i, k, y, id) => { homestead.grid[homestead.idx(i, k, y)] = BLOCK_IDS.indexOf(id); };
+  for (let i = 10; i <= 15; i++) for (let k = 3; k <= 8; k++) {
+    const edge = i === 10 || i === 15 || k === 3 || k === 8;
+    const corner = (i === 10 || i === 15) && (k === 3 || k === 8);
+    for (let y = 0; y < 3; y++) if (edge) set(i, k, y, corner ? 'block_log' : y === 1 && (i === 10 || i === 15) && (k === 5 || k === 6) ? 'block_glass' : 'block_wood');
+    set(i, k, 3, 'block_brick');
+  }
+  set(12, 8, 0, 'block_door'); set(12, 8, 1, 'block_door');
+  set(13, 8, 0, 'block_door'); set(13, 8, 1, 'block_door');
+  set(11, 4, 2, 'block_lantern');
+  set(14, 4, 2, 'block_lantern');
+  homestead.refreshMeshes();
+  homestead.store();
+}
+
+world.onClickWorld = (x, y) => homestead.building && inHomestead() ? homestead.click(x, y) : false;
+world.onRightClick = (x, y) => { if (homestead.building && inHomestead()) homestead.click(x, y, true); };
+
 UI.uiHooks.openShouts = () => openShouts(player, { onChange: () => { buildHotbar(); save(player); } });
 UI.uiHooks.shoutIcon = (id) => SHOUTS[id]?.icon;
 
@@ -774,6 +834,20 @@ world.onTick = (dt) => {
   if (buffsChanged) recalc(player);
   world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed');
   rift.update(dt);
+  if (inHomestead()) {
+    homestead.update(dt);
+    if (!player.home.init) {
+      player.home.init = true;
+      starterCabin();
+      UI.toast(`🏡 Welcome to <b>your Homestead</b>! Press ${keyLabel(keyFor('build'))} to build with blocks you craft.`, 'good');
+      save(player);
+    }
+  } else if (homestead.building || world.player.position.y !== 0) {
+    homestead.building = false;
+    homestead.feet = 0;
+    world.player.position.y = 0;
+    renderBuildBar();
+  }
   if (player.buffs.regen > 0 && player.hp > 0) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.025 * dt);
   UI.updateHotbar(combat.hotbar());
   minimap.update(dt, questTargetPos());
@@ -850,7 +924,15 @@ window.addEventListener('keydown', (e) => {
   if (act === 'mute') return toggleMute();
   if (world.mode !== 'explore' || UI.isDialogOpen()) return;
   if (e.key === '?') { e.preventDefault(); UI.openHelp(); return; }
+  if (homestead.building && /^slot\d$/.test(act || '') || homestead.building && e.code === 'Digit0') {
+    const n = e.code === 'Digit0' ? 0 : +act.slice(4);
+    if (n === 0) homestead.removeMode = !homestead.removeMode;
+    else { const id = paletteIds()[n - 1]; if (id) { homestead.selected = id; homestead.removeMode = false; } }
+    renderBuildBar();
+    return;
+  }
   switch (act) {
+    case 'build': toggleBuild(); break;
     case 'spellbook': UI.openSpellbook(player, onChange); break;
     case 'character': UI.openCharacter(player, onChange); break;
     case 'potion': drinkPotion(); break;
@@ -919,7 +1001,7 @@ setInterval(() => {
 
 // Handy for testing from the browser console.
 window.darquest = {
-  world, combat, UI, rift,
+  world, combat, UI, rift, homestead,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

@@ -407,6 +407,15 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 .t-rank { grid-area: r; font-weight: 800; color: var(--gold); font-size: 13px; }
 .t-desc { grid-area: d; font-size: 11.5px; color: var(--muted); }
 
+/* ---------------------------------------------------------------- homestead building */
+#build-bar { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); background: var(--panel); border: 2px solid rgba(127,255,176,.6); border-radius: 16px; padding: 8px 10px; max-width: calc(100vw - 140px); }
+.bb-title { font-size: 12px; font-weight: 700; color: #c8ffd8; text-align: center; margin-bottom: 6px; }
+.bb-blocks { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.bb-block { position: relative; background: rgba(0,0,0,.3); border: 2px solid rgba(255,255,255,.15); border-radius: 10px; padding: 4px; cursor: pointer; font-size: 20px; min-width: 42px; min-height: 42px; color: #fff; }
+.bb-block.on { border-color: #7affb0; box-shadow: 0 0 12px rgba(127,255,176,.6); }
+.bb-block.none { opacity: .4; }
+.bb-block > span { position: absolute; top: -6px; left: -4px; font-size: 10px; font-weight: 800; background: #1a1240; border-radius: 6px; padding: 0 4px; color: #ffe9a6; }
+
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {
   .hud-player { width: 200px; left: 10px; top: 10px; padding: 8px 10px; }

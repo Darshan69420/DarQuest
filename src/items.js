@@ -92,6 +92,22 @@ export const ITEMS = {
   herb_shears:    { name: 'Herb Shears',     type: 'tool', value: 60,  tool: { skill: 'foraging', power: 2 },    ...chip('✂️', '#8f98a8') },
   silver_sickle:  { name: 'Silver Sickle',   type: 'tool', value: 200, tool: { skill: 'foraging', power: 3 },    ...chip('🌙', '#dfe6f0') },
 
+  // ---------- building blocks (place them at your Homestead with G) ----------
+  block_wood:     { name: 'Wood Block',      type: 'block', value: 2,  ...chip('🟫', '#b8864a') },
+  block_log:      { name: 'Log Block',       type: 'block', value: 2,  ...chip('🪵', '#7a5230') },
+  block_leaves:   { name: 'Leaf Block',      type: 'block', value: 2,  ...chip('🍃', '#4f9a4a') },
+  block_stone:    { name: 'Stone Brick',     type: 'block', value: 2,  ...chip('🧱', '#8a8494') },
+  block_brick:    { name: 'Red Brick',       type: 'block', value: 3,  ...chip('🧱', '#a04a3a') },
+  block_glass:    { name: 'Glass Block',     type: 'block', value: 4,  ...chip('🪟', '#bfe8ff') },
+  block_door:     { name: 'Door Block',      type: 'block', value: 4,  ...chip('🚪', '#6a4a2a') },
+  block_lantern:  { name: 'Lantern Block',   type: 'block', value: 8,  ...chip('🏮', '#ffd27a') },
+  block_moon:     { name: 'Moonwood Block',  type: 'block', value: 6,  ...chip('🌸', '#d36fae') },
+  block_ember:    { name: 'Emberwood Block', type: 'block', value: 8,  ...chip('🔥', '#ff6a2b') },
+  block_gold:     { name: 'Gold Block',      type: 'block', value: 30, ...chip('🟨', '#f2c14e') },
+  block_crystal:  { name: 'Crystal Block',   type: 'block', value: 15, ...chip('💠', '#6fb8ff') },
+  block_ice:      { name: 'Ice Block',       type: 'block', value: 8,  ...chip('🧊', '#dff6ff') },
+  block_dragon:   { name: 'Dragonscale Block', type: 'block', value: 30, ...chip('🐉', '#a0202a') },
+
   // ---------- trophies & misc ----------
   dragon_scale:   { name: 'Dragon Scale',    type: 'misc', value: 60,  ...chip('🛡️', '#c0392b') },
   dragon_bone:    { name: 'Dragon Bone',     type: 'misc', value: 45,  ...chip('🦴', '#f0e6d0') },

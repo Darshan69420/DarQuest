@@ -58,6 +58,7 @@ function upgrade(p) {
   p.inventory = p.inventory.map(normalize).filter(Boolean);
   for (const [slot, e] of Object.entries(p.equipped)) { const inst = normalize(e); if (inst) p.equipped[slot] = inst; else delete p.equipped[slot]; }
   p.talents ??= {};
+  p.home ??= { blocks: [], init: false };
   return p;
 }
 

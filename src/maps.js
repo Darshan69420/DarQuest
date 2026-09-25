@@ -8,6 +8,7 @@ import {
   makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire,
 } from './models.js';
 import { EMBER_X as X, DRAGON_X as D, NPCS } from './data.js';
+import { HOME_X as HX, BS } from './homestead.js';
 
 // Word Walls: each teaches the first word of a dragon shout.
 export const WORD_WALLS = [
@@ -233,6 +234,67 @@ export function buildDragonspire(world) {
     world.motes.push(m);
   }
   return { spring };
+}
+
+// ------------------------------------------------------------ Your Homestead (a floating island)
+
+export function buildHomestead(world) {
+  const scene = world.scene;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(31, 24, 4, 40), new THREE.MeshStandardMaterial({ color: 0x7a5a3a, roughness: 1 }));
+  top.position.set(HX, -2, 0);
+  scene.add(top);
+  const under = new THREE.Mesh(new THREE.ConeGeometry(24, 34, 12), new THREE.MeshStandardMaterial({ color: 0x5a5060, roughness: 1, flatShading: true }));
+  under.rotation.x = Math.PI;
+  under.position.set(HX, -21, 0);
+  scene.add(under);
+  flatPlane(scene, new THREE.CircleGeometry(31, 48), 0x5fa84a, HX, 0, 0.005);
+  const grid = new THREE.GridHelper(26 * BS, 26, 0x3a6a2a, 0x4a8a3a);
+  grid.position.set(HX, 0.03, 0);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.35;
+  scene.add(grid);
+  flatPlane(scene, new THREE.PlaneGeometry(4, 12), 0x9a8060, HX, 22, 0.02);
+
+  // crafting ring, a spring, and a little garden to gather from
+  world.addStation('workbench', HX - 22, -12, Math.PI / 2 - 0.5);
+  world.addStation('furnace', HX - 25, 2, Math.PI / 2);
+  world.addStation('anvil', HX - 22, 12, Math.PI / 2 + 0.5);
+  world.addStation('range', HX + 22, 13, 0);
+  world.addStation('alchemy', HX + 25, 2, -Math.PI / 2);
+  const spring = makeFountain();
+  spring.scale.setScalar(0.7);
+  world.add(spring, HX + 21, -13, 0, 2.5);
+  world.addNode('tree', HX + 12, -25);
+  world.addNode('oak', HX - 12, -25);
+  world.addNode('stone_rock', HX - 26, -8);
+  world.addNode('copper_rock', HX + 26, -6);
+  world.addNode('herb_moonleaf', HX + 16, 22);
+  world.addNode('herb_moonleaf', HX - 16, 22);
+  world.addNode('berry_bush', HX + 19, 19);
+  world.add(makeSignpost(), HX - 4, 24, 0.2, 0.3);
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2;
+    if (Math.abs(a - Math.PI / 2) < 0.2) continue;  // gap for the path to the portal
+    const x = HX + Math.cos(a) * 29.8, z = Math.sin(a) * 29.8;
+    const f = makeFence(5.2);
+    f.position.set(x, 0, z);
+    f.rotation.y = -a - Math.PI / 2;
+    scene.add(f);
+  }
+  for (const [dx, dz, s] of [[-45, -30, 1.3], [48, -20, 1.1], [40, 35, 1.5], [-42, 30, 1.2], [0, -55, 1.6]]) world.add(makeFloatingRock(s), HX + dx, dz, Math.random() * 6);
+  // clouds drifting below the island
+  for (let i = 0; i < 18; i++) {
+    const c = new THREE.Group();
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
+      m.scale.set(4 + Math.random() * 4, 2 + Math.random() * 1.5, 3 + Math.random() * 3);
+      m.position.set(k * 4 - 6, Math.random(), Math.random() * 3);
+      c.add(m);
+    }
+    const a = Math.random() * Math.PI * 2, r = 40 + Math.random() * 60;
+    c.position.set(HX + Math.cos(a) * r, -8 - Math.random() * 20, Math.sin(a) * r);
+    scene.add(c);
+  }
 }
 
 // ------------------------------------------------------------ Emberfall Wilds

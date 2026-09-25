@@ -18,7 +18,7 @@ export function openJournal(p, { onTitle, onClaim }, tab = 'quests') {
       const avail = SIDE_QUESTS.filter(q => isAvailable(p, q));
       const done = SIDE_QUESTS.filter(q => isDone(p, q.id));
       const givers = [...new Set(avail.map(q => q.giver))];
-      const chapter = p.quest.index < 7 ? 1 : p.quest.index < 14 ? 2 : p.quest.index < 23 ? 3 : p.quest.index < 30 ? 4 : 5;
+      const chapter = p.quest.index < 7 ? 1 : p.quest.index < 14 ? 2 : p.quest.index < 23 ? 3 : p.quest.index < 30 ? 4 : p.quest.index < 37 ? 5 : 6;
       const ng = p.ngplus ? ` · New Game+ ${p.ngplus}` : '';
       inner = `<h3 class="sub-h">⭐ Main story</h3>
         <div class="journal-q main"><b>${esc(t.title)}</b><br><span>${esc(t.goal)}</span>${main ? `<br><small>Chapter ${chapter} · quest ${p.quest.index + 1} of ${QUESTS.length}${ng}</small>` : ''}</div>

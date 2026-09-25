@@ -55,6 +55,16 @@ const GROUPS = {
       { id: 'isle', name: 'Sky island', build: () => { const i = M.makeSkyIsland(3); i.position.y = 2; return i; } },
     ],
   },
+  thorn: {
+    title: 'Thornwood',
+    items: [
+      ...[['briar_stalker', 'Briar Stalker'], ['pixie', 'Pixie'], ['spore_shambler', 'Spore Shambler'], ['treant', 'Treant'], ['blight_horror', 'Blight Horror'], ['thornmother', 'Thornmother'], ['blight_pod', 'Blight Pod']]
+        .map(([id, name]) => ({ id, name, build: () => M.makeEnemy(id) })),
+      { id: 'roothouse', name: 'Root house', build: () => { const h = M.makeRootHouse(); h.scale.setScalar(0.5); return h; } },
+      { id: 'thornbush', name: 'Thorn bush', build: () => M.makeThornBush(1) },
+      { id: 'gianttree', name: 'Giant tree', build: () => M.makeGiantTree(0.12) },
+    ],
+  },
   skilling: {
     title: 'Skilling & Rift',
     items: [

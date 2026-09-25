@@ -1191,6 +1191,13 @@ export function makeEnemy(kind) {
     case 'tempest_golem': { const gm = golem({ scale: 1.2 }); const body = gm.children[0]; for (const [x, y, z, r] of [[0.7, 2.6, -0.2, 0.4], [-0.7, 2.6, -0.2, -0.4], [0, 2.9, -0.4, 0], [0.4, 2.2, -0.6, 0.6]]) add(body, new THREE.OctahedronGeometry(0.28), glowMat(0xb46bff, 2.6), x, y, z, { s: [0.7, 1.8, 0.7], rz: r }); return gm; }
     case 'thunder_roc': return thunderbird({ size: 0.85 });
     case 'voltaris': return thunderbird({ size: 1.6, boss: true });
+    case 'briar_stalker': { const c = quadruped({ ears: 'cat', color: 0x4a6a3a, dark: 0x2a3a22, mane: 0x6a3a8a, tail: 'bushy', legLen: 0.85, neck: 0.5, glow: 0x9fff7a, saddle: false }); const body = c.children[0]; for (let k = 0; k < 6; k++) add(body, new THREE.ConeGeometry(0.06, 0.4, 4), mat(0x2a1a2a), 0, 1.75, -0.6 + k * 0.25, { rx: -0.4 }); c.scale.setScalar(1.1); return c; }
+    case 'treant': return treant({ size: 1.1 });
+    case 'spore_shambler': return shroom();
+    case 'pixie': return pixie();
+    case 'blight_horror': return blightHorror();
+    case 'thornmother': return treant({ size: 2.3, blight: true });
+    case 'blight_pod': { const pod = new THREE.Group(); add(pod, sph(0.7, 14, 10), mat(0x6a3a8a, { emissive: 0xd06aff, emissiveIntensity: 0.5 }), 0, 0.8, 0, { s: [1, 1.3, 1] }); for (let k = 0; k < 5; k++) add(pod, new THREE.ConeGeometry(0.08, 0.5, 4), mat(0x2a1a2a), Math.cos(k * 1.26) * 0.6, 0.4, Math.sin(k * 1.26) * 0.6, { rz: -Math.cos(k * 1.26) * 0.8, rx: Math.sin(k * 1.26) * 0.8 }); pod.userData.anim = (t) => { pod.scale.setScalar(1 + Math.sin(t * 4) * 0.06); }; return finish(pod, 0.03, 0.08); }
     case 'shade': return shade();
     case 'meadow_wisp': { const w = shade(0x3a7a6a, 0xb0ffd0); w.scale.setScalar(0.75); return w; }
   }
@@ -3199,4 +3206,196 @@ export function makeStormCloud(scale = 1) {
     glow.material.opacity = f;
   };
   return finish(g, 0.06, 0.5);
+}
+
+// ------------------------------------------------------------ Thornwood (Chapter 6)
+
+// A treant: a walking tree with a bark face, branch arms and root feet.
+// blight: the Magister's purple corruption (the Thornmother is a huge blighted treant).
+function treant({ size = 1, blight = false } = {}) {
+  const g = new THREE.Group();
+  const body = group(g);
+  const bark = mat(blight ? 0x4a3a44 : 0x6b4a2b), bark2 = mat(blight ? 0x3a2a38 : 0x5a3d24);
+  const leaf = mat(blight ? 0x6a3a8a : 0x3f8a4a), leaf2 = mat(blight ? 0x8a4aaa : 0x5aa050);
+  const glowC = blight ? 0xd06aff : 0x9fff7a;
+  const trunk = group(body, 0, 0, 0);
+  add(trunk, new THREE.CylinderGeometry(0.62, 0.8, 2.6, 10), bark, 0, 1.9, 0);
+  add(trunk, new THREE.CylinderGeometry(0.5, 0.62, 0.8, 10), bark2, 0, 3.5, 0);
+  for (let k = 0; k < 5; k++) add(trunk, new THREE.BoxGeometry(0.08, 1.6, 0.06), bark2, Math.sin(k * 1.3) * 0.6, 1.9, Math.cos(k * 1.3) * 0.6, { ry: k * 1.3, noOutline: true });
+  // face in the bark
+  for (const s of [-1, 1]) {
+    add(trunk, sph(0.16, 10, 8), basic(0x1a1008), s * 0.24, 2.9, 0.55, { s: [1, 0.7, 0.5], shadow: false });
+    add(trunk, sph(0.07, 8, 6), basic(glowC), s * 0.24, 2.9, 0.62, { shadow: false });
+  }
+  add(trunk, new THREE.BoxGeometry(0.45, 0.1, 0.1), basic(0x1a1008), 0, 2.45, 0.66, { shadow: false });
+  // crown of leaves
+  for (const [x, y, z, r, m] of [[0, 4.4, 0, 1.2, leaf], [0.8, 4, 0.2, 0.8, leaf2], [-0.8, 4.1, -0.1, 0.85, leaf], [0.1, 4.1, -0.8, 0.8, leaf2], [0, 3.9, 0.7, 0.7, leaf]]) add(trunk, new THREE.IcosahedronGeometry(r, 1), m, x, y, z);
+  if (blight) for (let k = 0; k < 6; k++) add(trunk, new THREE.OctahedronGeometry(0.2), glowMat(0xd06aff, 2.2), Math.sin(k) * 0.9, 1.4 + k * 0.45, Math.cos(k) * 0.7, { s: [0.6, 1.8, 0.6] });
+  // arms
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const arm = group(trunk, s * 0.65, 3, 0);
+    limb(arm, V3(0, 0, 0), V3(s * 0.8, -0.9, 0.2), 0.2, 0.14, bark, 8);
+    limb(arm, V3(s * 0.8, -0.9, 0.2), V3(s * 0.9, -1.9, 0.35), 0.14, 0.08, bark, 8);
+    for (const a of [-0.4, 0, 0.4]) limb(arm, V3(s * 0.9, -1.9, 0.35), V3(s * (0.9 + a * 0.3), -2.3, 0.35 + Math.abs(a) * 0.2), 0.06, 0.02, bark2, 5);
+    add(arm, new THREE.IcosahedronGeometry(0.3, 0), leaf2, s * 0.5, -0.4, 0.1);
+    arms.push(arm);
+  }
+  // root legs
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const leg = group(body, s * 0.4, 0.8, 0);
+    limb(leg, V3(0, 0, 0), V3(s * 0.15, -0.75, 0.1), 0.26, 0.2, bark2, 8);
+    for (const a of [-0.6, 0, 0.6]) limb(leg, V3(s * 0.15, -0.7, 0.1), V3(s * 0.15 + Math.sin(a) * 0.5, -0.8, 0.1 + Math.cos(a) * 0.4), 0.1, 0.04, bark2, 5);
+    legs.push(leg);
+  }
+  g.scale.setScalar(size);
+  g.userData.anim = (t, moving) => {
+    const k = moving ? t * 4 : 0;
+    legs.forEach((l, i) => { l.rotation.x = Math.sin(k + i * Math.PI) * 0.35; });
+    arms.forEach((a, i) => { a.rotation.x = moving ? Math.sin(k + i * Math.PI) * 0.3 : Math.sin(t * 1.2 + i) * 0.08; });
+    trunk.rotation.z = Math.sin(t * 0.8) * 0.03;
+    body.position.y = moving ? Math.abs(Math.sin(k)) * 0.08 : 0;
+  };
+  return finish(g, 0.04, 0.1);
+}
+
+// A spore shambler: a mushroom that got up and walked away.
+function shroom() {
+  const g = new THREE.Group();
+  const body = group(g);
+  const stem = mat(0xf0e6d0), cap = mat(0xd06aff, { emissive: 0x8a2aff, emissiveIntensity: 0.4 });
+  add(body, new THREE.CylinderGeometry(0.5, 0.65, 1.6, 12), stem, 0, 1, 0);
+  add(body, new THREE.SphereGeometry(1.25, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), cap, 0, 1.75, 0, { s: [1, 0.8, 1] });
+  add(body, new THREE.CylinderGeometry(1.2, 1.2, 0.12, 18), mat(0xe8d0f0), 0, 1.75, 0);
+  for (let k = 0; k < 8; k++) { const a = k * 0.8; add(body, sph(0.13, 8, 6), basic(0xfff0ff), Math.cos(a) * 0.8, 2.45 - Math.abs(Math.sin(a)) * 0.2, Math.sin(a) * 0.8, { shadow: false }); }
+  const face = makeFace(0.55, { eyeR: 0.12, gap: 0.2, eyeY: 0.05, iris: 0x6a2aaa, brows: 'angry', browColor: 0x3a1a4a, mouth: 'o', mouthY: -0.16, mouthW: 0.1 });
+  face.position.set(0, 1.2, 0.08);
+  body.add(face);
+  const legs = [];
+  for (const s of [-1, 1]) legs.push(add(body, new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8), stem, s * 0.3, 0.25, 0));
+  const spores = [];
+  for (let k = 0; k < 6; k++) spores.push(dyn(add(g, sph(0.06, 6, 4), basic(0xd8a0ff), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t, moving) => {
+    body.position.y = moving ? Math.abs(Math.sin(t * 6)) * 0.15 : Math.sin(t * 1.5) * 0.03;
+    body.rotation.z = moving ? Math.sin(t * 6) * 0.08 : 0;
+    spores.forEach((s, k) => { const f = (t * 0.3 + k / 6) % 1; s.position.set(Math.sin(k * 2 + t) * 0.8, 2.3 + f * 2, Math.cos(k * 2 + t) * 0.8); s.scale.setScalar(1 - f); });
+  };
+  return finish(g, 0.035, 0.08);
+}
+
+// A pixie trickster: a tiny fae with shimmering butterfly wings.
+function pixie() {
+  const g = new THREE.Group();
+  const body = group(g, 0, 1.6, 0);
+  const skin = mat(0xb8f0c0), dress = mat(0x5fdc6a);
+  add(body, new THREE.ConeGeometry(0.28, 0.6, 10), dress, 0, -0.2, 0);
+  const head = group(body, 0, 0.3, 0);
+  add(head, sph(0.26, 14, 10), skin);
+  add(head, sph(0.27, 14, 10), mat(0xff8ad0), 0, 0.06, -0.04, { s: [1.05, 0.9, 1] });
+  const face = makeFace(0.26, { eyeR: 0.07, gap: 0.1, eyeY: 0, iris: 0x2e7d3b, brows: 'happy', mouth: 'grin', mouthY: -0.1, mouthW: 0.06 });
+  head.add(face);
+  for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.04, 0.2, 5), skin, s * 0.24, 0.1, 0, { rz: -s * 1.2 });
+  const wingM = mat(0xc8ffe0, { transparent: true, opacity: 0.7, side: THREE.DoubleSide, emissive: 0x5fdc6a, emissiveIntensity: 0.4 });
+  const wings = [];
+  for (const s of [-1, 1]) {
+    const w = dyn(group(body, s * 0.05, 0.05, -0.12));
+    add(w, new THREE.CircleGeometry(0.4, 12), wingM, s * 0.35, 0.15, 0, { ry: s * 0.3, s: [1, 1.3, 1], noOutline: true });
+    add(w, new THREE.CircleGeometry(0.25, 10), wingM, s * 0.25, -0.25, 0, { ry: s * 0.3, noOutline: true });
+    wings.push({ w, s });
+  }
+  const dust = [];
+  for (let k = 0; k < 5; k++) dust.push(dyn(add(g, sph(0.04, 6, 4), basic(0xffff9a), 0, 0, 0, { shadow: false })));
+  g.userData.anim = (t) => {
+    body.position.y = 1.6 + Math.sin(t * 3) * 0.2;
+    for (const { w, s } of wings) w.rotation.y = s * Math.sin(t * 22) * 0.7;
+    dust.forEach((d, k) => { const f = (t * 0.6 + k / 5) % 1; d.position.set(Math.sin(k * 3) * 0.3, body.position.y - f * 1.2, Math.cos(k * 3) * 0.3); d.scale.setScalar(1 - f); });
+  };
+  return finish(g, 0.025, 0.05);
+}
+
+// A blight horror: a knot of purple thorns around one staring eye.
+function blightHorror() {
+  const g = new THREE.Group();
+  const body = group(g, 0, 1.4, 0);
+  const flesh = mat(0x4a2a5a), thorn = mat(0x2a1a2a);
+  add(body, new THREE.DodecahedronGeometry(1, 1), flesh, 0, 0, 0, { s: [1, 0.9, 1] });
+  for (let k = 0; k < 18; k++) {
+    const a = k * 2.39, y = Math.cos(k * 0.7) * 0.8, r = Math.sqrt(1 - (y / 1.1) ** 2);
+    add(body, new THREE.ConeGeometry(0.1, 0.8, 5), thorn, Math.cos(a) * r * 0.95, y, Math.sin(a) * r * 0.95, { rz: -Math.cos(a) * 1.2, rx: Math.sin(a) * 1.2 });
+  }
+  const eye = makeEye(0.34, { glow: 0xd06aff });
+  eye.position.set(0, 0.1, 0.9);
+  body.add(eye);
+  for (let k = 0; k < 4; k++) add(body, new THREE.OctahedronGeometry(0.18), glowMat(0xd06aff, 2.2), Math.cos(k * 1.6) * 0.7, 0.8, Math.sin(k * 1.6) * 0.7, { s: [0.6, 1.8, 0.6] });
+  const legs = [];
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + 0.78;
+    const l = group(body, Math.cos(a) * 0.6, -0.6, Math.sin(a) * 0.6);
+    limb(l, V3(0, 0, 0), V3(Math.cos(a) * 0.5, -0.8, Math.sin(a) * 0.5), 0.12, 0.05, thorn, 6);
+    legs.push(l);
+  }
+  g.userData.anim = (t, moving) => {
+    body.rotation.y = Math.sin(t * 0.7) * 0.3;
+    body.position.y = 1.4 + (moving ? Math.abs(Math.sin(t * 7)) * 0.12 : Math.sin(t * 2) * 0.05);
+    legs.forEach((l, k) => { l.rotation.z = moving ? Math.sin(t * 8 + k * 1.6) * 0.3 : 0; });
+  };
+  return finish(g, 0.035, 0.08);
+}
+
+// A colossal forest tree: flared roots, a trunk you could build a house in, a canopy like a cloud.
+export function makeGiantTree(scale = 1, { leaf = 0x3f7a3a, blight = false } = {}) {
+  const g = new THREE.Group();
+  const bark = mat(blight ? 0x4a3a44 : 0x5a3d24), bark2 = mat(blight ? 0x3a2a38 : 0x4a3020);
+  add(g, new THREE.CylinderGeometry(3, 4.2, 30, 12), bark, 0, 15, 0);
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 7) * Math.PI * 2 + 0.3;
+    limb(g, V3(Math.cos(a) * 2.6, 5, Math.sin(a) * 2.6), V3(Math.cos(a) * 6.5, 0, Math.sin(a) * 6.5), 1.3, 0.6, bark2, 8);
+  }
+  for (let k = 0; k < 5; k++) {
+    const a = k * 1.3, y = 20 + k * 2;
+    limb(g, V3(0, y, 0), V3(Math.cos(a) * 8, y + 4, Math.sin(a) * 8), 0.9, 0.4, bark, 7);
+  }
+  const L = mat(blight ? 0x5a2a6a : leaf), L2 = mat(blight ? 0x7a3a8a : lighter(leaf, 0.1));
+  for (let k = 0; k < 9; k++) {
+    const a = k * 0.7, r = k === 0 ? 0 : 6 + (k % 3) * 2;
+    add(g, new THREE.IcosahedronGeometry(k === 0 ? 9 : 5 + (k % 3), 1), k % 2 ? L : L2, Math.cos(a) * r, 32 + (k % 4) * 2, Math.sin(a) * r, { shadow: k < 3 });
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = k * 1.7 + 0.5;
+    add(g, new THREE.CylinderGeometry(1.2, 1.2, 0.3, 12, 1, false, 0, Math.PI), mat(0xd8b060), Math.cos(a) * 3.1, 6 + k * 3.5, Math.sin(a) * 3.1, { ry: -a + Math.PI / 2 });
+  }
+  if (blight) for (let k = 0; k < 8; k++) add(g, new THREE.OctahedronGeometry(0.5), glowMat(0xd06aff, 2), Math.cos(k * 0.8) * 3.4, 3 + k * 2.5, Math.sin(k * 0.8) * 3.4, { s: [0.6, 1.8, 0.6] });
+  g.scale.setScalar(scale);
+  return finish(g, 0.08, 0.6, true);
+}
+
+// A round house dug into a great stump, with a round door and a mossy roof.
+export function makeRootHouse(door = 0x2e7d3b) {
+  const g = new THREE.Group();
+  const bark = mat(0x6b4a2b), moss = mat(0x4f8a44);
+  add(g, new THREE.CylinderGeometry(3, 3.4, 3.6, 16), bark, 0, 1.8, 0);
+  add(g, new THREE.SphereGeometry(3.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), moss, 0, 3.5, 0, { s: [1, 0.6, 1] });
+  add(g, new THREE.CylinderGeometry(0.9, 0.9, 0.2, 16), mat(door), 0, 1.2, 3.3, { rx: Math.PI / 2 });
+  add(g, new THREE.TorusGeometry(0.95, 0.1, 6, 18), mat(0x4a3020), 0, 1.2, 3.35);
+  add(g, sph(0.1, 8, 6), mat(0xf2c14e), 0.55, 1.2, 3.45);
+  for (const s of [-1, 1]) add(g, new THREE.CylinderGeometry(0.45, 0.45, 0.2, 12), glowMat(0xffd27a, 1.4), s * 1.9, 2.1, 2.62, { rx: Math.PI / 2, ry: s * 0.6 });
+  add(g, new THREE.CylinderGeometry(0.3, 0.35, 1.6, 8), mat(0x7a6a5a), 1.4, 5, -0.6);
+  for (let k = 0; k < 3; k++) add(g, new THREE.IcosahedronGeometry(0.35, 0), mat(0xff8ad0), -1.2 + k * 0.4, 3.9 + (k % 2) * 0.2, 1.6);
+  return finish(g, 0.045, 0.3, true);
+}
+
+// A tangle of blighted thorns.
+export function makeThornBush(scale = 1, color = 0x4a2a5a) {
+  const g = new THREE.Group();
+  const m = mat(color), tip = mat(0x2a1a2a);
+  for (let k = 0; k < 9; k++) {
+    const a = k * 0.7, len = 1.4 + (k % 3) * 0.6;
+    const p0 = V3(Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3), p1 = V3(Math.cos(a) * len * 0.7, len, Math.sin(a) * len * 0.7);
+    limb(g, p0, p1, 0.12, 0.03, m, 6);
+    add(g, new THREE.ConeGeometry(0.05, 0.3, 4), tip, p1.x * 0.6, p1.y * 0.6, p1.z * 0.6, { rz: -Math.cos(a) });
+  }
+  add(g, new THREE.OctahedronGeometry(0.2), glowMat(0xd06aff, 2), 0, 0.5, 0);
+  g.scale.setScalar(scale);
+  return finish(g, 0.03, 0.1, true);
 }

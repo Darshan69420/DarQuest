@@ -12,10 +12,11 @@ const LANDS = {
   dragonspire: { x: 76, y: 20, icon: '🐉', levels: '14–22' },
   glacier:     { x: 46, y: 12, icon: '❄️', levels: '22–30' },
   stormspire:  { x: 90, y: 42, icon: '⚡', levels: '28–36' },
+  thornwood:   { x: 62, y: 86, icon: '🌳', levels: '34–42' },
   homestead:   { x: 16, y: 22, icon: '🏡', levels: 'Your island' },
   rift:        { x: 16, y: 78, icon: '🌀', levels: 'Endless' },
 };
-const LINKS = [['academy', 'emberfall'], ['academy', 'dragonspire'], ['academy', 'homestead'], ['academy', 'rift'], ['academy', 'glacier'], ['academy', 'stormspire']];
+const LINKS = [['academy', 'emberfall'], ['academy', 'dragonspire'], ['academy', 'homestead'], ['academy', 'rift'], ['academy', 'glacier'], ['academy', 'stormspire'], ['academy', 'thornwood']];
 
 export function openAtlas(p, { here, questZone, canTravel, onTravel }) {
   const known = new Set(p.waystones);

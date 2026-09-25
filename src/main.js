@@ -392,6 +392,7 @@ function completeQuest(q) {
   announceLevels(levels);
   player.quest = { index: player.quest.index + 1, state: 'available', progress: 0 };
   if (player.quest.index === 7) setTimeout(() => UI.toast('🌀 The <b>Spiral Door</b> in the courtyard has awakened…', 'good'), 1200);
+  if (player.quest.index === 37) setTimeout(() => UI.toast('🌳 <b>Chapter 6: The Blighted Heart.</b> A vine-wrapped Spiral Door has opened on the east side of the courtyard: Thornwood awaits.', 'good'), 1800);
   if (player.quest.index === 30) setTimeout(() => UI.toast('⚡ <b>Chapter 5: Eye of the Storm.</b> A crackling Spiral Door has opened in the north-west of the courtyard: Stormspire awaits.', 'good'), 1800);
   if (player.quest.index === 23) setTimeout(() => UI.toast('❄️ <b>Chapter 4: The Frozen Crown.</b> A Spiral Door in the courtyard has frozen over: Glacierreach awaits.', 'good'), 1800);
   if (player.quest.index === 14) setTimeout(() => UI.toast('🐉 <b>Chapter 3: Wings of Ruin.</b> A new Spiral Door has opened in the courtyard: the Dragonspire Peaks await.', 'good'), 1800);
@@ -1228,7 +1229,7 @@ async function playerDefeated() {
     return;
   }
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-    <p>You wake up back at ${{ emberfall: 'the Emberfall camp', dragonspire: 'Skyhold Camp', glacier: 'Frostholm', stormspire: 'Skyport' }[zoneAt(world.player.position.x)] || 'Starfall Academy'} with half your health.</p>
+    <p>You wake up back at ${{ emberfall: 'the Emberfall camp', dragonspire: 'Skyhold Camp', glacier: 'Frostholm', stormspire: 'Skyport', thornwood: 'Greenhollow' }[zoneAt(world.player.position.x)] || 'Starfall Academy'} with half your health.</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;

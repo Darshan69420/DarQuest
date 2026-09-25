@@ -161,6 +161,19 @@ export const SPELLS = {
   lightning_strike:{ name: 'Lightning Strike', school: 'tempest', pips: 4, type: 'damage', min: 520, max: 600, target: 'one', enemy: true },
   raider_grog:     { name: 'Raider\'s Grog',   school: 'verdant', pips: 3, type: 'heal', amount: 1400, enemy: true },
 
+  // ---------- Thornwood (Chapter 6) ----------
+  thorn_lash:      { name: 'Thorn Lash',       school: 'verdant', pips: 2, type: 'damage', min: 380, max: 440, target: 'one', enemy: true },
+  pounce:          { name: 'Pounce',           school: 'verdant', pips: 3, type: 'damage', min: 480, max: 560, target: 'one', enemy: true },
+  pixie_bolt:      { name: 'Pixie Bolt',       school: 'verdant', pips: 1, type: 'damage', min: 300, max: 360, target: 'one', enemy: true },
+  glamour:         { name: 'Glamour',          school: 'verdant', pips: 0, type: 'weakness', pct: 0.3, enemy: true },
+  spore_cloud:     { name: 'Spore Cloud',      school: 'verdant', pips: 3, type: 'damage', min: 420, max: 480, target: 'one', dot: { total: 360, rounds: 3 }, enemy: true },
+  treant_slam:     { name: 'Treant Slam',      school: 'verdant', pips: 3, type: 'damage', min: 540, max: 620, target: 'one', enemy: true },
+  root_snare:      { name: 'Root Snare',       school: 'verdant', pips: 4, type: 'damage', min: 580, max: 660, target: 'one', enemy: true },
+  blight_bite:     { name: 'Blight Bite',      school: 'umbral',  pips: 2, type: 'drain', min: 440, max: 500, heal: 0.5, target: 'one', enemy: true },
+  blight_nova:     { name: 'Blight Nova',      school: 'umbral',  pips: 4, type: 'damage', min: 600, max: 680, target: 'one', enemy: true },
+  mother_wrath:    { name: 'Mother\'s Wrath',  school: 'verdant', pips: 5, type: 'damage', min: 720, max: 820, target: 'one', enemy: true },
+  pod_mend:        { name: 'Seed Mend',        school: 'verdant', pips: 2, type: 'heal', amount: 1800, enemy: true },
+
   // ---------- Pet spells (cast for free when a pet "may-casts") ----------
   pet_mend:       { name: 'Pet: Mossy Mend', school: 'verdant', pips: 0, type: 'heal', amount: 140, pet: true },
   pet_flame:      { name: 'Pet: Drake Flame', school: 'blaze',  pips: 0, type: 'damage', min: 100, max: 150, target: 'one', pet: true },
@@ -170,6 +183,7 @@ export const SPELLS = {
   pet_leech:      { name: 'Pet: Bat Leech',  school: 'umbral',  pips: 0, type: 'drain', min: 80, max: 120, heal: 0.6, target: 'one', pet: true },
   pet_void:       { name: 'Pet: Void Gaze',  school: 'umbral',  pips: 0, type: 'damage', min: 150, max: 210, target: 'one', pet: true },
   pet_aurora:     { name: 'Pet: Aurora Mend', school: 'frost',  pips: 0, type: 'heal', amount: 260, pet: true },
+  pet_bloom:      { name: 'Pet: Bloom',      school: 'verdant', pips: 0, type: 'heal', amount: 340, pet: true },
   pet_bolt:       { name: 'Pet: Thunder Peep', school: 'tempest', pips: 0, type: 'damage', min: 240, max: 320, target: 'one', pet: true },
   pet_skyfire:    { name: 'Pet: Skyfire',    school: 'tempest', pips: 0, type: 'damage', min: 200, max: 280, target: 'one', pet: true },
 };
@@ -345,6 +359,54 @@ export const ENEMIES = {
     drops: [],
   },
 
+  // ---------------- Chapter 6: Thornwood ----------------
+  briar_stalker: {
+    name: 'Briar Stalker', school: 'verdant', level: 34, hp: 3800, xp: 1500, gold: [90, 130], model: 'briar_stalker',
+    spells: ['thorn_lash', 'thorn_lash', 'pounce'], resist: { verdant: 0.4 }, boost: { blaze: 0.25 },
+    speed: 4.4, aggro: 9,
+    drops: [{ item: 'rootwalker_boots', chance: 0.05 }, { mat: 'moonleaf', chance: 0.35, n: 2 }],
+  },
+  pixie: {
+    name: 'Pixie Trickster', school: 'verdant', level: 35, hp: 3000, xp: 1550, gold: [95, 140], model: 'pixie',
+    spells: ['pixie_bolt', 'pixie_bolt', 'glamour', 'pixie_bolt'], resist: { verdant: 0.4, arcane: 0.2 }, boost: { blaze: 0.25 },
+    speed: 3.6, aggro: 10, evade: 0.12,
+    drops: [{ item: 'thornweave_hood', chance: 0.05 }, { mat: 'sunpetal', chance: 0.35, n: 2 }],
+  },
+  spore_shambler: {
+    name: 'Spore Shambler', school: 'verdant', level: 36, hp: 4600, xp: 1700, gold: [100, 145], model: 'spore_shambler',
+    spells: ['spore_cloud', 'thorn_lash', 'spore_cloud'], resist: { verdant: 0.4, umbral: 0.2 }, boost: { blaze: 0.3 },
+    speed: 2.2, aggro: 7,
+    drops: [{ item: 'verdant_heart', chance: 0.04 }, { mat: 'glowcap', chance: 0.5, n: 3 }],
+  },
+  treant: {
+    name: 'Blightbark Treant', school: 'verdant', level: 37, hp: 5600, xp: 1850, gold: [110, 160], model: 'treant',
+    spells: ['treant_slam', 'root_snare', 'thorn_lash'], resist: { verdant: 0.5 }, boost: { blaze: 0.35 },
+    speed: 1.9, aggro: 7,
+    drops: [{ item: 'barkskin_robe', chance: 0.05 }, { mat: 'elder_logs', chance: 0.4, n: 2 }],
+  },
+  blight_horror: {
+    name: 'Blight Horror', school: 'umbral', level: 38, hp: 5200, xp: 2000, gold: [120, 170], model: 'blight_horror',
+    spells: ['blight_bite', 'blight_nova', 'blight_bite'], resist: { umbral: 0.4, verdant: 0.3 }, boost: { arcane: 0.25, blaze: 0.2 },
+    speed: 2.6, aggro: 8,
+    drops: [{ item: 'heartwood_staff', chance: 0.05 }, { mat: 'diamond', chance: 0.1 }],
+  },
+  blight_pod: {
+    name: 'Blight Pod', school: 'verdant', level: 38, hp: 1600, xp: 300, gold: [10, 20], model: 'blight_pod',
+    spells: ['pod_mend'], resist: {}, boost: { blaze: 0.5 }, speed: 0, aggro: 40, drops: [],
+  },
+  thornmother: {
+    name: 'The Thornmother', school: 'verdant', level: 40, hp: 28000, xp: 18000, gold: [2400, 3200], model: 'thornmother', boss: true,
+    spells: ['mother_wrath', 'treant_slam', 'root_snare', 'blight_nova', 'thorn_lash'],
+    resist: { verdant: 0.55, umbral: 0.3 }, boost: { blaze: 0.3 }, speed: 1.4, aggro: 18, powerPipChance: 0.6,
+    phases: [
+      { at: 0.75, say: 'Grow, my seedlings! Feed your mother!', summon: ['blight_pod', 'blight_pod', 'blight_pod'] },
+      { at: 0.5, say: 'The Magister\'s blight is my sap now. It will cover the world!', summon: ['treant'], blade: 0.3 },
+      { at: 0.25, say: 'ROOTS! THORNS! DEVOUR THEM!', summon: ['blight_pod', 'blight_pod', 'blight_pod'], blade: 0.45 },
+    ],
+    reactions: [{ school: 'blaze', say: 'FIRE? Not in MY forest!', cast: 'root_snare' }],
+    drops: [{ item: 'thornmother_crown', chance: 1 }, { item: 'blossom_mantle', chance: 0.6 }, { item: 'seed_of_life', chance: 0.5 }, { item: 'briar_band', chance: 0.4 }, { mat: 'diamond', chance: 1, n: 5 }, { pet: 'sproutling', chance: 0.6 }],
+  },
+
   // ---------------- Chapter 5: Stormspire ----------------
   gale_sprite: {
     name: 'Gale Sprite', school: 'tempest', level: 28, hp: 2300, xp: 980, gold: [60, 90], model: 'gale_sprite',
@@ -469,6 +531,16 @@ const AOE = {
   ice_golem:       { glacier_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, ice_lance: { shape: 'line', len: 14, width: 2, dur: 1 } },
   frost_wraith:    { ice_lance: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
   frost_drake:     { frost_breath: { shape: 'cone', r: 12, angle: 0.9, dur: 1.3, breath: true }, glacier_slam: { shape: 'circle', at: 'self', r: 6, dur: 1.2 } },
+  briar_stalker:   { pounce: { shape: 'line', len: 11, width: 2.4, dur: 1, charge: true } },
+  spore_shambler:  { spore_cloud: { shape: 'circle', r: 4, dur: 1.2 } },
+  treant:          { treant_slam: { shape: 'circle', at: 'self', r: 5, dur: 1.2 }, root_snare: { shape: 'circle', r: 3, count: 3, spread: 5, dur: 1.3 } },
+  blight_horror:   { blight_nova: { shape: 'circle', at: 'self', r: 6, dur: 1.3 } },
+  thornmother: {
+    mother_wrath: { shape: 'circle', r: 3.4, count: 7, spread: 11, dur: 1.6 },
+    treant_slam: { shape: 'cone', r: 12, angle: 1.2, dur: 1.2 },
+    root_snare: { shape: 'circle', r: 3.2, count: 4, spread: 7, dur: 1.4 },
+    blight_nova: { shape: 'circle', at: 'self', inner: 6, r: 20, dur: 2 },
+  },
   gale_sprite:     { chain_lightning: { shape: 'line', len: 14, width: 2, dur: 1.1 } },
   stormhorn:       { stag_charge: { shape: 'line', len: 12, width: 2.6, dur: 1.1, charge: true }, thunder_stomp: { shape: 'circle', at: 'self', r: 4.5, dur: 1.1 } },
   tempest_golem:   { conductor_pulse: { shape: 'circle', at: 'self', r: 5.5, dur: 1.3 }, chain_lightning: { shape: 'line', len: 16, width: 2, dur: 1.1 } },
@@ -508,7 +580,7 @@ const AOE = {
 for (const [id, a] of Object.entries(AOE)) ENEMIES[id].aoe = a;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { skyraider: 12, voltaris: 14, thunder_roc: 5, gale_sprite: 10, pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
+const RANGED = { pixie: 12, blight_pod: 30, thornmother: 9, skyraider: 12, voltaris: 14, thunder_roc: 5, gale_sprite: 10, pale_warden: 13, frost_wraith: 12, sylvara: 15, frost_drake: 4.5, frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, dragon_cultist: 12, wyvern: 13, vorathrax: 7.5, drake: 3.6 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
@@ -517,12 +589,15 @@ ENEMIES.magma_guard.speed = 2.2;
 ENEMIES.vorathrax.attackRate = 1.7;
 ENEMIES.sylvara.attackRate = 1.6;
 ENEMIES.voltaris.attackRate = 1.6;
+ENEMIES.thornmother.attackRate = 1.6;
+ENEMIES.blight_pod.attackRate = 4;
 ENEMIES.magma_serpent.speed = 0;
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
 const GX = 2300; // Glacierreach (see GLACIER_X)
 const SX = 3300; // Stormspire (see STORM_X)
+const TX = 4400; // Thornwood (see THORN_X)
 
 export const SPAWNS = [
   { enemy: 'gloomsprig', x: -4, z: 52, r: 4 },
@@ -586,6 +661,14 @@ export const SPAWNS = [
   ...[[-6, 114], [6, 116], [-4, 126], [7, 126], [0, 120]].map(([dx, z]) => ({ enemy: 'skyraider', x: SX + dx, z, r: 3 })),
   ...[[0, 140], [0, 150], [-6, 166]].map(([dx, z]) => ({ enemy: 'thunder_roc', x: SX + dx, z, r: 2 })),
   { enemy: 'voltaris', x: SX, z: 186, r: 0 },
+
+  // Thornwood
+  ...[[-3, 34], [3, 46], [-3, 56], [-8, 72], [9, 82]].map(([dx, z]) => ({ enemy: 'briar_stalker', x: TX + dx, z, r: 4 })),
+  ...[[-6, 70], [6, 76], [0, 86], [-10, 80], [10, 70]].map(([dx, z]) => ({ enemy: 'pixie', x: TX + dx, z, r: 4 })),
+  ...[[-54, 70], [-66, 80], [-60, 88], [-68, 68]].map(([dx, z]) => ({ enemy: 'spore_shambler', x: TX + dx, z, r: 3 })),
+  ...[[-2, 102], [2, 114], [-2, 124], [8, 136]].map(([dx, z]) => ({ enemy: 'treant', x: TX + dx, z, r: 2 })),
+  ...[[-8, 146], [8, 150], [0, 158], [-10, 156]].map(([dx, z]) => ({ enemy: 'blight_horror', x: TX + dx, z, r: 3 })),
+  { enemy: 'thornmother', x: TX, z: 218, r: 0 },
 ];
 
 export const NPCS = {
@@ -660,6 +743,21 @@ export const NPCS = {
     name: 'Quartermaster Hesk', title: 'Dragonforged Gear', x: 1411, z: -7, robe: 0x4a4a5a, hat: 0x2a2a34, trim: 0xff7a1a, service: 'gear', hatStyle: 'helmet', beard: true, hair: 0x5a3a2a, skin: 0xd8a888,
     stock: ['wyrmscale_hood', 'drakehide_robe', 'frostfur_cloak', 'dragonbone_wand', 'dragonheart_amulet'],
     lines: ['Dragon scale turns a blade. Dragon bone holds an enchantment. I buy and sell both kinds of gear.'],
+  },
+  rowan: {
+    name: 'Elder Rowan', title: 'Greenhollow Druid', x: 4400 + 7, z: 6, robe: 0x3a6a3a, hat: 0x6b4a2b, trim: 0xf2c14e, hatStyle: 'hood', beard: true, hair: 0xe8e0d0, skin: 0xc89878, eyeColor: 0x5fdc6a,
+    lines: ['The Elder Mother has sheltered Greenhollow for a thousand years. Now purple rot creeps up her roots.',
+            'The forest remembers every footstep. Walk kindly.'],
+  },
+  wren: {
+    name: 'Wren Thistledown', title: 'Thornwood Ranger', x: 4400 - 8, z: -2, robe: 0x5a7a3a, hat: 0x3a4a2a, trim: 0xc0392b, hatStyle: 'hood', hair: 0xc05a2a, skin: 0xf0c8a8, eyeColor: 0x2e7d3b, backpack: true,
+    lines: ['Fire burns blight away. So does a sharp arrow. I prefer arrows; the trees prefer that too.',
+            'The pixies used to guide travellers home. Now they lead them into the thorns.'],
+  },
+  moss: {
+    name: 'Moss Underbough', title: 'Greenhollow Outfitter', x: 4400 + 12, z: -8, robe: 0x6b4a2b, hat: 0x4f8a44, trim: 0xff8ad0, service: 'gear', hatStyle: 'wizard', beard: true, hair: 0x8a8a6a, skin: 0xd8a888,
+    stock: ['thornweave_hood', 'barkskin_robe', 'rootwalker_boots', 'heartwood_staff', 'verdant_heart'],
+    lines: ['Bark that turns a blade, thorns that turn a curse. Every stitch grown, not sewn.'],
   },
   aeris: {
     name: 'Captain Aeris Windward', title: 'Skyport Harbourmaster', x: 3300 + 7, z: 6, robe: 0x3a5a8a, hat: 0x1a2a4a, trim: 0xf2c14e, goggles: true, hair: 0xe8c070, skin: 0xe8b890, eyeColor: 0x4dc8ff, backpack: true,
@@ -966,6 +1064,56 @@ export const QUESTS = [
     done: 'The storm is over, and Skyport is free... And the Pale Magister has a name at last: Malvoren. He was my student, long ago. The brightest I ever had, and the hungriest. Chapter 5 is complete. I fear the next Door will lead us to him.',
     reward: { xp: 22000, gold: 3500, tp: 3 },
   },
+  // ---------------- Chapter 6: The Blighted Heart ----------------
+  {
+    id: 'q38', name: 'The Green Door', giver: 'orvyn', turnIn: 'rowan',
+    objective: { type: 'talk', npc: 'rowan' },
+    offer: 'A Spiral Door wrapped in vines has opened on the east side of the courtyard. It leads to Thornwood, the oldest forest in the world, and its druids are calling for help. Malvoren\'s blight has reached it. Find Elder Rowan in Greenhollow.',
+    done: 'A wizard of Starfall, at last. Look up: the Elder Mother is wilting. The blight comes from the Heartwood, deep in the forest, and it is spreading.',
+    reward: { xp: 9000, gold: 600 },
+  },
+  {
+    id: 'q39', name: 'Briar Patch', giver: 'rowan', turnIn: 'rowan',
+    objective: { type: 'defeat', enemy: 'briar_stalker', count: 5 },
+    offer: 'Briar Stalkers prowl the path north to the Mossy Glade. They were gentle forest cats once; the blight turned their fur to thorns. Stop 5 of them.',
+    done: 'The path is safe. Wren has been tracking something stranger in the glade.',
+    reward: { xp: 10000, gold: 650, potions: 1 },
+  },
+  {
+    id: 'q40', name: 'Tricksy Lights', giver: 'wren', turnIn: 'wren',
+    objective: { type: 'defeat', enemy: 'pixie', count: 5 },
+    offer: 'The pixies in the Mossy Glade are enchanted: they dodge, weaken you with glamours, and pelt you from afar. Break the spell on 5 of them.',
+    done: 'They flew off giggling, back to their old selves. One left a trail of glowing dust to the west, toward the Glowcap Hollow.',
+    reward: { xp: 10500, gold: 700, tp: 1 },
+  },
+  {
+    id: 'q41', name: 'Mushroom Madness', giver: 'wren', turnIn: 'wren',
+    objective: { type: 'defeat', enemy: 'spore_shambler', count: 4 },
+    offer: 'West of the glade, the Glowcap Hollow is full of Spore Shamblers. Their spore clouds poison you over time, so do not stand in them. Clear 4.',
+    done: 'The Hollow glows blue again instead of purple. That is a good sign.',
+    reward: { xp: 11000, gold: 750 },
+  },
+  {
+    id: 'q42', name: 'Old Bark', giver: 'rowan', turnIn: 'rowan',
+    objective: { type: 'defeat', enemy: 'treant', count: 4 },
+    offer: 'North of the glade, the old treants have woken in a rage. They slam the ground around them and call roots up under your feet. Put 4 of them back to sleep.',
+    done: 'They sleep. When the blight is gone they will wake kind again. I hope.',
+    reward: { xp: 11500, gold: 800, potions: 1 },
+  },
+  {
+    id: 'q43', name: 'Into the Blight', giver: 'rowan', turnIn: 'rowan',
+    objective: { type: 'defeat', enemy: 'blight_horror', count: 4 },
+    offer: 'Beyond the treants lies the Blighted Grove, where the rot is thickest. Blight Horrors guard it. Destroy 4, and the way to the Heartwood will open.',
+    done: 'You have walked through the worst of it. Wren has something to tell you before you face the heart of this.',
+    reward: { xp: 12000, gold: 850, tp: 1 },
+  },
+  {
+    id: 'q44', name: 'The Blighted Heart', giver: 'wren', turnIn: 'orvyn',
+    objective: { type: 'defeat', enemy: 'thornmother', count: 1 },
+    offer: 'The Thornmother guards the Heartwood. She was the forest\'s protector until Malvoren poisoned her. She grows Blight Pods that heal her, so cut them down fast. Watch for her Blight Nova: get close to her when the ring appears. End it, then tell Orvyn.',
+    done: 'The Heartwood is clean, and the Elder Mother blooms again... And in the Thornmother\'s roots, a path of black stone goes down, and down. Into the Hollow Deep, where Malvoren waits. Chapter 6 is complete. When you are ready, archmage, the last Door will open.',
+    reward: { xp: 30000, gold: 4500, tp: 3 },
+  },
 ];
 
 export const SHOP = {
@@ -1044,6 +1192,17 @@ export const GEAR = {
   crown_of_the_sky:  { name: 'Crown of the Sky Tyrant', slot: 'hat', level: 22, stats: { hp: 320, dmg: 13, pip: 8, acc: 4 }, color: 0x8a1a1a },
   tyrant_robe:       { name: 'Robe of the Tyrant',  slot: 'robe',   level: 22, stats: { hp: 520, resist: 16, dmg: 8 }, color: 0x5a0a14 },
   fang_of_vorathrax: { name: 'Fang of Vorathrax',   slot: 'wand',   level: 22, stats: { dmg: 21, pip: 8, acc: 5 } },
+
+  // ---------- Thornwood (Chapter 6) ----------
+  thornweave_hood:   { name: 'Thornweave Hood',     slot: 'hat',     level: 36, stats: { hp: 460, dmg: 16, resist: 8 }, color: 0x3a6a3a, price: 6400 },
+  barkskin_robe:     { name: 'Barkskin Robe',       slot: 'robe',    level: 37, stats: { hp: 820, resist: 20, heal: 8 }, color: 0x6b4a2b, price: 7200 },
+  rootwalker_boots:  { name: 'Rootwalker Boots',    slot: 'boots',   level: 36, stats: { hp: 340, acc: 10, pip: 6 }, price: 5800 },
+  heartwood_staff:   { name: 'Heartwood Staff',     slot: 'wand',    level: 38, stats: { dmg: 31, pip: 10, acc: 7 }, price: 8400 },
+  verdant_heart:     { name: 'Verdant Heart',       slot: 'amulet',  level: 38, stats: { hp: 560, dmg: 16, heal: 10 }, price: 7600 },
+  thornmother_crown: { name: 'Thornmother\'s Crown', slot: 'hat',    level: 40, stats: { hp: 620, dmg: 22, pip: 11, acc: 8 }, color: 0x6a3a8a },
+  blossom_mantle:    { name: 'Blossom Mantle',      slot: 'cloak',   level: 40, stats: { hp: 560, dmg: 14, heal: 12 }, color: 0xff8ad0 },
+  seed_of_life:      { name: 'Seed of Life',        slot: 'offhand', level: 40, stats: { dmg: 24, acc: 9, heal: 10 }, color: 0x9fff7a },
+  briar_band:        { name: 'Briar Band',          slot: 'ring',    level: 39, stats: { dmg: 15, acc: 9, hp: 220 } },
 
   // ---------- Stormspire (Chapter 5) ----------
   stormcaller_hood:  { name: 'Stormcaller Hood',    slot: 'hat',     level: 29, stats: { hp: 380, dmg: 14, resist: 7 }, color: 0x3a3a7a, price: 4200 },
@@ -1138,6 +1297,7 @@ export const PETS = {
   frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
   bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
   storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+  sproutling:   { name: 'Sproutling',   school: 'verdant', kind: 'sprite', color: 0x9fff7a, spell: 'pet_bloom', chance: 0.25, stats: { heal: 12, hp: 60 } },
   thunderchick: { name: 'Thunderchick', school: 'tempest', kind: 'owl', color: 0x9ff0ff, spell: 'pet_bolt', chance: 0.25, stats: { dmg: 6, acc: 4 } },
   aurora_wisp:  { name: 'Aurora Wisp',  school: 'frost',   kind: 'sprite', color: 0x7affd0, spell: 'pet_aurora', chance: 0.25, stats: { heal: 10, resist: 4 } },
   stormwing:    { name: 'Stormwing Wyrmling', school: 'tempest', kind: 'drake', color: 0x4dc8ff, spell: 'pet_skyfire', chance: 0.25, stats: { dmg: 5, acc: 3 } },
@@ -1232,6 +1392,23 @@ export const ZONES = {
     atmosphere: { fog: 0x8ab0d8, top: 0x0a1a40, mid: 0x4a7ab8, bottom: 0xc8e8ff, hemi: 0xe0f0ff, fogNear: 40, fogFar: 190 },
     music: 'frost',
   },
+  thornwood: {
+    name: 'Thornwood',
+    regions: [
+      { type: 'circle', x: 4400, z: 0, r: 24 },
+      { type: 'rect', x0: 4400 - 6, x1: 4400 + 6, z0: 20, z1: 62 },
+      { type: 'circle', x: 4400, z: 76, r: 18 },
+      { type: 'rect', x0: 4400 - 46, x1: 4400 - 14, z0: 70, z1: 82 },
+      { type: 'circle', x: 4400 - 60, z: 76, r: 18 },
+      { type: 'rect', x0: 4400 - 6, x1: 4400 + 6, z0: 90, z1: 130 },
+      { type: 'circle', x: 4400, z: 146, r: 20 },
+      { type: 'rect', x0: 4400 - 6, x1: 4400 + 6, z0: 162, z1: 190 },
+      { type: 'circle', x: 4400, z: 210, r: 24 },
+    ],
+    spawn: { x: 4400, z: -10, heading: 0 },
+    atmosphere: { fog: 0x5a7a5a, top: 0x1a3a2a, mid: 0x4a8a5a, bottom: 0xc8e0a8, hemi: 0xd8ffd0, fogNear: 30, fogFar: 160 },
+    music: 'forest',
+  },
   stormspire: {
     name: 'Stormspire',
     regions: [
@@ -1275,7 +1452,8 @@ export const ZONES = {
 export const DRAGON_X = 1400;
 export const GLACIER_X = 2300;
 export const STORM_X = 3300;
-export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 2850 ? 'stormspire' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
+export const THORN_X = 4400;
+export function zoneAt(x) { return x < -5000 ? 'undercroft' : x < -3500 ? 'arena' : x < -2100 ? 'homestead' : x < -1000 ? 'rift' : x > 3850 ? 'thornwood' : x > 2850 ? 'stormspire' : x > 1950 ? 'glacier' : x > 1050 ? 'dragonspire' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [
@@ -1284,6 +1462,11 @@ export const AREAS = [
   { id: 'bonefield', name: 'The Bone Field', x0: 1370, x1: 1430, z0: 84, z1: 130, music: 'dragon' },
   { id: 'cliffs', name: 'Wyvern Cliffs', x0: 1462, x1: 1506, z0: 84, z1: 125, music: 'dragon' },
   { id: 'roost', name: "The Dragon's Roost", x0: 1455, x1: 1515, z0: 165, z1: 225, music: 'dragon' },
+  { id: 'greenhollow', name: 'Greenhollow', x0: 4400 - 26, x1: 4400 + 26, z0: -26, z1: 20, music: 'forest' },
+  { id: 'mossyglade', name: 'The Mossy Glade', x0: 4400 - 18, x1: 4400 + 18, z0: 58, z1: 94, music: 'forest' },
+  { id: 'glowcap', name: 'The Glowcap Hollow', x0: 4400 - 78, x1: 4400 - 42, z0: 58, z1: 94, music: 'forest' },
+  { id: 'blightgrove', name: 'The Blighted Grove', x0: 4400 - 20, x1: 4400 + 20, z0: 126, z1: 166, music: 'crypt' },
+  { id: 'heartwood', name: 'The Heartwood', x0: 4400 - 24, x1: 4400 + 24, z0: 186, z1: 234, music: 'boss' },
   { id: 'skyport', name: 'Skyport', x0: 3300 - 24, x1: 3300 + 24, z0: -24, z1: 20, music: 'storm' },
   { id: 'windisle', name: 'The Isle of Winds', x0: 3300 - 18, x1: 3300 + 18, z0: 46, z1: 80, music: 'storm' },
   { id: 'thunderisle', name: 'Thunder Isle', x0: 3300 + 42, x1: 3300 + 78, z0: 44, z1: 80, music: 'storm' },
@@ -1308,6 +1491,8 @@ export const PORTALS = [
   { id: 'portal_dragon', x: -26, z: -4, to: { x: 1400, z: -8, heading: 0 }, dest: 'Dragonspire Peaks', unlock: 14, rot: Math.PI / 2, color: 0x4dc8ff },
   { id: 'portal_dragon_back', x: 1400, z: -19, to: { x: -13, z: -4, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_glacier', x: -22, z: -19, to: { x: 2300, z: -8, heading: 0 }, dest: 'Glacierreach', unlock: 23, rot: 0.86, color: 0xdff6ff },
+  { id: 'portal_thorn', x: 25, z: -10, to: { x: 4400, z: -8, heading: 0 }, dest: 'Thornwood', unlock: 37, rot: -1.19, color: 0x7aff7a },
+  { id: 'portal_thorn_back', x: 4400, z: -20, to: { x: 21.5, z: -8.5, heading: -1.19 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_storm', x: -17, z: 25, to: { x: 3300, z: -8, heading: 0 }, dest: 'Stormspire', unlock: 30, rot: 2.54, color: 0xc8b8ff },
   { id: 'portal_storm_back', x: 3300, z: -18, to: { x: -14.5, z: 21.5, heading: 2.54 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
   { id: 'portal_glacier_back', x: 2300, z: -20, to: { x: -18, z: -15, heading: 0.86 }, dest: 'Starfall Academy', unlock: 0, color: 0xb46bff },
@@ -1339,6 +1524,9 @@ export const WAYSTONES = [
   { id: 'ws_bonefield', name: 'The Bone Field', zone: 'dragonspire', x: 1395, z: 89 },
   { id: 'ws_roost', name: 'Roost Approach', zone: 'dragonspire', x: 1480, z: 124 },
   { id: 'ws_home', name: 'Your Homestead', zone: 'homestead', x: -2792, z: 22 },
+  { id: 'ws_greenhollow', name: 'Greenhollow', zone: 'thornwood', x: 4400 - 5, z: 12 },
+  { id: 'ws_glade', name: 'The Mossy Glade', zone: 'thornwood', x: 4400 + 9, z: 66 },
+  { id: 'ws_grove', name: 'Blighted Grove', zone: 'thornwood', x: 4400 + 10, z: 134 },
   { id: 'ws_skyport', name: 'Skyport', zone: 'stormspire', x: 3300 - 5, z: 12 },
   { id: 'ws_spire', name: 'The Crystal Spire', zone: 'stormspire', x: 3300 + 52, z: 112 },
   { id: 'ws_eye', name: 'Eye of the Storm Bridge', zone: 'stormspire', x: 3300 + 9, z: 166 },
@@ -1360,4 +1548,5 @@ export const FOUNTAINS = [
   { id: 'spring_ember', name: 'Cooling Spring', x: X - 9, z: -7, r: 4.5 },
   { id: 'hearth_glacier', name: 'Frostholm Hearth', x: GLACIER_X, z: 0, r: 5.5 },
   { id: 'fountain_storm', name: 'Skyport Fountain', x: STORM_X, z: 0, r: 5.2 },
+  { id: 'well_thorn', name: 'Greenhollow Spring', x: THORN_X, z: 0, r: 5.2 },
 ];

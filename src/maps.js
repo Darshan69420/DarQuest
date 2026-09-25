@@ -8,8 +8,9 @@ import {
   makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire, makeMount,
   makeHouse, makeIceCrystal, makeIceTower, makeIceWall, makeIceThrone, makeAurora,
   makeSkyIsland, makeAirship, makeRopeBridge, makeLightningRod, makeStormCloud, makeCrystal,
+  makeGiantTree, makeRootHouse, makeThornBush, makeMushroom,
 } from './models.js';
-import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, NPCS } from './data.js';
+import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, THORN_X as TX, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
 
 // Word Walls: each teaches the first word of a dragon shout.
@@ -718,4 +719,114 @@ export function buildStormspire(world) {
     world.motes.push(m);
   }
   return { fountain };
+}
+
+// ------------------------------------------------------------ Thornwood (Chapter 6)
+
+export function buildThornwood(world) {
+  const scene = world.scene;
+  const T = TX;
+  flatPlane(scene, new THREE.PlaneGeometry(560, 560), 0x3a5a2a, T - 20, 100, 0);
+  // mossy paths, the village green, the glowing hollow and the blight
+  flatPlane(scene, new THREE.CircleGeometry(24, 44), 0x5a8a3a, T, 0, 0.02);
+  flatPlane(scene, new THREE.CircleGeometry(8, 32), 0x8a7a5a, T, 0, 0.021);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 44), 0x7a6a4a, T, 41, 0.021);
+  flatPlane(scene, new THREE.CircleGeometry(18, 40), 0x4a8a3a, T, 76, 0.022);
+  flatPlane(scene, new THREE.PlaneGeometry(34, 11), 0x6a5a3a, T - 30, 76, 0.023);
+  flatPlane(scene, new THREE.CircleGeometry(18, 40), 0x1a2a3a, T - 60, 76, 0.024);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 42), 0x5a4a3a, T, 110, 0.025);
+  flatPlane(scene, new THREE.CircleGeometry(20, 40), 0x3a2a3a, T, 146, 0.026);
+  flatPlane(scene, new THREE.PlaneGeometry(11, 30), 0x3a2a34, T, 176, 0.027);
+  flatPlane(scene, new THREE.CircleGeometry(24, 44), 0x2a1a2a, T, 210, 0.028);
+  flatPlane(scene, new THREE.RingGeometry(9, 10, 48), 0xd06aff, T, 210, 0.03);
+  for (let i = 0; i < 30; i++) {
+    const m = flatPlane(scene, new THREE.CircleGeometry(3 + Math.random() * 7, 14), [0x4a7a3a, 0x3a6a2a, 0x5a8a4a][i % 3], T - 90 + Math.random() * 180, -30 + Math.random() * 270, 0.015);
+    m.scale.set(1, 0.6 + Math.random() * 0.6, 1);
+  }
+
+  // Greenhollow, among the roots of the Elder Mother
+  world.add(makeGiantTree(1.7), T, -46, 0.4, 9);
+  const spring = makeFountain();
+  spring.scale.setScalar(0.8);
+  world.add(spring, T, 0, 0, 2.9);
+  const homes = [[-17, 8, 1.3, 0x2e7d3b], [17, 9, -1.7, 0xc0392b], [-18, -10, 1.9, 0x3a6ea5], [18, -12, -1.3, 0xf2c14e]];
+  for (const [dx, dz, r, door] of homes) world.add(makeRootHouse(door), T + dx, dz, r, 3.8);
+  world.addStation('anvil', T + 14, 14, -2.3);
+  world.addStation('furnace', T + 21, 1, -1.6);
+  world.addStation('alchemy', T - 13, -3, 1.3);
+  world.addStation('range', T - 13, 14, 2.3);
+  world.addStation('workbench', T + 8, -18, -0.3);
+  for (const [dx, dz] of [[-6, 20], [6, 20], [-21, 1], [21, -4], [-5, -21], [6, -21]]) world.add(makeLamp(0x9fff7a), T + dx, dz, 0, 0.4);
+  for (let k = 0; k < 8; k++) world.add(makeFlowers([0xff8ad0, 0xffd23d, 0x9fe6ff][k % 3]), T + (Math.random() - 0.5) * 36, (Math.random() - 0.5) * 36, Math.random() * 6);
+  world.addNode('herb_moonleaf', T - 20, 12);
+  world.addNode('herb_sunpetal', T + 20, 13);
+  world.addNode('elder', T - 21, -14);
+  world.addNode('berry_bush', T + 21, -16);
+
+  // giant trees line every path
+  const giants = [];
+  for (let z = 28; z <= 190; z += 16) for (const s of [-1, 1]) giants.push([s * (16 + Math.random() * 6), z]);
+  for (const [dx, dz] of [[-28, 60], [-30, 92], [-60, 50], [-60, 102], [-86, 76], [28, 76], [28, 146], [-28, 146], [30, 210], [-30, 210], [0, 246]]) giants.push([dx, dz]);
+  for (const [dx, dz] of giants) {
+    const x = T + dx, z = dz;
+    if (world.walkable(x, z) || world.walkable(x + 7, z) || world.walkable(x - 7, z)) continue;
+    const blight = dz > 125;
+    world.add(makeGiantTree(0.7 + Math.random() * 0.4, { blight, leaf: [0x3f7a3a, 0x4a8a3a, 0x356a34][Math.floor(Math.random() * 3)] }), x, z, Math.random() * 6);
+  }
+  // undergrowth, logs and stones
+  for (let i = 0; i < 60; i++) {
+    const x = T - 90 + Math.random() * 180, z = -30 + Math.random() * 270;
+    if (world.walkable(x, z) || world.walkable(x + 3, z) || world.walkable(x - 3, z)) continue;
+    const r = Math.random();
+    world.add(r < 0.5 ? makeTree(0.9 + Math.random() * 0.6, 0x3f7a3a) : r < 0.8 ? makeRoundTree(0.9 + Math.random() * 0.4, 0x4f8a44) : makeRock(0.6 + Math.random() * 0.6, 0x6a6a5a), x, z, Math.random() * 6);
+  }
+
+  // the Mossy Glade: a pond and flowers
+  world.add(makePond(4), T + 9, 84, 0, 3.8);
+  world.addNode('fish_trout', T + 9, 84);
+  for (let k = 0; k < 6; k++) world.add(makeFlowers([0xff8ad0, 0xffd23d, 0xb46bff][k % 3]), T + (Math.random() - 0.5) * 26, 66 + Math.random() * 20, Math.random() * 6);
+  world.addNode('herb_glowcap', T - 12, 70);
+
+  // the Glowcap Hollow: giant glowing mushrooms
+  for (let k = 0; k < 14; k++) {
+    const a = (k / 14) * Math.PI * 2, r = 14 + Math.random() * 3;
+    if (Math.cos(a) > 0.85) continue;   // the way in from the east
+    const m = makeMushroom([0x6fd3ff, 0xb46bff, 0x9fff7a][k % 3]);
+    m.scale.setScalar(4 + Math.random() * 3);
+    world.add(m, T - 60 + Math.cos(a) * r, 76 + Math.sin(a) * r, Math.random() * 6, 1.4);
+  }
+  for (let k = 0; k < 12; k++) world.add(makeMushroom([0x6fd3ff, 0xb46bff][k % 2]), T - 60 + (Math.random() - 0.5) * 24, 76 + (Math.random() - 0.5) * 24, Math.random() * 6);
+  world.addNode('herb_glowcap', T - 52, 84);
+  world.addNode('herb_glowcap', T - 68, 72);
+  world.addNode('silver_rock', T - 64, 88);
+
+  // the Blighted Grove and the Heartwood
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2, r = 15 + Math.random() * 3;
+    if (Math.abs(Math.sin(a)) > 0.93) continue;   // paths north and south
+    world.add(makeThornBush(1 + Math.random() * 0.8), T + Math.cos(a) * r, 146 + Math.sin(a) * r, Math.random() * 6, 1);
+  }
+  for (let k = 0; k < 22; k++) {
+    const a = (k / 22) * Math.PI * 2;
+    if (Math.sin(a) < -0.93) continue;
+    world.add(makeThornBush(1.3 + Math.random()), T + Math.cos(a) * 22.5, 210 + Math.sin(a) * 22.5, Math.random() * 6, 1.2);
+  }
+  const heart = makeGiantTree(1.5, { blight: true });
+  world.add(heart, T, 250, 0, 9);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2, 1), new THREE.MeshBasicMaterial({ color: 0xd06aff }));
+  core.position.set(T, 9, 245);
+  core.userData.anim = (t) => { const k = 1 + Math.sin(t * 2.2) * 0.12; core.scale.setScalar(k); core.rotation.y = t * 0.5; };
+  world.add(core, T, 245).position.y = 9;
+  // fireflies (and blight motes deeper in)
+  for (let k = 0; k < 110; k++) {
+    const deep = k > 80;
+    const m = new THREE.Mesh(world.sphereGeo, new THREE.MeshBasicMaterial({ color: deep ? 0xd06aff : k % 3 ? 0xeaff8a : 0x9fff7a }));
+    m.scale.setScalar(0.07);
+    m.userData.base = new THREE.Vector3(T - 70 + Math.random() * 100, 0.6 + Math.random() * 4, deep ? 130 + Math.random() * 100 : -20 + Math.random() * 150);
+    if (!deep && Math.random() < 0.3) m.userData.base.x = T - 70 + Math.random() * 25;
+    m.userData.phase = Math.random() * 10;
+    scene.add(m);
+    world.motes.push(m);
+  }
+  return { spring };
 }

@@ -6,7 +6,7 @@ The plan to take DarQuest from a two-chapter demo to a full RPG. Each phase ends
 
 Built so far (see the README for the full feature list):
 
-- **Five story chapters, 37 main quests, 7 bosses:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax), Glacierreach (Queen Sylvara) and Stormspire (Voltaris), plus the Hollow Undercroft dungeon. The Pale Magister, Malvoren, is the villain behind them all.
+- **Six story chapters, 44 main quests, 8 bosses:** Starfall Academy and Hollow Lane, the Emberfall Wilds, the Dragonspire Peaks (Vorathrax), Glacierreach (Queen Sylvara), Stormspire (Voltaris) and Thornwood (the Thornmother), plus the Hollow Undercroft dungeon. The Pale Magister, Malvoren, is the villain behind them all.
 - **Real-time combat:** 6 schools, 100+ spells, dodging, combos, ground telegraphs, flying and summoning bosses, and six dragon shouts.
 - **RPG depth:** talent trees (3 branches per school), gear rarities with random bonus stats and legendary powers, 8 gear slots, 9 pets, companions.
 - **RuneScape-style skills:** 9 skills from 1 to 99, gathering nodes, crafting stations and recipes.
@@ -21,7 +21,7 @@ Built so far (see the README for the full feature list):
 | --- | --- |
 | 1. Solid foundation | ✅ Done (settings, key binding, save slots, telegraphs, combat feel) |
 | 2. RPG depth | ✅ Talents, gear rarity, crafting, a secondary school, gear set bonuses, a bank |
-| 3. World and story | 🟡 5 of 6 worlds (Thornwood and the Hollow Deep remain, for the final showdown with Malvoren) |
+| 3. World and story | 🟡 6 of 7 lands (the Hollow Deep remains, for the final showdown with Malvoren) |
 | 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
 | 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
 | 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |

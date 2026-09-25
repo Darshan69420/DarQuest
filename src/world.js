@@ -139,6 +139,7 @@ export class World {
     });
     this.buildMap();
     this.batchStatic();
+    this.packMotes();
     this.spawnNPCs();
     this.spawnEnemies();
     this.bindInput();
@@ -234,7 +235,7 @@ export class World {
 
   // Merges all static scenery into one mesh per material per map area,
   // turning thousands of draw calls into a few dozen.
-  batchStatic(cell = 40) {
+  batchStatic(cell = 56) {
     const buckets = new Map();
     for (const obj of this.staticObjs) {
       obj.updateMatrixWorld(true);
@@ -247,14 +248,62 @@ export class World {
       });
       this.scene.remove(obj);
     }
+    this.batches = this.batches || [];
     for (const b of buckets.values()) {
       const mesh = new THREE.Mesh(mergeGeometries(b.items), b.material);
       mesh.castShadow = b.cast;
       mesh.receiveShadow = b.receive;
       mesh.matrixAutoUpdate = false;
       this.scene.add(mesh);
+      mesh.geometry.computeBoundingSphere();
+      const bs = mesh.geometry.boundingSphere;
+      this.batches.push({ mesh, x: bs.center.x, z: bs.center.z, r: bs.radius });
     }
     this.staticObjs = [];
+  }
+
+  // Every drifting mote (sparks, snow, fireflies, souls) becomes one instance of a single mesh:
+  // one draw call instead of hundreds.
+  packMotes() {
+    const list = this.motes;
+    const inst = new THREE.InstancedMesh(this.sphereGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), list.length);
+    inst.frustumCulled = false;
+    const c = new THREE.Color();
+    list.forEach((m, i) => { inst.setColorAt(i, c.copy(m.material.color)); this.scene.remove(m); m.material.dispose(); });
+    this.scene.add(inst);
+    this.moteMesh = inst;
+    this.motes = list.map(m => ({ userData: m.userData, s: m.scale.x, visible: true, shown: true }));
+  }
+
+  // Skips drawing whatever is lost in the fog: far scenery batches, drifting motes, foes and
+  // animated props. Foes and props are switched to a render layer the camera ignores (their
+  // 'visible' flag means something to the game), and only when they cross the fog line.
+  cullDistant() {
+    const p = this.player?.position;
+    if (!p) return;
+    const far = (this.scene.fog?.far ?? 170) + 20, far2 = far * far;
+    const d2 = (x, z) => (x - p.x) ** 2 + (z - p.z) ** 2;
+    for (const b of this.batches || []) { const lim = far + b.r; b.mesh.visible = d2(b.x, b.z) < lim * lim; }
+    for (const m of this.motes) m.visible = d2(m.userData.base.x, m.userData.base.z) < far2;
+    const setCulled = (o, c) => {
+      if (!!o.userData.culled === c) return;
+      o.userData.culled = c;
+      o.traverse(k => { if (k.isMesh || k.isPoints || k.isLine) k.layers.set(c ? 5 : 0); });
+    };
+    // foes and small props fade into the fog well before the scenery does
+    const foeFar = Math.min(far, 105) ** 2, propFar = (Math.min(far, 120) + 40) ** 2;
+    for (const e of this.enemies) setCulled(e.model, d2(e.model.position.x, e.model.position.z) > foeFar);
+    for (const o of this.animated) setCulled(o, d2(o.position.x, o.position.z) > propFar);
+    // level of detail: past a distance (set by graphics quality) characters and props drop their outline
+    const od = (QUALITY[settings.quality] || QUALITY.high).outline ?? 60, od2 = od * od;
+    const setDetail = (o, lo) => {
+      if (o.userData.lod === lo) return;
+      o.userData.lod = lo;
+      if (!o.userData.hulls) { o.userData.hulls = []; o.traverse(k => { if (k.userData.isHull) o.userData.hulls.push(k); }); }
+      for (const h of o.userData.hulls) h.visible = !lo;
+    };
+    for (const e of this.enemies) setDetail(e.model, d2(e.model.position.x, e.model.position.z) > od2);
+    for (const o of this.animated) setDetail(o, d2(o.position.x, o.position.z) > od2);
   }
 
   buildMap() {
@@ -1334,7 +1383,10 @@ export class World {
       o.userData.anim(this.time);
     }
     this.updateNodes();
+    this.cullT = (this.cullT || 0) - real;
+    if (this.cullT <= 0) { this.cullT = 0.25; this.cullDistant(); }
     for (const n of this.npcs) {
+      if (fp && Math.abs(n.model.position.x - fp.x) + Math.abs(n.model.position.z - fp.z) > 140) continue;
       n.model.userData.anim(this.time, false);
       if (this.player && this.mode === 'explore') {
         const d = n.model.position.distanceTo(this.player.position);
@@ -1344,9 +1396,19 @@ export class World {
         }
       }
     }
-    for (const m of this.motes) {
-      const b = m.userData.base, ph = m.userData.phase;
-      m.position.set(b.x + Math.sin(this.time * 0.3 + ph) * 2, b.y + Math.sin(this.time * 0.8 + ph) * 0.8, b.z + Math.cos(this.time * 0.25 + ph) * 2);
+    if (this.moteMesh) {
+      const m4 = this._m4 || (this._m4 = new THREE.Matrix4());
+      this.motes.forEach((m, i) => {
+        if (!m.visible) {
+          if (m.shown) { m.shown = false; this.moteMesh.setMatrixAt(i, m4.makeScale(0, 0, 0)); }
+          return;
+        }
+        m.shown = true;
+        const b = m.userData.base, ph = m.userData.phase;
+        m4.makeScale(m.s, m.s, m.s).setPosition(b.x + Math.sin(this.time * 0.3 + ph) * 2, b.y + Math.sin(this.time * 0.8 + ph) * 0.8, b.z + Math.cos(this.time * 0.25 + ph) * 2);
+        this.moteMesh.setMatrixAt(i, m4);
+      });
+      this.moteMesh.instanceMatrix.needsUpdate = true;
     }
     this.effects = this.effects.filter(fn => fn(dt) !== false);
 

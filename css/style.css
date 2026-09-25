@@ -507,3 +507,14 @@ body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after 
 .school-card .sc-icon { font-size: 28px; }
 .school-card small { opacity: .75; font-weight: 400; text-align: center; }
 .credits { margin: 14px auto; padding: 14px; max-width: 520px; text-align: center; border-radius: 12px; border: 1px solid rgba(242,193,78,.5); background: rgba(242,193,78,.08); font-size: 14px; line-height: 1.5; }
+
+/* ---------------------------------------------------------------- loading screen */
+#loading { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(circle at 50% 40%, #3a2470, #140f38 70%); transition: opacity .5s ease; }
+#loading.done { opacity: 0; pointer-events: none; }
+#loading .ld-hat { font-size: 64px; animation: atlasBob 1.6s ease-in-out infinite; }
+#loading .ld-title { font: 800 44px var(--display); color: var(--gold); text-shadow: 0 0 24px rgba(242,193,78,.5); }
+#loading .ld-bar { width: min(70vw, 320px); height: 10px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+#loading .ld-bar div { width: 40%; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #b46bff, #f2c14e); animation: ldSlide 1.2s ease-in-out infinite; }
+#loading .ld-tip { color: var(--muted); font-size: 14px; }
+@keyframes ldSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }

@@ -114,7 +114,8 @@ export function keyLabel(code) {
 }
 
 export const QUALITY = {
-  low:    { label: 'Low',    pixelRatio: 0.75, shadows: 0,    particles: 0.4, antialias: false },
-  medium: { label: 'Medium', pixelRatio: 1.25, shadows: 1024, particles: 0.7, antialias: true },
-  high:   { label: 'High',   pixelRatio: 2,    shadows: 2048, particles: 1,   antialias: true },
+  // outline: how far away characters and props keep their ink outline
+  low:    { label: 'Low',    pixelRatio: 0.75, shadows: 0,    particles: 0.4, antialias: false, outline: 0 },
+  medium: { label: 'Medium', pixelRatio: 1.25, shadows: 1024, particles: 0.7, antialias: true,  outline: 35 },
+  high:   { label: 'High',   pixelRatio: 2,    shadows: 2048, particles: 1,   antialias: true,  outline: 60 },
 };

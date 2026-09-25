@@ -1508,3 +1508,9 @@ window.darquest = {
 };
 
 buildTitle();
+
+// Everything is built: fade out the loading screen.
+requestAnimationFrame(() => {
+  $('#loading')?.classList.add('done');
+  setTimeout(() => $('#loading')?.remove(), 600);
+});

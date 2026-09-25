@@ -1,4 +1,4 @@
-// All of DarQuest's game content lives here: schools, spells, enemies, NPCs and quests.
+// All of Sol Mage's game content lives here: schools, spells, enemies, NPCs and quests.
 // Tweak numbers here to rebalance the game without touching engine code.
 
 export const SCHOOLS = {

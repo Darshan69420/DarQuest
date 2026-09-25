@@ -177,13 +177,14 @@ export function listSlots() {
 
 // Save files are plain JSON, wrapped so we can recognise them on import.
 export function exportSave(p) {
-  return JSON.stringify({ game: 'DarQuest', version: 2, exportedAt: new Date().toISOString(), player: p }, null, 1);
+  return JSON.stringify({ game: 'Sol Mage', version: 2, exportedAt: new Date().toISOString(), player: p }, null, 1);
 }
 
 export function importSave(text) {
   const data = JSON.parse(text);
-  const p = revive(data?.game === 'DarQuest' ? data.player : data);
-  if (!p) throw new Error('That file is not a DarQuest save.');
+  // saves exported before the rename say DarQuest
+  const p = revive(['Sol Mage', 'DarQuest'].includes(data?.game) ? data.player : data);
+  if (!p) throw new Error('That file is not a Sol Mage save.');
   return p;
 }
 

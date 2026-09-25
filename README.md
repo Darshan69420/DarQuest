@@ -1,4 +1,4 @@
-# DarQuest
+# Sol Mage
 
 A 3D fantasy RPG that runs in your browser. You start as a new apprentice at Starfall Academy, pick one of six schools of magic, and fight your way through seven lands to the Pale Magister, the Headmaster's brightest former pupil.
 

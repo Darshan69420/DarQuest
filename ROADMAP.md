@@ -1,6 +1,6 @@
-# DarQuest Roadmap
+# Sol Mage Roadmap
 
-The plan to take DarQuest from a two-chapter demo to a full RPG. Each phase ends with a playable, pushed build.
+The plan to take Sol Mage (first called DarQuest) from a two-chapter demo to a full RPG. Each phase ends with a playable, pushed build.
 
 ## Where it stands now
 

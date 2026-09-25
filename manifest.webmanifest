@@ -1,6 +1,6 @@
 {
-  "name": "DarQuest",
-  "short_name": "DarQuest",
+  "name": "Sol Mage",
+  "short_name": "Sol Mage",
   "description": "A 3D fantasy action RPG in your browser: six schools of magic, dragons, skills, a roguelike Rift and a homestead to build.",
   "start_url": "./index.html",
   "display": "fullscreen",

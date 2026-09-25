@@ -102,7 +102,7 @@ function renderSlots() {
   $('#slots').querySelectorAll('[data-new]').forEach(b => b.addEventListener('click', () => showNewGame(+b.dataset.new)));
   $('#slots').querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => {
     const p = load(+b.dataset.export);
-    if (p) UI.downloadText(`darquest-${p.name.replace(/\W+/g, '_')}-lv${p.level}.json`, exportSave(p));
+    if (p) UI.downloadText(`solmage-${p.name.replace(/\W+/g, '_')}-lv${p.level}.json`, exportSave(p));
   }));
   $('#slots').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.del;
@@ -852,7 +852,7 @@ function showEnding() {
     <p>Up above, the Spiral Doors hum softly. In Emberfall the lava cools to a gentle glow. The dragons of the Peaks sleep. Frostholm thaws, Skyport's ships sail again, and the Elder Mother blooms.</p>
     ${epilogueLines(p).map(l => `<p>${UI.esc(l)}</p>`).join('')}
     <p><b>${UI.esc(p.name)}</b> came to Starfall Academy as an apprentice. Now every land knows the name.</p>
-    <div class="credits"><b>DarQuest</b><br>A game by Darshan<br>Made with Three.js · music and sound made in code<br><br>
+    <div class="credits"><b>Sol Mage</b><br>A game by Darshan<br>Made with Three.js · music and sound made in code<br><br>
       Level ${p.level}${p.arch ? ` · Archmage ${p.arch}` : ''} · ${s.kills} foes defeated · ${s.deaths || 0} falls · ${Object.keys(p.bestiary).length} kinds of foe met${p.ngplus ? ` · New Game+ ${p.ngplus}` : ''}</div>
     <p class="tip">${first ? 'Tell Headmaster Orvyn the news. Then keep playing: the Endless Rift, the Arena, the Undercroft on Heroic, weekly challenges, and New Game+ are all waiting. You also earned the Pale Nightmare mount (Juno, in the meadow).' : 'Victory, again!'}</p>`).then(() => refresh());
 }
@@ -1500,7 +1500,7 @@ function openGameMenu() {
     { label: '🔮 Sol Mage wallet', action: () => openWallet() },
     { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
-    { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
+    { label: '📤 Export save file', action: () => UI.downloadText(`solmage-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
     { label: '🏠 Save & quit to title', action: () => { if (!rift.active && !undercroft.active) player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
   ]);
 }
@@ -1654,7 +1654,8 @@ world.onTick = (dt) => {
 };
 
 // Handy for testing from the browser console.
-window.darquest = {
+// (it kept its first name, DarQuest, so older test scripts still work)
+window.darquest = window.solmage = {
   world, combat, UI, rift, homestead, undercroft, hints, objectives,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },

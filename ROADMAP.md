@@ -12,8 +12,9 @@ Built so far (see the README for the full feature list):
 - **RuneScape-style skills:** 9 skills from 1 to 99 with content up to level 95.
 - **Dungeons and endgame:** the Endless Rift (roguelike), the Hollow Undercroft (puzzle dungeon with Heroic mode), the Arena of Stars, Slayer, level cap 50 with Archmage ranks, world scaling, New Game+ and weekly challenges.
 - **World systems:** day/night with weather, fast travel, a Minecraft-style Homestead, a bestiary, 60+ achievements and titles.
-- **Polish:** accessibility options, a phone layout, a loading screen, fog culling and outline level of detail, and a GitHub Pages workflow.
-- **Tested:** every main quest has been played through by a script, and fights were balanced with a simulated best-geared wizard. It still needs real players.
+- **Polish:** accessibility options, a phone layout, a loading screen, fog culling and outline level of detail, bloom and per-land colour grading, a composed music theme for every land, tutorial hints and a quest beacon, and a GitHub Pages workflow.
+- **Quest variety:** besides fighting, quests use objects in the world (with ambushes), hold ward circles against waves, and send you to find places.
+- **Tested:** every main quest has been played through by a script, fights were balanced with a simulated best-geared wizard, and a random-action fuzzer (thousands of actions across every stage of the game) found no runtime errors. The scripts live in `tests/`. It still needs real players.
 
 ### Progress by phase
 
@@ -25,7 +26,7 @@ Built so far (see the README for the full feature list):
 | 4. Dungeons and bosses | ✅ Done |
 | 5. Companions and systems | ✅ Done |
 | 6. Endgame | ✅ Done |
-| 7. Presentation | ✅ Mostly done. Still possible: hand-made 3D art in glTF, more animation |
+| 7. Presentation | ✅ Done: bloom and colour grading, composed music, tutorial hints. Still possible: hand-made 3D art in glTF, more animation |
 | 8. Ship it | 🟡 Workflow ready: merge to main and turn on Pages (Settings → Pages → GitHub Actions). Then playtest with friends |
 | 9. Multiplayer | ⬜ Not started (needs a server) |
 

@@ -52,6 +52,7 @@ Every key can be changed in **Settings → Keys**.
 - **Six schools:** Blaze 🔥, Frost ❄️, Tempest ⚡, Verdant 🌿, Umbral 💀 and Arcane ✨, each with its own health and 11 spells from level 1 to level 48 (ultimates like Phoenix Ascension and Cosmic Titan). Astral 🌙 support spells can be learned by everyone.
 - **Real-time combat:** key `1` is your school's free basic attack (every third hit in a row is a combo strike), and keys `2`–`5` hold the spells you pick. Enemies wind up big attacks: **red shapes on the ground** show where they will land, so step out or dodge through them.
 - **Seven chapters of story (51 quests) and an ending:** Hollow Lane (Lord Hollowmere), the Emberfall Wilds (Pyrrhon, the Molten King), the **Dragonspire Peaks**, where Vorathrax the Sky Tyrant flies above the battlefield and rains fire until you shout her down, and **Glacierreach**: the snowy town of Frostholm, the frozen Mirror Lake, the Rime Caverns and Queen Sylvara's ice castle under the northern lights, and **Stormspire**: floating islands joined by rope bridges over a sea of clouds, sky pirates, airships, and Voltaris the Storm Herald, a giant thunderbird who flies into the storm and rains lightning, and **Thornwood**: a forest of colossal trees, the root-house village of Greenhollow, a glowing mushroom hollow, and the blighted Thornmother, whose seed pods heal her until you cut them down. The finale is the **Hollow Deep**: rivers of souls, the Deathless Legion, echoes of the bosses you beat, and a four-phase battle with **Malvoren, the Pale Magister** (a ward held by soul anchors, a flight phase, and the Unmaking), followed by an ending and credits.
+- **Varied quests:** besides fighting, quests have you thaw frozen lamps, smash totems, burn cult banners, light spirit braziers, recharge lightning rods and heal sick trees (sometimes with an ambush), hold a ward circle against waves of wolves or the Deathless Legion, and find the heart of the blight. A beam of light over the next objective shows the way.
 - **Conversations and choices:** ask the people you meet about the world ("Ask about…"), and make three big decisions (the Frozen Queen's fate, the Skyraiders, the Heartwood) that change your rewards and how the ending reads.
 - **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
 - **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking and Slayer, each from level 1 to 99. Gather in Millbrook Meadow and beyond (up to Stormglass and Voidstone veins, Heartwood trees, cloud-fishing off Skyport and soul-fishing in the Hollow Deep), then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations, all the way to the level-95 Heartwood Greatstaff.
@@ -68,7 +69,8 @@ Every key can be changed in **Settings → Keys**.
 - **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
 - **Endgame:** a level cap of 50, then up to 100 Archmage ranks; optional **world scaling** (Skyrim style) so every land keeps up with you; **New Game+** that restarts the story with everything you own against tougher, better-paying foes; and three **weekly challenges** every Monday.
 - **Difficulty:** Normal, Heroic or Legendary.
-- **Quality of life:** three save slots with export and import, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, generated music, and a touch joystick on phones.
+- **Presentation:** soft bloom around spells, lava and crystals, a vignette and a colour mood for each land (Settings → Graphics), and a composed music theme for every land: a celesta waltz at the Academy, Phrygian brass and taiko in Emberfall, horns and war drums on the Dragonspire, glass bells in Glacierreach, and driving battle and boss themes. All generated in the browser, with no audio files.
+- **Quality of life:** three save slots with export and import, tutorial hints that explain each thing the first time you meet it, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, and a touch joystick on phones, where you can tap the interact prompt too.
 - **Accessibility:** a text and menu size slider, a colour-blind friendly mode (amber danger zones, striped health bars), reduce motion (no shake, hit-pause or flashes), and optional damage numbers.
 
 ## Code layout
@@ -93,6 +95,8 @@ src/companions.js hireable companions
 src/arena.js      the Arena of Stars and rival wizards
 src/challenges.js weekly challenges
 src/lore.js       conversation topics and story choices
+src/objectives.js quest objectives beyond fighting: quest objects, ward circles, places to find
+src/hints.js      tutorial hint cards
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects
@@ -102,10 +106,11 @@ src/maps.js       Millbrook Meadow, Emberfall, Dragonspire, Glacierreach, Storms
 src/skilling.js   the gathering loop
 src/ui_*.js       windows for skills, the Rift and shouts
 src/minimap.js    corner minimap
-src/audio.js      synthesized sound effects and music
+src/audio.js      synthesized sound effects, and the music themes with their sequencer
 src/ui.js         dialogue, menus, cards
 src/main.js       ties everything together
-lib/              vendored Three.js (MIT licence)
+lib/              vendored Three.js and its post-processing add-ons (MIT licence)
+tests/            headless playthrough and fuzz tests (see tests/README.md)
 gallery.html      model gallery: preview every model (?group=foes1, ?group=frost, ?group=storm, ?group=thorn, ?group=deep, ?model=knight)
 .github/workflows GitHub Pages deploy
 ```

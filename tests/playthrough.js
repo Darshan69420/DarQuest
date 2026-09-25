@@ -1,5 +1,6 @@
 // Scripted story playthrough: accepts, completes and hands in `count` quests from `start`
-// (from a later start the wizard is levelled to 50 so bosses fall quickly).
+// (from a later start the wizard is levelled to 50 so bosses fall quickly). Wards held by
+// Soul Anchors are broken first, as a player would.
 const w = dq.world, c = dq.combat;
 await sleep(900); dq.UI.closeDialog(); await sleep(200); w.mode = 'explore';
 const p = dq.player;
@@ -21,7 +22,7 @@ const killAll = async (id, n) => {
   for (const e of w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead')) {
     if (k >= n) break;
     w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
-    for (let t = 0; t < (e.def.boss ? 900 : 300) && e.state !== "dead"; t++) { c.setTarget(e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
+    for (let t = 0; t < (e.def.boss ? 2000 : 300) && e.state !== "dead"; t++) { c.setTarget(w.enemies.find(o => o.def.id === 'soul_anchor' && o.state !== 'dead') || e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
     if (e.state === 'dead') k++;
   }
   return k;

@@ -518,7 +518,8 @@ export class World {
     if (def.scale) model.scale.multiplyScalar(def.scale);
     model.userData.height = measure(model);
     const box = new THREE.Box3().setFromObject(model);
-    model.userData.width = box.max.x - box.min.x;
+    // wide wings or roots shouldn't widen the hitbox: a model can give its body's width
+    model.userData.width = model.userData.bodyWidth ? model.userData.bodyWidth * (def.scale || 1) : box.max.x - box.min.x;
     model.position.set(x, 0, z);
     model.rotation.y = Math.PI;
     this.scene.add(model);

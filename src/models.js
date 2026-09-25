@@ -2,6 +2,7 @@
 // Style: cel shading, ink outlines, big expressive eyes and chunky proportions.
 // Swap these out for real 3D art (glTF) later without touching game logic.
 import * as THREE from 'three';
+import { thornmotherBoss, frostQueenBoss, malvorenBoss } from './models_bosses.js';
 
 const INK = 0x1a1030;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -90,6 +91,9 @@ function group(parent, x = 0, y = 0, z = 0) {
   parent.add(g);
   return g;
 }
+
+// the building helpers, shared with the boss models in models_bosses.js
+export { add, limb, tube, group, dyn, finish, makeFace, makeEye, flame, sph, V3, darker, lighter, INK };
 
 // Ink outline ("inverted hull"): a slightly larger back-face copy of each part.
 export function outline(root, width = 0.026, minSize = 0.07) {
@@ -1176,14 +1180,14 @@ export function makeEnemy(kind) {
     case 'wyrmling': return makeDragon({ color: 0xd9481a, belly: 0xffc060, horn: 0xf0e6d0, wings: 1, size: 0.62, spikes: true });
     case 'drake_foe': return makeDragon({ color: 0x6a7a3a, belly: 0xd8c890, horn: 0xe8dcc0, wings: 0, size: 1.05, frill: true, eye: 0xff7a1a });
     case 'wyvern': return makeDragon({ color: 0x3a5a8a, belly: 0x9fd6ff, wing: 0x2a3a6a, horn: 0xdff6ff, legs: 2, wings: 2, hover: 2.2, size: 0.95, eye: 0x4dc8ff });
-    case 'elder_dragon': return makeDragon({ color: 0x8a1a1a, belly: 0xe0a040, wing: 0x4a0a14, horn: 0x2a1a1a, wings: 2, size: 2.6, frill: true, eye: 0xffe040 });
+    case 'elder_dragon': return makeDragon({ color: 0x8a1a1a, belly: 0xe0a040, wing: 0x4a0a14, horn: 0x2a1a1a, wings: 2, size: 2.6, frill: true, fierce: true, eye: 0xffe040 });
     case 'cultist': return cultist();
     case 'snow_wolf': { const w = quadruped({ color: 0xe8eef8, mane: 0xb8c8e0, ears: 'wolf', tail: 'bushy', legLen: 0.95, neck: 0.55, glow: 0x6fd3ff, saddle: false }); w.scale.setScalar(1.1); return w; }
     case 'frost_wraith': return shade(0xa8d8f0, 0xffffff);
     case 'ice_golem': return golem({ ice: true, scale: 1.15 });
     case 'yeti': return yeti();
     case 'frost_drake': return makeDragon({ color: 0x9fd6ff, belly: 0xffffff, wing: 0x4d7ab0, horn: 0xdff6ff, wings: 2, size: 1.35, eye: 0x4dc8ff, frill: true });
-    case 'frost_queen': return frostQueen();
+    case 'frost_queen': return frostQueenBoss();
     case 'pale_warden': return paleWarden();
     case 'gale_sprite': return galeSprite();
     case 'stormhorn': { const s = quadruped({ color: 0x5a5a8a, dark: 0x3a3a5a, mane: 0xb46bff, antlers: true, glow: 0xb46bff, legLen: 1.2, neck: 0.95, tail: 'hair', saddle: false }); s.scale.setScalar(1.15); return s; }
@@ -1196,13 +1200,13 @@ export function makeEnemy(kind) {
     case 'spore_shambler': return shroom();
     case 'pixie': return pixie();
     case 'blight_horror': return blightHorror();
-    case 'thornmother': return treant({ size: 2.3, blight: true });
+    case 'thornmother': return thornmotherBoss();
     case 'deathless': return skeleton('warrior');
     case 'bone_magus': return skeleton('mage');
     case 'sorrowshade': return shade(0x4a3a6a, 0xd06aff);
     case 'bone_colossus': return golem({ scale: 1.35, bone: true });
     case 'pale_templar': { const k = knight({ armor: 0xe8e4f0, dark: 0x3a3048, accent: 0xd06aff, eye: 0xd06aff }); k.scale.setScalar(1.15); return k; }
-    case 'malvoren': return malvoren();
+    case 'malvoren': return malvorenBoss();
     case 'soul_anchor': return soulAnchor();
     case 'blight_pod': { const pod = new THREE.Group(); add(pod, sph(0.7, 14, 10), mat(0x6a3a8a, { emissive: 0xd06aff, emissiveIntensity: 0.5 }), 0, 0.8, 0, { s: [1, 1.3, 1] }); for (let k = 0; k < 5; k++) add(pod, new THREE.ConeGeometry(0.08, 0.5, 4), mat(0x2a1a2a), Math.cos(k * 1.26) * 0.6, 0.4, Math.sin(k * 1.26) * 0.6, { rz: -Math.cos(k * 1.26) * 0.8, rx: Math.sin(k * 1.26) * 0.8 }); pod.userData.anim = (t) => { pod.scale.setScalar(1 + Math.sin(t * 4) * 0.06); }; return finish(pod, 0.03, 0.08); }
     case 'shade': return shade();
@@ -2302,7 +2306,7 @@ export function makeTorch() {
 export function makeDragon(o = {}) {
   const {
     color = 0xc0392b, belly = 0xf2c14e, wing = null, horn = 0xf0e6d0, eye = 0xffd23d,
-    legs = 4, wings = 2, hover = 0, size = 1, spikes = true, frill = false,
+    legs = 4, wings = 2, hover = 0, size = 1, spikes = true, frill = false, fierce = false,
   } = o;
   const g = new THREE.Group();
   const root = group(g, 0, hover, 0);
@@ -2335,6 +2339,20 @@ export function makeDragon(o = {}) {
     add(head, new THREE.ConeGeometry(0.05, 0.3, 6), H, s * 0.3, 0.05, -0.25, { rx: -1.3, rz: s * 0.8 });
   }
   if (frill) for (let k = -2; k <= 2; k++) add(head, new THREE.ConeGeometry(0.06, 0.4, 5), mat(belly), k * 0.08, 0.35, -0.3, { rx: -0.8, rz: k * 0.25 });
+  // fierce: an old wild dragon, not a friend. Slit pupils under a heavy brow, long swept-back
+  // horns, spikes down the cheeks and fangs over the lip.
+  if (fierce) {
+    for (const s of [-1, 1]) {
+      add(head, new THREE.BoxGeometry(0.025, 0.13, 0.02), basic(0x120808), s * 0.22, 0.12, 0.39, { shadow: false });
+      add(head, new THREE.BoxGeometry(0.3, 0.09, 0.14), C2, s * 0.2, 0.2, 0.33, { rz: s * 0.45 });
+      const h0 = V3(s * 0.22, 0.3, -0.15), h1 = V3(s * 0.42, 0.55, -0.6), h2 = V3(s * 0.5, 0.62, -1.15);
+      limb(head, h0, h1, 0.11, 0.07, H, 8);
+      limb(head, h1, h2, 0.07, 0.015, H, 8);
+      for (const t of [0.35, 0.7]) add(head, new THREE.TorusGeometry(0.1 - t * 0.04, 0.018, 4, 10), C2, ...h0.clone().lerp(h1, t).toArray(), { rx: 1.1, noOutline: true });
+      for (let k = 0; k < 3; k++) add(head, new THREE.ConeGeometry(0.04, 0.24 - k * 0.04, 5), H, s * (0.32 + k * 0.02), -0.05 - k * 0.07, -0.02 - k * 0.1, { rz: s * 1.6, rx: -0.4 });
+      add(head, new THREE.ConeGeometry(0.03, 0.14, 5), basic(0xfff4e0), s * 0.1, -0.2, 0.62, { rx: Math.PI, shadow: false });
+    }
+  }
   // back spikes
   if (spikes) for (let k = 0; k < 6; k++) add(body, new THREE.ConeGeometry(0.1 - k * 0.008, 0.36, 5), H, 0, legH + 0.82 - k * 0.04, 0.7 - k * 0.32, { rx: -0.35 });
   // legs
@@ -2474,32 +2492,6 @@ function yeti() {
     head.rotation.y = Math.sin(t * 0.6) * 0.25;
   };
   return finish(g, 0.03, 0.08);
-}
-
-// Queen Sylvara: an ice sorceress with a crown of frozen spikes and a ring of shards.
-function frostQueen() {
-  const g = makeWizard({ robe: 0xdff6ff, hat: 0x9fd6ff, trim: 0x4dc8ff, gem: 0x9fe6ff, hatStyle: 'hood', hair: 0xf8fcff, skin: 0xd8e8f8, eyeColor: 0x4dc8ff });
-  const head = g.userData.head;
-  for (let i = 0; i < 7; i++) {
-    const a = -0.9 + (i / 6) * 1.8;
-    add(head, new THREE.ConeGeometry(0.05, 0.35 + (i === 3 ? 0.25 : 0), 5), glowMat(0x9fe6ff, 2), Math.sin(a) * 0.42, 0.55, Math.cos(a) * 0.12 - 0.05, { rz: -a * 0.3 });
-  }
-  const shards = [];
-  for (let i = 0; i < 6; i++) {
-    const m = add(g, new THREE.OctahedronGeometry(0.2, 0), glowMat(0x9fe6ff, 2), 0, 2, 0, { s: [0.6, 1.6, 0.6], shadow: false });
-    shards.push(m);
-  }
-  const base = g.userData.anim;
-  g.userData.anim = (t, moving) => {
-    base(t, moving);
-    shards.forEach((m, i) => {
-      const a = t * 0.8 + (i / 6) * Math.PI * 2;
-      m.position.set(Math.cos(a) * 1.3, 1.6 + Math.sin(t * 2 + i) * 0.3, Math.sin(a) * 1.3);
-      m.rotation.y = t * 2;
-    });
-  };
-  g.scale.setScalar(1.45);
-  return g;
 }
 
 // The Scaled Cult: a hooded wizard with dragon horns and a bone mask.
@@ -3049,21 +3041,35 @@ function thunderbird({ size = 1, boss = false } = {}) {
   }
   for (let i = 0; i < 5; i++) add(head, new THREE.ConeGeometry(0.07, 0.6 + i * 0.08, 5), i % 2 ? bolt : plum2, 0, 0.3 + i * 0.02, -0.15 - i * 0.12, { rx: -1.1 - i * 0.1 });
   const mouth = group(head, 0, -0.1, 0.95);
-  // wings: layered feathers with glowing lightning quills
+  // wings: arm bones under a shoulder of coverts, then a fan of long lozenge feathers,
+  // every other one veined with lightning
+  const feather = (parent, x, y, z, len, ang, material, vein) => {
+    const f = add(parent, new THREE.OctahedronGeometry(1, 0), material, x - Math.sin(ang) * len / 2, y, z - Math.cos(ang) * len / 2, { ry: ang, s: [0.26, 0.045, len / 2] });
+    if (vein) add(parent, new THREE.BoxGeometry(0.035, 0.05, len * 0.72), bolt, f.position.x, y + 0.03, f.position.z, { ry: ang, noOutline: true, shadow: false });
+  };
   const wings = [];
   for (const s of [-1, 1]) {
     const w = group(hip, s * 0.7, 0.35, 0.1);
-    const span = 3.2;
-    add(w, new THREE.BoxGeometry(span, 0.14, 0.9), plum, s * span / 2, 0, 0.1);
-    for (let k = 0; k < 7; k++) {
-      const x = s * (0.5 + k * 0.45), len = 1.2 + (k < 5 ? k * 0.12 : (6 - k) * 0.2);
-      add(w, new THREE.BoxGeometry(0.34, 0.06, len), k % 2 ? plum2 : plum, x, -0.02, -len / 2 + 0.1, { ry: -s * k * 0.05 });
-      if (k % 2 === 0) add(w, new THREE.BoxGeometry(0.06, 0.08, len * 0.7), bolt, x, 0.03, -len / 2 + 0.2, { noOutline: true, shadow: false });
+    const j = [V3(0, 0, 0), V3(s * 1.3, 0.15, -0.1), V3(s * 2.6, 0.05, -0.35), V3(s * 3.5, -0.05, -0.6)];
+    limb(w, j[0], j[1], 0.24, 0.15, plum, 8);
+    limb(w, j[1], j[2], 0.15, 0.09, plum, 8);
+    limb(w, j[2], j[3], 0.09, 0.04, plum2, 6);
+    add(w, sph(0.5, 14, 8), plum2, s * 1.1, 0.06, -0.2, { s: [2.3, 0.28, 0.95] });
+    add(w, sph(0.4, 12, 8), plum, s * 2.2, 0.03, -0.35, { s: [2.0, 0.22, 0.8] });
+    for (let k = 0; k < 5; k++) feather(w, s * (0.5 + k * 0.4), -0.04, -0.3, 1.0 + k * 0.06, 0, k % 2 ? plum : plum2, false);
+    for (let k = 0; k < 8; k++) {
+      const t = k / 7, seg = t < 0.5 ? 1 : 2, u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+      const at = j[seg].clone().lerp(j[seg + 1], u);
+      feather(w, at.x, at.y - 0.05 - k * 0.01, at.z - 0.1, 1.4 + t * 1.2 - (k === 7 ? 0.4 : 0), -s * t * 1.05, k % 2 ? plum2 : plum, k % 2 === 0);
     }
     wings.push({ w, s });
   }
   // tail fan
-  for (let k = -3; k <= 3; k++) add(hip, new THREE.BoxGeometry(0.28, 0.06, 1.5), k % 2 ? plum2 : plum, k * 0.16, 0.1, -1.6, { ry: k * 0.12, rx: 0.25 });
+  for (let k = -3; k <= 3; k++) {
+    const len = 1.9 - Math.abs(k) * 0.12, a = k * 0.16;
+    const f = add(hip, new THREE.OctahedronGeometry(1, 0), k % 2 ? plum2 : plum, Math.sin(a) * (0.6 + len / 2), 0.25 - len * 0.12, -1.0 - Math.cos(a) * len / 2, { ry: -a, rx: 0.25, s: [0.24, 0.045, len / 2] });
+    if (k % 2 === 0) add(hip, new THREE.BoxGeometry(0.035, 0.05, len * 0.7), bolt, f.position.x, f.position.y + 0.04, f.position.z, { ry: -a, rx: 0.25, noOutline: true, shadow: false });
+  }
   // legs with talons
   for (const s of [-1, 1]) {
     const leg = group(hip, s * 0.4, -0.6, 0.2);
@@ -3075,6 +3081,7 @@ function thunderbird({ size = 1, boss = false } = {}) {
     for (let i = 0; i < 5; i++) add(head, new THREE.OctahedronGeometry(0.1), bolt, (i - 2) * 0.12, 0.45, -0.05, { s: [0.7, 1.8, 0.7] });
   }
   g.scale.setScalar(size);
+  g.userData.bodyWidth = 8.6 * size;
   let flap = 0, roar = 0, last = 0;
   g.userData.mouth = mouth;
   g.userData.setFlying = (f) => { flap = f ? 1 : 0; };
@@ -3221,7 +3228,7 @@ export function makeStormCloud(scale = 1) {
 // ------------------------------------------------------------ Thornwood (Chapter 6)
 
 // A treant: a walking tree with a bark face, branch arms and root feet.
-// blight: the Magister's purple corruption (the Thornmother is a huge blighted treant).
+// blight: the Magister's purple corruption.
 function treant({ size = 1, blight = false } = {}) {
   const g = new THREE.Group();
   const body = group(g);
@@ -3470,42 +3477,6 @@ function skeleton(kind = 'warrior') {
     body.position.y = moving ? Math.abs(Math.sin(k)) * 0.05 : 0;
   };
   return finish(g, 0.025, 0.06);
-}
-
-// Malvoren, the Pale Magister: tall, pale and crowned, with grimoires orbiting him.
-function malvoren() {
-  const g = makeWizard({ robe: 0xe8e4f0, hat: 0x2a1a3a, trim: 0xd06aff, gem: 0xd06aff, hatStyle: 'wizard', skin: 0xd8d4e0, eyeColor: 0xd06aff, hair: 0xf2f0ff, beard: true });
-  const head = g.userData.head;
-  for (let i = 0; i < 7; i++) {
-    const a = -1 + (i / 6) * 2;
-    add(head, new THREE.ConeGeometry(0.05, 0.3 + (i === 3 ? 0.2 : 0), 5), glowMat(0xd06aff, 2.2), Math.sin(a) * 0.4, 0.5, Math.cos(a) * 0.12, { rz: -a * 0.3 });
-  }
-  const books = [];
-  for (let i = 0; i < 3; i++) {
-    const b = dyn(group(g, 0, 2, 0));
-    add(b, new THREE.BoxGeometry(0.42, 0.08, 0.32), mat([0x3a1a4a, 0x1a2a4a, 0x4a1a1a][i]));
-    add(b, new THREE.BoxGeometry(0.38, 0.06, 0.3), mat(0xf0e6d0), 0.01, 0.01, 0);
-    add(b, new THREE.OctahedronGeometry(0.06), glowMat(0xd06aff, 2.4), 0, 0.07, 0);
-    books.push(b);
-  }
-  const runes = [];
-  for (let i = 0; i < 5; i++) runes.push(dyn(add(g, new THREE.TorusGeometry(0.14, 0.025, 4, 10), basic(0xe8c0ff), 0, 0, 0, { shadow: false })));
-  const base = g.userData.anim;
-  g.userData.anim = (t, moving) => {
-    base(t, moving);
-    books.forEach((b, i) => {
-      const a = t * 0.9 + (i / 3) * Math.PI * 2;
-      b.position.set(Math.cos(a) * 1.25, 1.9 + Math.sin(t * 2 + i) * 0.2, Math.sin(a) * 1.25);
-      b.rotation.set(Math.sin(t + i) * 0.3, -a, 0);
-    });
-    runes.forEach((r, i) => {
-      const a = -t * 1.4 + (i / 5) * Math.PI * 2;
-      r.position.set(Math.cos(a) * 0.9, 0.2, Math.sin(a) * 0.9);
-      r.rotation.x = Math.PI / 2;
-    });
-  };
-  g.scale.setScalar(1.7);
-  return g;
 }
 
 // A soul anchor: a floating obelisk that chains the Magister's ward.

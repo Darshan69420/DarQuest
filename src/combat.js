@@ -1,6 +1,7 @@
 // Real-time combat: enemy AI, player spells on a hotbar, dodging, damage and rewards.
 import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, ENEMIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { basicSpell } from './state.js';
+import { petLevel, petPower, petFast, petTwin } from './pets.js';
 import { sfx } from './audio.js';
 import { insideShape } from './world.js';
 
@@ -286,7 +287,7 @@ export class Combat {
         break;
       case 'heal':
         w.aura(w.player, 0x7dff9a);
-        this.healHero(spell.amount * (isPet ? 1 + this.rm('petPower') : 1));
+        this.healHero(spell.amount * (isPet ? (1 + this.rm('petPower')) * power : 1));
         break;
       case 'hot':
         w.aura(w.player, 0x7dff9a);
@@ -799,14 +800,17 @@ export class Combat {
     if (fighting && alivePlayer && w.pet && PETS[p.activePet]) {
       this.petTimer -= dt;
       if (this.petTimer <= 0) {
-        this.petTimer = rand(5, 7);
+        const lvl = petLevel(p, p.activePet);
+        this.petTimer = petFast(lvl) ? rand(3.5, 5) : rand(5, 7);
         const def = PETS[p.activePet];
         const spell = SPELLS[def.spell];
         const target = OFFENSIVE.has(spell.type) ? (this.target && this.target.state === 'aggro' ? this.target : w.enemies.find(e => e.state === 'aggro')) : null;
         if (!OFFENSIVE.has(spell.type) || target) {
           if (spell.type !== 'heal' || p.hp < p.maxHp * 0.9) {
             sfx('pet');
-            this.playerSpell(spell, target, w.pet, true);
+            this.playerSpell(spell, target, w.pet, true, petPower(lvl));
+            // a fully grown pet sometimes casts twice
+            if (petTwin(lvl) && Math.random() < 0.35) setTimeout(() => { if (w.pet && (!target || target.state !== 'dead')) this.playerSpell(spell, target, w.pet, true, petPower(lvl)); }, 600);
           }
         }
       }

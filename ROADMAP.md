@@ -23,7 +23,7 @@ Built so far (see the README for the full feature list):
 | 2. RPG depth | ✅ Talents, gear rarity, crafting, a secondary school, gear set bonuses, a bank |
 | 3. World and story | ✅ Seven lands, 51 main quests, conversation topics, three story choices that change the ending, a finale. Possible extras: more side quests |
 | 4. Dungeons and bosses | ✅ The Endless Rift, and the Hollow Undercroft: puzzles, traps, elites, a ward-and-pylon boss, Heroic mode. More dungeons can follow the same pattern |
-| 5. Companions and systems | ✅ Companions, mounts, bestiary, achievements, titles, housing (Homestead) |
+| 5. Companions and systems | ✅ Companions, mounts, pets that level up and learn tricks, bestiary, achievements, titles, housing (Homestead) |
 | 6. Endgame | ✅ Level cap 50 with Archmage ranks, world scaling, New Game+, weekly challenges, the Arena and Slayer |
 | 7. Presentation | 🟡 Per-zone music, weather, aurora, accessibility, a loading screen, and a performance pass (fog culling, outline level of detail, instanced motes: about half the draw calls). Still to do: more animation |
 | 8. Ship it | 🟡 Pages workflow and manifest ready. Turn on Pages in the repo settings |

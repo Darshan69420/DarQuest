@@ -97,6 +97,7 @@ export const ACHIEVEMENTS = [
   A('voltaris', 'Stormbreaker', '⚡', 'Defeat Voltaris, the Storm Herald', p => (p.bestiary?.voltaris || 0) > 0, { gold: 1500, title: 'Stormbreaker' }),
   A('decisions', 'Weight of the Crown', '⚖️', 'Make all three big decisions (Frostholm, Skyport and Thornwood)', p => Object.keys(p.choices || {}).length >= 3, { gold: 800, title: 'the Judge' }),
   A('curious', 'Curious Mind', '💬', 'Ask about 12 different topics', p => Object.keys(p.heard || {}).length >= 12, { gold: 300 }),
+  A('pet_10', 'Best Friends', '🐾', 'Raise a pet to level 10', p => Object.keys(p.petXp || {}).some(id => (p.petXp[id] || 0) >= 550), { gold: 800, title: 'the Beastfriend' }),
   A('combo_50', 'Combo Artist', '🌠', 'Land 50 combo strikes', p => (p.stats_log.combos || 0) >= 50, { gold: 200 }),
   A('night_20', 'Night Watch', '🌙', 'Defeat 20 night spirits', p => (p.stats_log.nightKills || 0) >= 20, { gold: 300, title: 'the Night Stalker' }),
   A('hunter_master', 'Know Thy Enemy', '📖', 'Reach Master hunter rank on any foe (100 defeats)', p => Object.values(p.bestiary || {}).some(n => n >= 100), { gold: 500 }),

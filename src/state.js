@@ -4,6 +4,7 @@ import { BUFFS, addItem } from './items.js';
 import { SHOUTS } from './shouts.js';
 import { makeItem, normalize, gearTotals, itemValue, rollRarity, base } from './gear.js';
 import { talentTotals } from './talents.js';
+import { petLevel, petPower } from './pets.js';
 
 // Three save slots. Slot 1 keeps the original key so older saves still load.
 export const SLOT_KEYS = ['darquest-save-v1', 'darquest-save-slot2', 'darquest-save-slot3'];
@@ -87,6 +88,7 @@ function upgrade(p) {
   p.bank = (p.bank || []).map(normalize).filter(Boolean);
   p.second ??= null;
   p.choices ??= {};
+  p.petXp ??= {};
   p.heard ??= {};
   if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
@@ -119,7 +121,10 @@ export function recalc(p) {
   const tal = talentTotals(p);
   add(gear.stats);
   add(tal.stats);
-  if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
+  if (p.activePet && PETS[p.activePet]) {
+    const k = petPower(petLevel(p, p.activePet));
+    add(Object.fromEntries(Object.entries(PETS[p.activePet].stats).map(([s, v]) => [s, Math.round(v * k)])));
+  }
   for (const [id, left] of Object.entries(p.buffs || {})) if (left > 0 && BUFFS[id]) add(BUFFS[id].stats);
   p.stats = s;
   const mods = { ...tal.mods };

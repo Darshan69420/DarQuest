@@ -697,6 +697,8 @@ export class World {
     const def = PETS[petId];
     if (!def || !this.player) return;
     this.pet = makePet(def.kind, def.color);
+    // pets grow a little with every level
+    this.pet.scale.multiplyScalar(1 + ((this.petLevel?.(petId) || 1) - 1) * 0.05);
     this.pet.userData.anim(0, false);
     this.pet.userData.height = measure(this.pet);
     this.pet.position.copy(this.player.position).add(V(1, 0, -1));

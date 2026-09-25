@@ -1,6 +1,7 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
 import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN, PLAYABLE_SCHOOLS } from './data.js';
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, ARCH_XP } from './state.js';
+import { petProgress, petPower, PET_MAX } from './pets.js';
 import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
 import { RARITIES, RARITY_ORDER, LEGENDARY, itemName, itemColor, itemStats, itemValue, compareText, makeItem, setOf, setProgress, setBonusText } from './gear.js';
 import { TALENTS, freePoints, talentPoints, spentPoints, branchSpent, canLearn, respecCost } from './talents.js';
@@ -386,8 +387,13 @@ export function openCharacter(p, onChange, tab = 'gear') {
     const petList = p.pets.map(id => {
       const pet = PETS[id], sp = SPELLS[pet.spell];
       const active = p.activePet === id;
+      const pr = petProgress(p, id), k = petPower(pr.level);
+      const stats = Object.fromEntries(Object.entries(pet.stats).map(([s, v]) => [s, Math.round(v * k)]));
       return `<div class="gear-row ${active ? 'active' : ''}"><div class="gear-icon">${SCHOOLS[pet.school].icon}</div>
-        <div class="gear-info"><b>${pet.name}</b><br><span>Casts in battle: ${esc(describe(sp))}</span><br><span>${statsText(pet.stats)}</span></div>
+        <div class="gear-info"><b>${pet.name}</b> <small>Level ${pr.level}${pr.level >= PET_MAX ? ' (max)' : ''} · spells ×${k.toFixed(2)}</small>
+          ${pr.level < PET_MAX ? `<div class="bar small"><div class="fill" style="width:${(pr.have / pr.need) * 100}%"></div></div>` : ''}
+          <span>Casts in battle: ${esc(describe(sp))}</span><br><span>${statsText(stats)}</span>
+          <br><small>${pr.level >= PET_MAX ? '✦ Casts faster, and sometimes twice in a row' : pr.level >= 5 ? '✦ Casts faster · level 10: sometimes casts twice' : 'Level 5: casts faster · level 10: sometimes casts twice'}. Pets grow when you win fights while they are with you.</small></div>
         <button class="btn small ${active ? '' : 'primary'}" data-pet="${id}">${active ? 'Dismiss' : 'Summon'}</button></div>`;
     }).join('') || '<p class="modal-note">No pets yet. Buy a Mystery Pet Egg from Madame Fizz, or find one on powerful foes.</p>';
     const order = { slot: (a, b) => Object.keys(SLOTS).indexOf(a.g.slot) - Object.keys(SLOTS).indexOf(b.g.slot) || b.g.level - a.g.level,

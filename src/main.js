@@ -26,6 +26,7 @@ import { Rift, UPGRADES } from './rift.js';
 import { Undercroft, clock } from './dungeon.js';
 import { makeChest } from './models.js';
 import { topicsFor, pendingChoice, epilogueLines } from './lore.js';
+import { petLevel, givePetXp, petFast, petTwin, PET_MAX } from './pets.js';
 import * as RU from './ui_rift.js';
 import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
@@ -1230,6 +1231,15 @@ function rewardKill(e) {
   const quest = recordKill(player, def.id);
   player.stats_log.kills++;
   player.bestiary[def.id] = (player.bestiary[def.id] || 0) + 1;
+  // your pet learns from every victory
+  const petUp = givePetXp(player, def.boss ? 10 : def.elite ? 3 : 1);
+  if (petUp) {
+    const pd = PETS[player.activePet];
+    recalc(player);
+    world.setPet(player.activePet);
+    UI.toast(`🐾 <b>${UI.esc(pd.name)}</b> grew to level <b>${petUp}</b>!${petUp === 5 ? ' New trick: it casts more often.' : petUp === PET_MAX ? ' Fully grown! It sometimes casts twice in a row.' : ''}`, 'good');
+    Audio.sfx('pet');
+  }
   if (def.night) player.stats_log.nightKills = (player.stats_log.nightKills || 0) + 1;
   const sl = slayerKill(player, def);
   if (sl) {
@@ -1506,6 +1516,8 @@ const VAULT = { x: HOME_X + 7, z: 25 };
   world.addLabel(chest, '<div class="name">🏦 Vault</div><div class="sub">Your bank</div>', 'npc', 1.9);
 }
 world.extraInteractables.push(() => (player ? [{ id: 'x:vault', x: VAULT.x, z: VAULT.z, r: 2.6, label: 'open your vault' }] : []));
+
+world.petLevel = (id) => (player ? petLevel(player, id) : 1);
 
 // Accessibility: menu size, colour-blind friendly bars and reduced motion.
 function applyAccess() {

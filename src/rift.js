@@ -54,16 +54,28 @@ export const UPGRADES = {
   voidling:   { name: 'Voidling',       icon: '👁️', cost: [200], pet: 'voidling', desc: 'Adopt a little void creature that follows you and zaps foes' },
 };
 
+// Deeper floors draw foes from every land you can visit (older foes drop out as new ones arrive).
 const POOL = [
-  { from: 1, ids: ['gloomsprig', 'cinder_rat', 'frost_wisp'] },
-  { from: 3, ids: ['hollow_knight', 'storm_crow'] },
-  { from: 5, ids: ['lava_imp', 'cinderhound', 'ashen_shaman'] },
-  { from: 8, ids: ['obsidian_golem', 'magma_serpent', 'magma_guard'] },
+  { from: 1, to: 14, ids: ['gloomsprig', 'cinder_rat', 'frost_wisp'] },
+  { from: 3, to: 18, ids: ['hollow_knight', 'storm_crow'] },
+  { from: 5, to: 22, ids: ['lava_imp', 'cinderhound', 'ashen_shaman'] },
+  { from: 8, to: 26, ids: ['obsidian_golem', 'magma_serpent', 'magma_guard'] },
+  { from: 12, to: 32, ids: ['wyrmling', 'drake', 'dragon_cultist'] },
+  { from: 16, to: 38, ids: ['snow_wolf', 'frost_wraith', 'yeti', 'ice_golem'] },
+  { from: 20, ids: ['gale_sprite', 'stormhorn', 'skyraider', 'tempest_golem'] },
+  { from: 25, ids: ['briar_stalker', 'pixie', 'spore_shambler', 'treant', 'blight_horror'] },
+  { from: 30, ids: ['sorrowshade', 'deathless', 'bone_magus', 'pale_templar'] },
 ];
+// A guardian every 5 floors; deeper floors can call up the great bosses of later lands.
 const BOSSES = [
   { base: 'lord_hollowmere', name: 'Echo of Hollowmere' },
   { base: 'pyrrhon', name: 'Shade of Pyrrhon' },
   { base: 'obsidian_golem', name: 'The Rift Colossus', scale: 2.2 },
+  { base: 'sylvara', name: 'Rift-Frozen Queen', from: 15 },
+  { base: 'ice_golem', name: 'The Glacier Titan', scale: 2.4, from: 15 },
+  { base: 'thunder_roc', name: 'The Rift Roc', scale: 1.8, from: 20 },
+  { base: 'treant', name: 'The Rotting Elder', scale: 2.2, from: 25 },
+  { base: 'bone_colossus', name: 'The Ossuary King', scale: 1.6, from: 30 },
 ];
 const ELITES = {
   vicious:   { name: 'Vicious',   dmg: 1.5 },
@@ -415,7 +427,7 @@ export class Rift {
   populate(g) {
     const p = this.getPlayer();
     const floor = this.run.floor;
-    const pool = POOL.filter(t => floor >= t.from).flatMap(t => t.ids);
+    const pool = POOL.filter(t => floor >= t.from && floor <= (t.to ?? Infinity)).flatMap(t => t.ids);
     const center = (r) => this.cellPos(r.cx - 0.5, r.cz - 0.5);
     const randIn = (r) => this.cellPos(r.x + 1 + Math.random() * (r.w - 3), r.z + 1 + Math.random() * (r.h - 3));
     for (const r of g.rooms) {
@@ -431,7 +443,8 @@ export class Rift {
         }
       }
       if (r.type === 'boss') {
-        const b = BOSSES[(Math.floor(floor / 5) - 1) % BOSSES.length];
+        const bosses = BOSSES.filter(b => floor >= (b.from || 0));
+        const b = floor < 20 ? bosses[(Math.floor(floor / 5) - 1) % bosses.length] : bosses[Math.floor(Math.random() * bosses.length)];
         const e = spawn(riftFoe(b.base, floor, p.level, { boss: b }), c);
         e.wanderR = 0;
       }

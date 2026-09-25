@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
-  makePet, makePortal, mergeGeometries, makeNode, makeStation,
+  makePet, makePortal, mergeGeometries, makeNode, makeStation, makeMount, makeWaystone,
 } from './models.js';
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
-import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
+import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead } from './maps.js';
 import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 import { Sky } from './sky.js';
@@ -372,6 +372,13 @@ export class World {
       this.portalModels[pt.id] = this.add(makePortal(pt.color ?? 0xb46bff), pt.x, pt.z, rot);
       for (const s of [-1, 1]) this.colliders.push({ x: pt.x + Math.cos(rot) * s * 2.4, z: pt.z - Math.sin(rot) * s * 2.4, r: 0.7 });
     }
+    // waystones for fast travel
+    this.waystoneModels = {};
+    for (const ws of WAYSTONES) {
+      const m = this.add(makeWaystone(), ws.x, ws.z, Math.random() * 0.6 - 0.3, 0.8);
+      this.waystoneModels[ws.id] = m;
+      this.addLabel(m, `<div class="name">🗿 Waystone</div><div class="sub">${ws.name}</div>`, 'npc waystone', 4.3);
+    }
   }
 
   spawnNPCs() {
@@ -437,6 +444,7 @@ export class World {
     const old = this.player;
     const keep = old ? old.position.clone() : null;
     if (old) this.scene.remove(old);
+    if (!old) this.dismount?.(true);
     const c = SCHOOLS[p.school].color;
     const worn = (slot) => GEAR[p.equipped?.[slot]?.b];
     const hat = worn('hat')?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
@@ -750,8 +758,37 @@ export class World {
       else this.moveTarget = null;
     }
     this.player.rotation.y = this.heading;
-    this.player.userData.anim(this.time, moving);
+    this.animPlayer(moving);
   }
+
+  // The wizard walks, or sits still in the saddle while the mount does the walking.
+  animPlayer(moving) {
+    this.player.userData.anim(this.time, moving && !this.mountModel);
+    const m = this.mountModel;
+    if (!m) return;
+    m.position.copy(this.player.position);
+    m.rotation.y = this.heading;
+    m.userData.anim(this.time, moving);
+    this.player.userData.body.position.y += m.userData.saddle;
+  }
+
+  mountUp(kind) {
+    this.dismount(true);
+    this.mountModel = makeMount(kind);
+    this.mountModel.position.copy(this.player.position);
+    this.scene.add(this.mountModel);
+    this.puff(this.player.position.x, 1, this.player.position.z, 0xe8e4ff, 16, 3);
+  }
+
+  dismount(quiet = false) {
+    if (!this.mountModel) return false;
+    this.scene.remove(this.mountModel);
+    this.mountModel = null;
+    if (!quiet) this.puff(this.player.position.x, 1, this.player.position.z, 0xe8e4ff, 12, 3);
+    return true;
+  }
+
+  get mounted() { return !!this.mountModel; }
 
   // Pulls a camera position toward `from` until it is over open ground, so the
   // camera never ends up inside a house, cliff or tree.
@@ -1277,7 +1314,7 @@ export class World {
     if (this.fpsT >= 0.5) { this.fps = this.fpsFrames / this.fpsT; this.fpsFrames = 0; this.fpsT = 0; }
 
     if (this.mode === 'explore' && this.player) this.movePlayer(dt);
-    else if (this.player) this.player.userData.anim(this.time, false);
+    else if (this.player) this.animPlayer(false);
     this.updateEnemies(dt);
     this.updateTargetRing();
     const fp = this.player?.position;

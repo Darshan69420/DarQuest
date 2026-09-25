@@ -59,6 +59,9 @@ function upgrade(p) {
   for (const [slot, e] of Object.entries(p.equipped)) { const inst = normalize(e); if (inst) p.equipped[slot] = inst; else delete p.equipped[slot]; }
   p.talents ??= {};
   p.home ??= { blocks: [], init: false };
+  p.mounts ??= [];
+  p.activeMount ??= null;
+  p.waystones ??= [];
   return p;
 }
 

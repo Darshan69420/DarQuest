@@ -5,7 +5,7 @@ import {
   makeFountain, makeTent, makeCampfire, makeLavaPool, makeSpire, makeFireTree, makeCliff,
   makeThrone, makeRock, makeLamp, glowMat, makeGate, makeTree, makePond, makeFence, makeWindmill,
   makeSignpost, makeHayBale, makeFlowers, makeRoundTree, makeWordWall, makeBones, makeNest, makeSnowPine,
-  makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire,
+  makePeak, makeFloatingRock, makeBanner, makeTent as tent, makeCampfire as campfire, makeMount,
 } from './models.js';
 import { EMBER_X as X, DRAGON_X as D, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
@@ -104,6 +104,14 @@ export function buildMeadow(world) {
   for (const [x, z] of [[58, 24], [62, 32], [50, 38], [66, 41], [44, 29]]) world.addNode('herb_moonleaf', x, z);
   for (const [x, z] of [[41, 40], [56, 43], [70, 21]]) world.addNode('berry_bush', x, z);
   for (const [x, z] of [[104, 31], [110, 39], [118, 27]]) world.addNode('herb_sunpetal', x, z);
+
+  // Juno's stables
+  for (const [x, z, len, rot] of [[64, -14, 12, 0], [76, -14, 8, -Math.PI / 2]]) world.add(makeFence(len), x, z, rot);
+  for (const [x, z, r] of [[65, -12, 0.2], [66.5, -12.4, 1.4]]) world.add(makeHayBale(), x, z, r, 0.7);
+  const horse = makeMount('steed');
+  world.add(horse, 73, -10, 2.4, 1);
+  const wolf = makeMount('wolf');
+  world.add(wolf, 71, -12.5, 1.9, 0.9);
 
   // farm corner and decorations
   world.add(makeWindmill(), 123, 36, -0.5, 2.6);

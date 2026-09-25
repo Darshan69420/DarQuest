@@ -2530,3 +2530,108 @@ export function makeBanner(color = 0xc0392b) {
   g.userData.anim = (t) => { cloth.rotation.y = Math.sin(t * 2 + color) * 0.25; };
   return finish(g, 0.03, 0.2);
 }
+
+// ---------------------------------------------------------------- mounts
+
+// A four-legged mount with a saddle. `kind` shapes the head, ears, tail and extras.
+function quadruped({ color, dark, mane, size = 1, legLen = 1.1, neck = 0.9, ears = 'horse', antlers = false, tail = 'hair', fire = false, eye = null, glow = null }) {
+  const g = new THREE.Group();
+  const body = group(g);
+  const C = mat(color), D = mat(dark ?? darker(color, 0.7)), M = mat(mane ?? darker(color, 0.5));
+  const H = legLen + 0.35;
+  add(body, sph(0.62, 16, 12), C, 0, H, 0, { s: [0.85, 0.8, 1.7] });
+  // legs
+  const legs = [];
+  for (const [x, z] of [[0.3, 0.72], [-0.3, 0.72], [0.3, -0.72], [-0.3, -0.72]]) {
+    const lg = group(body, x, H - 0.2, z);
+    limb(lg, V3(0, 0, 0), V3(0, -legLen * 0.55, z > 0 ? 0.05 : -0.08), 0.15, 0.11, C, 8);
+    limb(lg, V3(0, -legLen * 0.55, z > 0 ? 0.05 : -0.08), V3(0, -legLen - 0.1, 0.02), 0.1, 0.08, D, 8);
+    add(lg, new THREE.CylinderGeometry(0.1, 0.12, 0.14, 8), mat(0x2a2020), 0, -legLen - 0.12, 0.02);
+    legs.push(lg);
+  }
+  // neck and head
+  const nk = group(body, 0, H + 0.25, 0.85);
+  limb(nk, V3(0, 0, 0), V3(0, neck * 0.8, neck * 0.45), 0.24, 0.18, C, 10);
+  const head = group(nk, 0, neck * 0.85, neck * 0.55);
+  if (ears === 'wolf' || ears === 'cat') {
+    add(head, sph(0.3, 14, 10), C, 0, 0, 0, { s: [1, 0.9, 1.1] });
+    add(head, sph(0.18, 12, 8), D, 0, -0.06, 0.3, { s: [0.8, 0.7, 1.3] });
+    add(head, sph(0.05, 8, 6), basic(0x1a1030), 0, -0.02, 0.52, { shadow: false });
+    for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.09, 0.28, 5), C, s * 0.15, 0.3, -0.05, { rz: -s * 0.2 });
+  } else if (ears === 'lizard') {
+    add(head, sph(0.3, 14, 10), C, 0, 0, 0.1, { s: [0.9, 0.6, 1.5] });
+    for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.05, 0.3, 5), mat(0xf0e6d0), s * 0.12, 0.15, -0.25, { rx: -1.2 });
+  } else {
+    add(head, sph(0.26, 14, 10), C, 0, 0.02, 0, { s: [0.8, 0.9, 1.1] });
+    add(head, sph(0.2, 12, 8), C, 0, -0.1, 0.32, { s: [0.75, 0.75, 1.3] });
+    for (const s of [-1, 1]) add(head, sph(0.03, 6, 4), basic(0x1a1030), s * 0.07, -0.12, 0.56, { shadow: false });
+    for (const s of [-1, 1]) add(head, new THREE.ConeGeometry(0.06, 0.2, 5), C, s * 0.12, 0.27, -0.08, { rz: -s * 0.25 });
+    for (let k = 0; k < 5; k++) add(nk, new THREE.ConeGeometry(0.08, 0.28, 5), M, 0, 0.2 + k * 0.17, 0.02 + k * 0.1 - 0.12, { rx: -1.1 });
+  }
+  for (const s of [-1, 1]) {
+    const e = makeEye(0.06, glow ? { glow } : { iris: eye ?? 0x3a2a1a });
+    e.position.set(s * 0.17, 0.08, 0.18);
+    e.rotation.y = s * 0.5;
+    head.add(e);
+  }
+  if (antlers) for (const s of [-1, 1]) {
+    limb(head, V3(s * 0.1, 0.22, -0.05), V3(s * 0.35, 0.7, -0.15), 0.035, 0.025, mat(0xe8dcc0), 5);
+    limb(head, V3(s * 0.28, 0.55, -0.12), V3(s * 0.5, 0.75, 0.05), 0.025, 0.015, mat(0xe8dcc0), 4);
+    limb(head, V3(s * 0.2, 0.4, -0.08), V3(s * 0.15, 0.65, 0.15), 0.025, 0.015, mat(0xe8dcc0), 4);
+  }
+  // tail
+  const tl = group(body, 0, H + 0.1, -1.0);
+  if (tail === 'hair') tube(tl, [[0, 0, 0], [0, -0.3, -0.25], [0, -0.7, -0.3]], 0.1, M, 10);
+  else if (tail === 'bushy') add(tl, sph(0.22, 12, 8), M, 0, -0.1, -0.35, { s: [0.8, 0.8, 2] });
+  else tube(tl, [[0, -0.1, 0], [0, -0.3, -0.6], [0.1, -0.4, -1.2]], 0.12, C, 12);
+  // saddle
+  const saddle = mat(0x7a3a2a), trimM = mat(0xf2c14e);
+  add(body, sph(0.42, 14, 8, 0), saddle, 0, H + 0.42, -0.05, { s: [1, 0.3, 1.2] });
+  add(body, new THREE.TorusGeometry(0.42, 0.04, 6, 18), trimM, 0, H + 0.43, -0.05, { rx: Math.PI / 2, s: [1, 1.2, 1] });
+  for (const s of [-1, 1]) add(body, new THREE.BoxGeometry(0.05, 0.5, 0.3), saddle, s * 0.55, H + 0.1, -0.05, { rz: s * 0.2 });
+  const flames = fire ? [flame(body, 0, H + 0.45, 0.45, 0.8), flame(body, 0, H + 0.4, -0.55, 0.8)] : [];
+  g.scale.setScalar(size);
+  g.userData.saddle = (H + 0.5) * size;
+  g.userData.anim = (t, moving) => {
+    const f = t * 11;
+    legs.forEach((lg, i) => { lg.rotation.x = moving ? Math.sin(f + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.6 : 0; });
+    body.position.y = moving ? Math.abs(Math.sin(f)) * 0.08 : Math.sin(t * 1.5) * 0.015;
+    nk.rotation.x = moving ? Math.sin(f) * 0.08 : Math.sin(t * 0.8) * 0.04;
+    tl.rotation.y = Math.sin(t * (moving ? 6 : 2)) * 0.3;
+    flames.forEach(fl => fl.userData.flicker(t));
+  };
+  return finish(g, 0.026, 0.06);
+}
+
+export function makeMount(kind) {
+  switch (kind) {
+    case 'steed': return quadruped({ color: 0xc8b8f0, mane: 0xf2f0ff, eye: 0x6a4aa0 });
+    case 'wolf': return quadruped({ color: 0x6a6a78, mane: 0x4a4a55, ears: 'wolf', tail: 'bushy', legLen: 0.95, neck: 0.55, eye: 0xf2c14e });
+    case 'emberback': return quadruped({ color: 0xc0391b, dark: 0x6a1a0a, ears: 'lizard', tail: 'lizard', legLen: 0.7, neck: 0.4, fire: true, glow: 0xffd23d });
+    case 'elk': return quadruped({ color: 0xb8a080, mane: 0xf0e8dc, antlers: true, legLen: 1.25, eye: 0x3a2a1a });
+    case 'stalker': return quadruped({ color: 0x2a1a44, mane: 0x4a2a7a, ears: 'cat', tail: 'lizard', legLen: 0.9, neck: 0.45, glow: 0xc542ff });
+    case 'drake': {
+      const d = makeDragon({ color: 0xc0392b, belly: 0xf2c14e, wings: 2, size: 1.05, frill: true });
+      d.userData.saddle = 2.1;
+      return d;
+    }
+  }
+  return quadruped({ color: 0xc8b8f0 });
+}
+
+// A standing stone that remembers you: touch it once to fast-travel back later.
+export function makeWaystone(color = 0x7fd8ff) {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(1.1, 1.3, 0.35, 8), mat(0x6a6478), 0, 0.17, 0);
+  add(g, new THREE.BoxGeometry(0.8, 2.6, 0.5), mat(0x8a8494), 0, 1.6, 0, { rz: 0.04 });
+  add(g, new THREE.ConeGeometry(0.46, 0.6, 4), mat(0x8a8494), 0, 3.2, 0, { ry: Math.PI / 4, s: [1, 1, 0.6] });
+  const rune = ownMat(darker(color, 0.4), { emissive: color, emissiveIntensity: 0.4 });
+  add(g, new THREE.OctahedronGeometry(0.22, 0), rune, 0, 2, 0.27, { s: [1, 1.4, 0.3], shadow: false });
+  for (const y of [1.2, 2.6]) add(g, new THREE.BoxGeometry(0.5, 0.06, 0.05), rune, 0, y, 0.26, { shadow: false, noOutline: true });
+  const orb = dyn(add(g, sph(0.12, 10, 8), basic(color), 0, 3.9, 0, { shadow: false }));
+  let on = false;
+  g.userData.setActive = (v) => { on = v; rune.emissiveIntensity = v ? 1.4 : 0.35; orb.visible = v; };
+  g.userData.anim = (t) => { if (on) { orb.position.y = 3.9 + Math.sin(t * 2) * 0.15; rune.emissiveIntensity = 1.1 + Math.sin(t * 3) * 0.3; } };
+  g.userData.setActive(false);
+  return finish(g, 0.035, 0.1);
+}

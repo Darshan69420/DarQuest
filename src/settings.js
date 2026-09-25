@@ -26,6 +26,7 @@ export const ACTIONS = {
   journal:   { label: 'Quest journal',         key: 'KeyJ' },
   map:       { label: 'World map',             key: 'KeyN' },
   build:     { label: 'Build mode (homestead)', key: 'KeyG' },
+  mount:     { label: 'Ride / dismount',       key: 'KeyX' },
   mute:      { label: 'Sound on/off',          key: 'KeyM' },
   help:      { label: 'Help',                  key: 'F1' },
 };

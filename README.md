@@ -34,6 +34,8 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | Quest journal | `J` |
 | Eat food / drink potion | `F` / `H` |
 | Build mode (at your Homestead) | `G` |
+| Ride / dismount | `X` |
+| World Atlas & fast travel | `N` (or click the minimap) |
 | Menu & settings | `Esc` |
 
 Every key can be changed in **Settings → Keys**.
@@ -48,6 +50,7 @@ Every key can be changed in **Settings → Keys**.
 - **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear, pets and side quests:** 45+ gear pieces (drops, shops and crafting), 8 pets, the Gatherers' Guild quest chain, and a quest journal.
+- **Mounts and fast travel:** six mounts (Starfall Steed, Dire Wolf, Emberback, Frost Elk, Void Stalker, Sky Drake), waystones across the world, and a World Atlas to fast-travel between them.
 - **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
 - **Difficulty:** Normal, Heroic or Legendary.
 - **Quality of life:** three save slots with export and import, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, generated music, and a touch joystick on phones.

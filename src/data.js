@@ -439,6 +439,11 @@ export const NPCS = {
             'Fall in there and you keep half your shards. Leave through a Rift Exit and you keep them all.',
             'Shrines in the Rift grant boons. They fade when your run ends, but the shards do not.'],
   },
+  juno: {
+    name: 'Stablemaster Juno', title: 'Millbrook Stables', x: 69, z: -8, robe: 0x8a5a3a, hat: 0x5a3a20, trim: 0xf0d8a0, service: 'stable', hatStyle: 'hood', hair: 0xd8a040, skin: 0xe0b890, eyeColor: 0x5a8a3a,
+    lines: ['A good mount is worth ten pairs of boots. Press X to ride, and it will carry you twice as fast.',
+            'Mounts get spooked in battle, so you will hop off when a fight starts.'],
+  },
   brisa: {
     name: 'Forewoman Brisa', title: 'Gatherers\' Guild', x: 42, z: 4, robe: 0x5a7a3a, hat: 0x3a4a24, trim: 0xd8b060, service: 'guild', hatStyle: 'hood', backpack: true, hair: 0x6a3a1a, skin: 0xc68a5e, eyeColor: 0x3a6a2a,
     lines: ['Trees, rocks, fish and flowers: the whole meadow is a treasure chest if you know how to open it.',
@@ -860,6 +865,30 @@ export const PORTALS = [
 ];
 PORTALS[0].rot = Math.PI / 2;
 PORTALS[0].color = 0xff7a3d;
+
+// ---------------------------------------------------------------- mounts & travel
+
+// Press X to ride (outside of battle). speed: extra movement speed while mounted.
+export const MOUNTS = {
+  steed:     { name: 'Starfall Steed', icon: '🐴', speed: 0.6,  price: 500,  level: 3,  desc: 'A gentle lavender horse from the academy stables.' },
+  wolf:      { name: 'Dire Wolf',      icon: '🐺', speed: 0.7,  price: 1200, level: 8,  desc: 'Fast, loyal, and only a little bitey.' },
+  emberback: { name: 'Emberback',      icon: '🦎', speed: 0.75, price: 1800, level: 12, desc: 'A fire lizard from Emberfall. Warm to ride.' },
+  elk:       { name: 'Frost Elk',      icon: '🦌', speed: 0.8,  price: 2600, level: 16, desc: 'Sure-footed on the snowiest mountain path.' },
+  stalker:   { name: 'Void Stalker',   icon: '🐈‍⬛', speed: 0.85, price: 0, level: 1, unlock: 'rift', desc: 'Earned by reaching floor 20 of the Endless Rift.' },
+  drake:     { name: 'Sky Drake',      icon: '🐉', speed: 0.9,  price: 0, level: 1, unlock: 'vorathrax', desc: 'Earned by slaying Vorathrax, the Sky Tyrant.' },
+};
+
+// Waystones: touch one to remember it, then fast-travel back from the World Atlas (N).
+export const WAYSTONES = [
+  { id: 'ws_academy', name: 'Starfall Courtyard', zone: 'academy', x: 8, z: -13 },
+  { id: 'ws_lane', name: 'Hollow Lane Gate', zone: 'academy', x: -5, z: 33 },
+  { id: 'ws_meadow', name: 'Millbrook Meadow', zone: 'academy', x: 61, z: 5.5 },
+  { id: 'ws_ember', name: 'Emberfall Camp', zone: 'emberfall', x: 695, z: 10 },
+  { id: 'ws_skyhold', name: 'Skyhold Camp', zone: 'dragonspire', x: 1396, z: 10 },
+  { id: 'ws_bonefield', name: 'The Bone Field', zone: 'dragonspire', x: 1395, z: 89 },
+  { id: 'ws_roost', name: 'Roost Approach', zone: 'dragonspire', x: 1480, z: 124 },
+  { id: 'ws_home', name: 'Your Homestead', zone: 'homestead', x: -2792, z: 22 },
+];
 
 // Spirits that rise at dusk and fade at dawn.
 export const NIGHT_SPAWNS = [

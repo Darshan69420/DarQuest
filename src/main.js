@@ -6,8 +6,9 @@ import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
-  ENEMIES, NIGHT_SPAWNS,
+  ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS,
 } from './data.js';
+import { openAtlas, openStable } from './ui_world.js';
 import { WEATHER_INFO } from './sky.js';
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
@@ -200,6 +201,7 @@ function refresh() {
     world.setNpcMarker(id, marker, side);
   }
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
+  for (const ws of WAYSTONES) world.waystoneModels[ws.id]?.userData.setActive(player.waystones.includes(ws.id));
   for (const w of WORD_WALLS) {
     const known = shoutWords(player, w.shout) > 0;
     w.model?.userData.setLearned?.(known);
@@ -266,6 +268,7 @@ function talk(id) {
   world.moveTarget = null;
   if (id.startsWith('node:')) {
     const node = world.nodes[+id.slice(5)];
+    world.dismount();
     if (gatherer.active?.node !== node) gatherer.start(node);
     return;
   }
@@ -520,11 +523,11 @@ const combat = new Combat({
   world,
   onKill: rewardKill,
   onPlayerDeath: playerDefeated,
-  onHurt: () => { UI.flashHurt(); gatherer.stop(); },
+  onHurt: () => { UI.flashHurt(); gatherer.stop(); if (world.dismount()) UI.combatMessage('You were knocked off your mount!'); },
   onMessage: (text, cls) => UI.combatMessage(text, cls),
   onCombatChange: (fighting, boss) => {
     Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : areaAt(world.player.position.x, world.player.position.z).music);
-    if (fighting) gatherer.stop();
+    if (fighting) { gatherer.stop(); world.dismount(); }
     if (fighting && boss) Audio.sfx('boss');
   },
 });
@@ -665,6 +668,72 @@ function doShout() {
   }
 }
 
+// ------------------------------------------------------------ mounts, waystones and fast travel
+
+function toggleMount() {
+  if (world.mounted) { world.dismount(); Audio.sfx('click'); return; }
+  const id = player.activeMount;
+  if (!id) return UI.combatMessage(player.mounts.length ? 'Choose a mount at the stables.' : 'You have no mount yet. Visit Stablemaster Juno in Millbrook Meadow!');
+  if (combat.inCombat) return UI.combatMessage('You cannot mount up in the middle of a battle!');
+  gatherer.stop();
+  world.mountUp(id);
+  Audio.sfx('pet');
+}
+
+const mountUnlocked = (id) => (id === 'stalker' ? player.rift.best >= 20 : id === 'drake' ? player.quest.index > 22 : true);
+
+function openStableUI() {
+  openStable(player, {
+    unlocked: mountUnlocked,
+    onBuy: (id) => {
+      if (!player.mounts.includes(id)) player.mounts.push(id);
+      player.activeMount = id;
+      refresh();
+      save(player);
+    },
+    onChoose: (id) => { player.activeMount = id; if (world.mounted) world.mountUp(id); save(player); },
+  });
+}
+extraServices.push({ npc: 'juno', label: '🐴 Mounts', action: openStableUI });
+
+world.extraInteractables.push(() => WAYSTONES.map(w => ({ id: 'x:ws:' + w.id, x: w.x, z: w.z, r: 3, label: 'use the waystone' })));
+
+function discoverWaystone(ws) {
+  if (player.waystones.includes(ws.id)) return;
+  player.waystones.push(ws.id);
+  world.waystoneModels[ws.id]?.userData.setActive(true);
+  world.aura(world.waystoneModels[ws.id], 0x7fd8ff);
+  Audio.sfx('shrine');
+  UI.toast(`🗿 Waystone discovered: <b>${UI.esc(ws.name)}</b>. Fast-travel here from the World Atlas (${keyLabel(keyFor('map'))}).`, 'good');
+  save(player);
+}
+
+// Which zone the current quest points to, for the star on the atlas.
+function questZone() {
+  const t = questTarget(player);
+  if (!t) return null;
+  if (t.npc) return zoneAt(NPCS[t.npc].x);
+  if (t.shout) return zoneAt(WORD_WALLS.find(w => w.shout === t.shout).x);
+  const sp = SPAWNS.find(s => s.enemy === t.enemy);
+  return sp ? zoneAt(sp.x) : null;
+}
+
+function openWorldAtlas() {
+  openAtlas(player, {
+    here: zoneAt(world.player.position.x),
+    questZone: questZone(),
+    canTravel: !combat.inCombat && !rift.active,
+    onTravel: (ws) => fadeThen(() => {
+      gatherer.stop();
+      world.teleport({ x: ws.x + 2.5, z: ws.z + 2.5, heading: world.heading });
+      player.pos = { x: ws.x + 2.5, z: ws.z + 2.5 };
+      Audio.sfx('warp');
+      save(player);
+    }),
+  });
+}
+$('#minimap').addEventListener('click', () => inExplore() && openWorldAtlas());
+
 // ------------------------------------------------------------ night
 
 let nightActive = false;
@@ -747,6 +816,12 @@ UI.uiHooks.openShouts = () => openShouts(player, { onChange: () => { buildHotbar
 UI.uiHooks.shoutIcon = (id) => SHOUTS[id]?.icon;
 
 function onExtraInteract(id) {
+  if (id.startsWith('x:ws:')) {
+    const ws = WAYSTONES.find(w => 'x:ws:' + w.id === id);
+    discoverWaystone(ws);
+    openWorldAtlas();
+    return true;
+  }
   if (id.startsWith('x:wall:')) { readWall(WORD_WALLS.find(w => 'x:wall:' + w.id === id)); return true; }
   if (id === 'x:riftgate') { Audio.sfx('click'); openRiftKeeper(); return true; }
   if (id.startsWith('x:rift:')) return rift.interact(id);
@@ -856,7 +931,7 @@ world.onTick = (dt) => {
     }
   }
   if (buffsChanged) recalc(player);
-  world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed');
+  world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed') + (world.mounted ? MOUNTS[player.activeMount]?.speed || 0 : 0);
   rift.update(dt);
   if (inHomestead()) {
     homestead.update(dt);
@@ -902,6 +977,8 @@ world.onTick = (dt) => {
     $('#clock').textContent = `${sky.clockText()}${wi.icon ? ' · ' + wi.icon : ''}`;
     $('#clock').title = `${sky.isNight ? 'Night: spirits roam and foes give +15% XP' : 'Day'}${wi.icon ? ' · ' + wi.name : ''}`;
     if (sky.isNight !== nightActive) setNight(sky.isNight);
+    const pp = world.player.position;
+    for (const ws of WAYSTONES) if (Math.abs(ws.x - pp.x) + Math.abs(ws.z - pp.z) < 9 && !player.waystones.includes(ws.id)) discoverWaystone(ws);
     const fps = $('#fps');
     fps.classList.toggle('hidden', !settings.showFps);
     if (settings.showFps) fps.textContent = `${Math.round(world.fps)} FPS`;
@@ -962,6 +1039,8 @@ window.addEventListener('keydown', (e) => {
   }
   switch (act) {
     case 'build': toggleBuild(); break;
+    case 'mount': toggleMount(); break;
+    case 'map': openWorldAtlas(); break;
     case 'spellbook': UI.openSpellbook(player, onChange); break;
     case 'character': UI.openCharacter(player, onChange); break;
     case 'potion': drinkPotion(); break;
@@ -970,6 +1049,7 @@ window.addEventListener('keydown', (e) => {
     case 'help': e.preventDefault(); UI.openHelp(); break;
     case 'slot1': case 'slot2': case 'slot3': case 'slot4': case 'slot5':
       gatherer.stop();
+      world.dismount();
       combat.castSlot(+act.slice(4) - 1);
       break;
     case 'skills': SK.openSkills(player); break;

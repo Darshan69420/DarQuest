@@ -210,7 +210,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .sc-stats { font-size: 12px; color: var(--muted); font-weight: 800; }
 
 /* ---------------------------------------------------------------- chapter 2 UI */
-#minimap { position: absolute; right: 16px; top: 116px; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+#minimap { position: absolute; right: 16px; top: 116px; width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 6px 20px rgba(0,0,0,.5); cursor: pointer; }
 .zone-name { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); font: 800 clamp(28px, 5vw, 46px) var(--display); color: #fff; text-shadow: 0 3px 0 #3b2d7a, 0 0 30px rgba(242,193,78,.8); opacity: 0; pointer-events: none !important; transition: opacity 1s; white-space: nowrap; }
 .zone-name.show { opacity: 1; }
 .label.portal .name { color: #e0b8ff; }
@@ -416,6 +416,24 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 .bb-block.on { border-color: #7affb0; box-shadow: 0 0 12px rgba(127,255,176,.6); }
 .bb-block.none { opacity: .4; }
 .bb-block > span { position: absolute; top: -6px; left: -4px; font-size: 10px; font-weight: 800; background: #1a1240; border-radius: 6px; padding: 0 4px; color: #ffe9a6; }
+
+/* ---------------------------------------------------------------- atlas & waystones */
+.atlas { position: relative; height: 330px; border-radius: 16px; overflow: hidden; border: 2px solid rgba(242,193,78,.4);
+  background: radial-gradient(circle at 44% 52%, rgba(95,168,74,.35), transparent 30%), radial-gradient(circle at 80% 68%, rgba(255,106,43,.35), transparent 22%),
+    radial-gradient(circle at 76% 20%, rgba(223,230,240,.3), transparent 22%), radial-gradient(circle at 16% 22%, rgba(127,255,176,.25), transparent 18%),
+    radial-gradient(circle at 16% 78%, rgba(197,66,255,.35), transparent 18%), linear-gradient(160deg, #2a3a5c, #1a1238); }
+.atlas-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.atlas-map line { stroke: rgba(242,193,78,.55); stroke-width: .6; stroke-dasharray: 2 1.5; vector-effect: non-scaling-stroke; }
+.atlas-land { position: absolute; transform: translate(-50%, -50%); text-align: center; text-shadow: 0 2px 3px #000; }
+.al-icon { font-size: 38px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
+.al-name { font: 800 14px var(--display); white-space: nowrap; }
+.al-lv { font-size: 11px; color: var(--muted); }
+.atlas-land.here .al-icon { animation: atlasBob 1.4s ease-in-out infinite; }
+@keyframes atlasBob { 50% { transform: translateY(-6px); } }
+.al-you { font-size: 12px; font-weight: 800; color: #9fffb0; }
+.al-star { position: absolute; top: -10px; right: -14px; font-size: 22px; animation: pulse 1.2s infinite; }
+.waystones { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 8px; }
+.label.waystone .name { color: #bfe8ff; }
 
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {

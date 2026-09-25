@@ -460,6 +460,8 @@ export function openHelp() {
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
+    <h3>Mounts &amp; travel</h3>
+    <p>Stablemaster Juno in Millbrook Meadow sells mounts; press <b>X</b> to ride (you hop off when a battle starts). Some mounts are earned: a Void Stalker from the deep Rift and a Sky Drake from Vorathrax. Touch <b>waystones</b> to remember them, then open the <b>World Atlas</b> (<b>N</b>, or click the minimap) to fast-travel.</p>
     <h3>Day, night &amp; weather</h3>
     <p>A full day lasts 15 minutes (the clock is under the minimap). At night the world darkens, a lantern glows around you, <b>spirits roam</b> Hollow Lane and the meadow, foes give <b>+15% XP</b>, and <b>Moonfish</b> bite (Fishing 15). Weather changes with the zone: rain and thunderstorms at the Academy, snow and blizzards on the Peaks, ashfall in Emberfall.</p>
     <h3>Skills &amp; crafting</h3>

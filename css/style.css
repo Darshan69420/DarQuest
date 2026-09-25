@@ -334,12 +334,40 @@ kbd { font: 800 13px var(--body); background: #1a1240; border: 2px solid #8e7ad6
 .ab-track { height: 7px; border-radius: 4px; background: rgba(0,0,0,.5); overflow: hidden; margin-top: 4px; }
 .ab-fill { height: 100%; background: linear-gradient(90deg, #7fd8ff, #c8ffb0); }
 
+/* ---------------------------------------------------------------- the Endless Rift */
+#rift-hud { right: 16px; top: 276px; width: 150px; padding: 8px 10px; border-color: rgba(197,66,255,.7); }
+.rh-top { display: flex; justify-content: space-between; font-weight: 800; }
+.rh-boons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.rh-boons:empty { display: none; }
+.rh-boons span { --rc: #fff; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; border: 1px solid var(--rc); background: rgba(0,0,0,.35); font-size: 14px; }
+.label.enemy.elite .name { text-shadow: 0 0 8px #ff9a1a, 0 2px 3px #000; }
+.label.used { opacity: .45; }
+.rift-hero { text-align: center; }
+.rift-hero p { line-height: 1.5; color: #e3dcff; }
+.rift-stats { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 10px 0 14px; }
+.rift-stats span { background: rgba(0,0,0,.3); border: 1px solid rgba(197,66,255,.5); border-radius: 999px; padding: 6px 14px; }
+.rift-stats b { color: var(--gold); }
+.board { padding-left: 24px; }
+.board li { margin: 5px 0; }
+.board small { color: var(--muted); }
+.boon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.boon-pick { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--body); color: var(--ink); }
+button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px var(--rc); }
+.boon { --rc: #fff; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 14px 12px; border-radius: 16px; border: 2px solid var(--rc);
+  background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--rc) 30%, transparent), transparent 60%), linear-gradient(#2a1f5c, #150e33); transition: transform .15s, box-shadow .15s; }
+.boon-icon { font-size: 40px; }
+.boon-name { font: 800 16px var(--display); color: #fff; }
+.boon-rarity { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--rc); font-weight: 800; }
+.boon-desc { font-size: 13px; color: #e3dcff; line-height: 1.35; }
+.boon .btn { margin-top: auto; }
+
 /* ---------------------------------------------------------------- small screens */
 @media (max-width: 760px) {
   .hud-player { width: 200px; left: 10px; top: 10px; padding: 8px 10px; }
   .hud-quest { width: auto; left: 10px; right: auto; top: auto; bottom: 10px; max-width: calc(100vw - 150px); padding: 8px 10px; }
   .hud-buttons { right: 10px; bottom: 10px; display: grid; grid-template-columns: repeat(2, 40px); gap: 6px; }
   #minimap { right: 10px; top: 10px; width: 104px; height: 104px; }
+  #rift-hud { right: 10px; top: 120px; width: 110px; }
   .hud-player { width: calc(100vw - 134px); max-width: 220px; }
   .btn.round { width: 40px; height: 40px; font-size: 17px; }
   #prompt { bottom: auto; top: 128px; font-size: 13px; }

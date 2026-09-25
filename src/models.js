@@ -1258,6 +1258,22 @@ export function makePet(kind, color) {
       }
       break;
     }
+    case 'voidling': {
+      add(body, sph(0.3, 18, 12), mat(0x2a1a44), 0, 0, 0);
+      add(body, sph(0.2, 16, 10), basic(0xffffff), 0, 0.02, 0.17, { s: [1, 1, 0.6], shadow: false });
+      add(body, sph(0.11, 12, 8), glowMat(color, 2.4), 0, 0.02, 0.27, { s: [1, 1, 0.5], shadow: false });
+      add(body, sph(0.05, 8, 6), basic(0x1a1030), 0, 0.02, 0.32, { shadow: false });
+      for (const s of [-1, 1]) add(body, new THREE.ConeGeometry(0.06, 0.25, 6), mat(0x4a2a7a), s * 0.18, 0.28, -0.02, { rz: -s * 0.5 });
+      const tent = [];
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const t = group(body, Math.cos(a) * 0.14, -0.2, Math.sin(a) * 0.14);
+        add(t, new THREE.ConeGeometry(0.05, 0.4, 6), glowMat(color, 1), 0, -0.18, 0, { rx: Math.PI });
+        tent.push(t);
+      }
+      g.userData.tentacles = tent;
+      break;
+    }
     case 'beetle': {
       add(body, new THREE.SphereGeometry(0.28, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), c, 0, 0, -0.02, { s: [1, 0.9, 1.15] });
       add(body, new THREE.CylinderGeometry(0.28, 0.28, 0.05, 18), mat(darker(color, 0.6)), 0, 0, -0.02, { s: [1, 1, 1.15] });
@@ -1295,6 +1311,7 @@ export function makePet(kind, color) {
       else w.p.rotation.y = w.s * (0.5 + Math.sin(t * 16) * 0.5);
     }
     g.userData.tailFire?.userData.flicker(t);
+    g.userData.tentacles?.forEach((tt, i) => { tt.rotation.x = Math.sin(t * 5 + i) * 0.4; tt.rotation.z = Math.cos(t * 4 + i) * 0.3; });
   };
   return finish(g, 0.02, 0.07);
 }
@@ -2159,4 +2176,72 @@ export function makeStation(type) {
     case 'workbench': return makeWorkbench();
   }
   return makeAnvil();
+}
+
+// ---------------------------------------------------------------- the Endless Rift
+
+export function makeChest(trim = 0xf2c14e) {
+  const g = new THREE.Group();
+  const wood = mat(0x7a4a2a), band = mat(trim);
+  add(g, new THREE.BoxGeometry(1.4, 0.8, 0.9), wood, 0, 0.4, 0);
+  for (const x of [-0.5, 0.5]) add(g, new THREE.BoxGeometry(0.12, 0.84, 0.94), band, x, 0.4, 0);
+  const lid = group(g, 0, 0.8, -0.45);
+  add(lid, new THREE.CylinderGeometry(0.45, 0.45, 1.4, 12, 1, false, 0, Math.PI), wood, 0, 0, 0.45, { rz: Math.PI / 2, ry: 0 });
+  for (const x of [-0.5, 0.5]) add(lid, new THREE.CylinderGeometry(0.47, 0.47, 0.13, 12, 1, false, 0, Math.PI), band, x, 0, 0.45, { rz: Math.PI / 2 });
+  add(g, new THREE.BoxGeometry(0.25, 0.3, 0.1), band, 0, 0.7, 0.47);
+  const glow = dyn(add(g, sph(0.3, 10, 8), basic(0xfff0a0), 0, 0.9, 0, { shadow: false }));
+  glow.visible = false;
+  let opened = -1;
+  g.userData.use = () => { opened = 0; glow.visible = true; };
+  g.userData.anim = (t) => {
+    if (opened < 0) { lid.rotation.x = Math.sin(t * 3) * 0.02; return; }
+    opened = Math.min(1, opened + 0.05);
+    lid.rotation.x = -opened * 1.9;
+    glow.scale.setScalar(1 + opened * 1.5);
+    glow.material.opacity = 1 - opened;
+  };
+  glow.material = new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true });
+  return finish(g, 0.03, 0.1);
+}
+
+export function makeShrine() {
+  const g = new THREE.Group();
+  const stone = mat(0x5a5070), stone2 = mat(0x7a6a90);
+  add(g, new THREE.CylinderGeometry(1.2, 1.4, 0.4, 8), stone2, 0, 0.2, 0);
+  add(g, new THREE.CylinderGeometry(0.5, 0.7, 1.4, 8), stone, 0, 1.1, 0);
+  add(g, new THREE.CylinderGeometry(0.8, 0.6, 0.25, 8), stone2, 0, 1.9, 0);
+  const gem = dyn(add(g, new THREE.OctahedronGeometry(0.45, 0), glowMat(0xc542ff, 2.4), 0, 2.9, 0, { s: [1, 1.5, 1] }));
+  const ring = dyn(add(g, new THREE.TorusGeometry(0.8, 0.04, 6, 30), basic(0xe0b8ff), 0, 2.9, 0, { rx: Math.PI / 2, shadow: false }));
+  let used = false;
+  g.userData.use = () => { used = true; };
+  g.userData.anim = (t) => {
+    gem.position.y = 2.9 + Math.sin(t * 2) * 0.15;
+    gem.rotation.y = t * (used ? 0.3 : 1.5);
+    gem.scale.setScalar(used ? 0.5 : 1);
+    ring.rotation.z = t;
+    ring.visible = !used;
+  };
+  return finish(g, 0.035, 0.1);
+}
+
+export function makeCrystal(color = 0x9a4dff, scale = 1) {
+  const g = new THREE.Group();
+  const m = mat(color, { emissive: color, emissiveIntensity: 0.7 });
+  for (const [x, z, h, rz, rx] of [[0, 0, 1.6, 0, 0], [0.35, 0.1, 1.0, -0.4, 0.1], [-0.3, 0.15, 1.1, 0.35, -0.1], [0.05, -0.35, 0.8, 0.1, 0.4]]) {
+    add(g, new THREE.OctahedronGeometry(0.28, 0), m, x, h * 0.45, z, { s: [1, h * 2.2, 1], rz, rx });
+  }
+  add(g, new THREE.DodecahedronGeometry(0.4, 0), mat(0x3a3048), 0, 0.1, 0, { s: [1.3, 0.5, 1.3] });
+  g.scale.setScalar(scale);
+  return finish(g, 0.03, 0.1, true);
+}
+
+export function makeTorch() {
+  const g = new THREE.Group();
+  const iron = mat(0x2b2733);
+  add(g, new THREE.BoxGeometry(0.15, 0.4, 0.1), iron, 0, 2.1, -0.05);
+  limb(g, V3(0, 2.0, 0), V3(0, 2.35, 0.35), 0.035, 0.035, iron, 5);
+  add(g, new THREE.CylinderGeometry(0.1, 0.06, 0.25, 6), mat(0x5a3a20), 0, 2.45, 0.38);
+  const f = flame(g, 0, 2.55, 0.38, 1.2, [0x9a4dff, 0xc590ff, 0xffffff]);
+  g.userData.anim = (t) => f.userData.flicker(t);
+  return finish(g, 0.02, 0.1);
 }

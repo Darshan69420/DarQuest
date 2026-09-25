@@ -10,8 +10,10 @@ import {
 import {
   newPlayer, load, save, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
-  setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem,
+  setSlot, getSlot, listSlots, exportSave, importSave, recalc, giveItem, setRunHp, givePet,
 } from './state.js';
+import { Rift, UPGRADES } from './rift.js';
+import * as RU from './ui_rift.js';
 import { settings, actionOf, onSettings, keyFor, keyLabel } from './settings.js';
 import { Gatherer } from './skilling.js';
 import { SKILLS, STATION_TYPES, skillLevel, craftOnce } from './skills.js';
@@ -145,6 +147,14 @@ function buildTitle() {
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
+  if (p.pos && zoneAt(p.pos.x) === 'rift') p.pos = null;
+  if (p.rift?.run) {
+    const kept = Math.floor((p.rift.run.shards || 0) / 2);
+    p.rift.shards += kept;
+    p.rift.best = Math.max(p.rift.best, p.rift.run.floor || 0);
+    p.rift.run = null;
+    setTimeout(() => UI.toast(`🌀 Your last Rift run was interrupted on floor ${p.rift.best}. You kept ${kept} 🔮.`, 'good'), 1500);
+  }
   $('#title').classList.add('hidden');
   $('#joystick').classList.toggle('hidden', !matchMedia('(pointer: coarse)').matches);
   world.spawnPlayer(p, isNew ? null : p.pos);
@@ -510,8 +520,96 @@ const gatherer = new Gatherer({
 });
 
 // Later systems (dungeons, shouts, building...) can add their own interactables and NPC services.
-let onExtraInteract = null;
 const extraServices = [];
+
+// ------------------------------------------------------------ the Endless Rift
+
+function fadeThen(fn) {
+  world.mode = 'locked';
+  $('#fade').classList.add('on');
+  setTimeout(() => {
+    fn();
+    $('#fade').classList.remove('on');
+    world.mode = 'explore';
+  }, 650);
+}
+
+function applyRunMods() {
+  const m = rift.mods();
+  combat.runMods = m;
+  setRunHp(m?.hp || 0);
+  if (player) {
+    const frac = player.hp / player.maxHp;
+    recalc(player);
+    player.hp = Math.max(1, Math.min(player.maxHp, Math.round(player.maxHp * frac)));
+  }
+}
+
+const rift = new Rift({
+  world, combat,
+  getPlayer: () => player,
+  hooks: {
+    toast: (t, c) => UI.toast(t, c),
+    message: (t) => UI.combatMessage(t),
+    sfx: (n) => Audio.sfx(n),
+    fade: fadeThen,
+    onMods: applyRunMods,
+    giveGear: (id) => giveItem(player, id),
+    openBoons: (choices, opts) => RU.openBoonChoice(choices, opts),
+    openMerchant: (pr) => RU.openMerchant(player, pr, rift.run.floor, { onBuyBoon: (id) => { rift.grantBoon(id); refresh(); }, onChange: () => { refresh(); save(player); } }),
+    onFloor: (floor, boss) => {
+      showZoneName(boss ? `Floor ${floor} · Guardian` : `Floor ${floor}`);
+      Audio.sfx(boss ? 'boss' : 'warp');
+      refresh();
+    },
+    leave: () => fadeThen(async () => {
+      const summary = rift.end('exit');
+      world.teleport({ x: 17, z: 12, heading: Math.PI });
+      save(player);
+      setTimeout(() => UI.resultScreen(RU.runSummaryHTML(summary)).then(() => refresh()), 400);
+    }),
+  },
+});
+
+combat.onRevive = () => {
+  if (!rift.active) return null;
+  const m = rift.mods();
+  if (m.revive > 0) { rift.run.revivesUsed++; applyRunMods(); return 'phoenix'; }
+  if (rift.run.secondWind) { rift.run.secondWind = false; return 'secondwind'; }
+  return null;
+};
+
+function riftUnlocked() { return player.quest.index >= 2 || player.level >= 3; }
+
+function openRiftKeeper() {
+  RU.openRiftKeeper(player, {
+    unlocked: riftUnlocked(),
+    onEnter: () => fadeThen(() => {
+      gatherer.stop();
+      rift.start();
+      area = null;
+      checkArea();
+      refresh();
+      save(player);
+    }),
+    onBuy: (id) => {
+      const pet = UPGRADES[id].pet;
+      if (pet && givePet(player, pet)) { world.setPet(player.activePet); UI.toast(`🐾 <b>${PETS[pet].name}</b> joins you! Press C to summon it.`, 'good'); }
+      Audio.sfx('shrine');
+      refresh();
+      save(player);
+    },
+  });
+}
+
+extraServices.push({ npc: 'nyx', label: '🌀 The Endless Rift', action: openRiftKeeper });
+world.extraInteractables = [...(world.extraInteractables || []), () => (player && !rift.active ? [{ id: 'x:riftgate', x: 21, z: 17, r: 4, label: 'enter the Endless Rift' }] : [])];
+
+function onExtraInteract(id) {
+  if (id === 'x:riftgate') { Audio.sfx('click'); openRiftKeeper(); return true; }
+  if (id.startsWith('x:rift:')) return rift.interact(id);
+  return false;
+}
 
 function buildHotbar() {
   if (!player) return;
@@ -528,7 +626,12 @@ function rewardKill(e) {
   const diff = DIFFICULTIES[player.difficulty];
   const def = e.def;
   const xp = Math.round(def.xp * diff.reward);
-  const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward);
+  const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward * (1 + combat.rm('gold')));
+  if (def.rift) {
+    rift.onKill(e);
+    rift.run.gold += gold;
+    rift.run.xp += xp;
+  }
   player.gold += gold;
   world.float(e.model, `+${xp} XP`, 'xp');
   const quest = recordKill(player, def.id);
@@ -556,6 +659,18 @@ async function playerDefeated() {
   Audio.sfx('defeat');
   const diff = DIFFICULTIES[player.difficulty];
   await new Promise(r => setTimeout(r, 900));
+  if (rift.active) {
+    const summary = rift.end('death');
+    world.teleport({ x: 17, z: 12, heading: Math.PI });
+    await UI.resultScreen(RU.runSummaryHTML(summary));
+    player.hp = Math.round(player.maxHp * 0.5);
+    player.mana = player.maxMana;
+    player.stats_log.deaths++;
+    world.mode = 'explore';
+    refresh();
+    save(player);
+    return;
+  }
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
     <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
@@ -585,7 +700,8 @@ world.onTick = (dt) => {
     }
   }
   if (buffsChanged) recalc(player);
-  world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0);
+  world.speedMult = 1 + (player.buffs.swift > 0 ? BUFFS.swift.speed : 0) + combat.rm('speed');
+  rift.update(dt);
   if (player.buffs.regen > 0 && player.hp > 0) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.025 * dt);
   UI.updateHotbar(combat.hotbar());
   minimap.update(dt, questTargetPos());
@@ -610,6 +726,7 @@ world.onTick = (dt) => {
     UI.setPrompt(text);
     SK.updateActionBar(gatherer.progress());
     SK.updateBuffs(player);
+    RU.updateRiftHud(rift.run);
     checkArea();
     const fps = $('#fps');
     fps.classList.toggle('hidden', !settings.showFps);
@@ -618,7 +735,7 @@ world.onTick = (dt) => {
   saveTimer += dt;
   if (saveTimer > 5) {
     saveTimer = 0;
-    player.pos = { x: world.player.position.x, z: world.player.position.z };
+    if (!rift.active) player.pos = { x: world.player.position.x, z: world.player.position.z };
     save(player);
   }
 };
@@ -635,11 +752,17 @@ function toggleMute() {
 function openGameMenu() {
   UI.openMenu([
     { label: '▶ Resume', primary: true },
+    ...(rift.active ? [{ label: '🏳️ Abandon Rift run (keep half)', action: () => fadeThen(() => {
+      const summary = rift.end('abandon');
+      world.teleport({ x: 17, z: 12, heading: Math.PI });
+      save(player);
+      setTimeout(() => UI.resultScreen(RU.runSummaryHTML(summary)).then(() => refresh()), 400);
+    }) }] : []),
     { label: '⚙️ Settings', action: () => UI.openSettings() },
     { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
     { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
-    { label: '🏠 Save & quit to title', action: () => { player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
+    { label: '🏠 Save & quit to title', action: () => { if (!rift.active) player.pos = { x: world.player.position.x, z: world.player.position.z }; save(player); location.reload(); } },
   ]);
 }
 
@@ -723,7 +846,7 @@ setInterval(() => {
 
 // Handy for testing from the browser console.
 window.darquest = {
-  world, combat, UI,
+  world, combat, UI, rift,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

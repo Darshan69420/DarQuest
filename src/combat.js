@@ -34,6 +34,8 @@ export class Combat {
     this.tickTimer = 0;
     this.combo = 0;
     this.lastBasic = -9;
+    this.runMods = null;     // boons from an Endless Rift run
+    this.onRevive = null;    // () => 'phoenix' | 'secondwind' | null
     world.onTargetTap = (e) => this.setTarget(e);
   }
 
@@ -45,6 +47,7 @@ export class Combat {
   }
 
   get diff() { return DIFFICULTIES[this.p?.difficulty] || DIFFICULTIES.normal; }
+  rm(k) { return this.runMods?.[k] || 0; }
   get now() { return this.world.time; }
 
   initEnemy(e) {
@@ -103,7 +106,7 @@ export class Combat {
     if (!spell || this.p.hp <= 0) return;
     const t = this.now;
     const basic = slot === 0;
-    const cost = basic ? 0 : spellCost(spell);
+    const cost = basic ? 0 : Math.round(spellCost(spell) * (1 + this.rm('cost')));
     if (t < this.gcd) return;
     if ((this.ready[spell.id] || 0) > t) return this.onMessage?.(`${spell.name} isn't ready yet`);
     if (this.p.mana < cost) return this.onMessage?.('Not enough mana!');
@@ -116,7 +119,7 @@ export class Combat {
       this.faceTarget(target);
     }
     const haste = (this.p.stats?.pip || 0) / 100;
-    this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste);
+    this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste) * (1 + this.rm('cd'));
     this.gcd = t + GLOBAL_COOLDOWN;
     this.p.mana -= cost;
     this.world.castPose(this.world.player);
@@ -146,7 +149,13 @@ export class Combat {
     if (this.now < this.dodgeReady || !this.p || this.p.hp <= 0) return;
     if (this.world.dash()) {
       this.dodgeReady = this.now + DODGE_COOLDOWN;
-      sfx('click');
+      sfx('dodge');
+      if (this.rm('nova')) {
+        const pp = this.world.player.position;
+        this.world.shockwave(pp, 0x9fe6ff, 5);
+        this.world.groundBurst(pp.x, pp.z, 0x9fe6ff, 14, 5);
+        for (const e of this.alive()) if (flat(e.model.position, pp) < 5) this.damageEnemy(e, (60 + this.p.level * 14) * (1 + this.rm('dmg')), 'frost', 0x9fe6ff);
+      }
     }
   }
 
@@ -192,9 +201,9 @@ export class Combat {
     const color = school.color;
     const st = this.p.stats || {};
     const dmgBonus = (this.p.level - 1) * 0.02 + (st.dmg || 0) / 100;
-    const critChance = 0.05 + (st.acc || 0) / 100;
+    const critChance = 0.05 + (st.acc || 0) / 100 + this.rm('crit');
     const hitMult = () => {
-      let m = (1 + dmgBonus) * power;
+      let m = (1 + dmgBonus) * power * (1 + this.rm('dmg') + this.rm('berserk') * (1 - this.p.hp / this.p.maxHp));
       if (!isPet) {
         for (const b of this.hero.blades) m *= 1 + b;
         for (const x of this.hero.weak) m *= 1 - x;
@@ -217,12 +226,20 @@ export class Combat {
           let total = 0;
           for (const e of hit) {
             const crit = Math.random() < critChance;
-            total += this.damageEnemy(e, rand(spell.min, spell.max) * cm * (crit ? 1.5 : 1), spell.school, color, crit, !isPet && (crit || big || power > 1));
+            let tm = 1;
+            if (!isPet && this.runMods) {
+              if (e.hp < e.maxHp * 0.3) tm += this.rm('execute');
+              if (e.def.boss || e.def.elite) tm += this.rm('big');
+            }
+            const amount = rand(spell.min, spell.max) * cm * tm * (crit ? 1.5 : 1);
+            total += this.damageEnemy(e, amount, spell.school, color, crit, !isPet && (crit || big || power > 1));
             if (!isPet && (crit || big)) w.hitStop(big ? 0.09 : 0.05);
             if (spell.dot && e.hp > 0) this.addOverTime(e.mods.dots, spell.dot.total * cm, spell.dot.rounds, spell.school);
+            if (!isPet && this.runMods) this.riftOnHit(e, amount, spell, power);
           }
           sfx(big ? 'bighit' : 'hit');
           if (spell.type === 'drain' && total > 0) this.healHero(total * spell.heal);
+          if (!isPet && this.rm('lifesteal') && total > 0) this.healHero(total * this.rm('lifesteal'));
         });
         break;
       }
@@ -284,6 +301,39 @@ export class Combat {
     }
   }
 
+  // Extra effects from rift boons when one of your spells lands.
+  riftOnHit(e, amount, spell, power) {
+    const w = this.world;
+    if (this.rm('chain') && Math.random() < this.rm('chain')) {
+      const other = this.alive().find(o => o !== e && flat(o.model.position, e.model.position) < 9);
+      if (other) w.projectile(e.model, other.model, 0xb46bff, 0.18, 30).then(() => this.damageEnemy(other, amount * 0.5, 'tempest', 0xb46bff));
+    }
+    if (this.rm('burn') && spell.pips <= 1 && e.hp > 0) this.addOverTime(e.mods.dots, amount * this.rm('burn'), 3, 'blaze');
+    if (this.rm('comboMeteor') && power > 1) {
+      const pos = e.model.position.clone();
+      w.meteor(e.model, 0xffb040, 1.4).then(() => {
+        for (const o of this.alive()) if (flat(o.model.position, pos) < 6) this.damageEnemy(o, amount * 1.5, 'arcane', 0xffb040);
+      });
+    }
+  }
+
+  // Damage from the world itself (traps, explosions), not from an enemy.
+  envHit(amount, school = 'arcane') {
+    const p = this.p, w = this.world;
+    if (!p || p.hp <= 0) return;
+    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
+    let m = 1 + this.rm('taken');
+    for (const s of this.hero.shields) m *= 1 - s;
+    this.hero.shields = [];
+    m *= 1 - (p.stats?.resist || 0) / 200;
+    const dealt = Math.max(1, Math.round(amount * m));
+    p.hp = Math.max(0, p.hp - dealt);
+    w.float(w.player, `-${dealt}`, 'dmg hurt');
+    w.shake(0.25);
+    this.onHurt?.();
+    if (p.hp <= 0) this.heroDown();
+  }
+
   addOverTime(list, total, rounds, school) {
     const ticks = rounds * 2;
     list.push({ per: total / ticks, left: ticks, school });
@@ -291,7 +341,7 @@ export class Combat {
 
   damageEnemy(e, amount, school, color, crit = false, knock = false) {
     if (e.state === 'dead') return 0;
-    let m = 1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0);
+    let m = (1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0)) * (e.def.takenMult || 1);
     for (const t of e.mods.traps) m *= 1 + t;
     for (const s of e.mods.shields) m *= 1 - s;
     e.mods.traps = [];
@@ -321,7 +371,8 @@ export class Combat {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
     if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
-    let m = 1 + this.diff.dmg;
+    let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (1 + this.rm('taken'));
+    if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
     from.mods.blades = [];
@@ -335,6 +386,8 @@ export class Combat {
     p.hp = Math.max(0, p.hp - dealt);
     w.float(w.player, `-${dealt}`, 'dmg hurt');
     w.hitReact(w.player);
+    if (this.rm('thorns') && from.state !== 'dead') this.damageEnemy(from, dealt * this.rm('thorns'), 'verdant', 0x5fdc6a);
+    if (from.def.drainHit) { from.hp = Math.min(from.maxHp, from.hp + dealt * from.def.drainHit); this.updateBar(from); }
     w.burst(w.chest(w.player), color, 10, 3);
     if (dealt > p.maxHp * 0.15) w.shake(0.3);
     this.onHurt?.();
@@ -342,6 +395,16 @@ export class Combat {
   }
 
   heroDown() {
+    // a Phoenix Feather or Second Wind saves you once per rift run
+    const saved = this.onRevive?.();
+    if (saved) {
+      this.p.hp = Math.round(this.p.maxHp * (saved === 'phoenix' ? 0.5 : 0.4));
+      this.world.invulnUntil = this.world.time + 2.5;
+      this.world.aura(this.world.player, saved === 'phoenix' ? 0xff7a1a : 0xffffff);
+      this.world.float(this.world.player, saved === 'phoenix' ? '🪶 Reborn!' : '🕊️ Second Wind!', 'status');
+      sfx('levelup');
+      return;
+    }
     this.hero = mods();
     for (const e of this.world.enemies) if (e.state === 'aggro') { e.state = 'return'; this.clearCast(e); }
     this.setTarget(null);
@@ -555,7 +618,7 @@ export class Combat {
     for (const e of w.enemies) {
       if (e.hp === undefined) this.initEnemy(e);
       if (e.state === 'dead') {
-        if (t > e.respawnAt) { w.respawnEnemy(e); this.initEnemy(e); }
+        if (!e.noRespawn && t > e.respawnAt) { w.respawnEnemy(e); this.initEnemy(e); }
         continue;
       }
       const d = flat(e.model.position, pp);
@@ -617,8 +680,9 @@ export class Combat {
     }
 
     // regenerate: slowly in a fight, quickly out of one
-    p.mana = Math.min(p.maxMana, p.mana + (fighting ? 5 : 15) * dt);
+    p.mana = Math.min(p.maxMana, p.mana + (fighting ? 5 : 15) * dt * (1 + this.rm('mana')));
     if (!fighting && alivePlayer && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.02 * dt);
+    if (fighting && alivePlayer && this.rm('regen')) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * this.rm('regen') * dt);
 
     if (this.target && (this.target.state === 'dead' || flat(this.target.model.position, pp) > 50)) this.setTarget(null);
     if (fighting !== this.inCombat || boss !== this.bossFight) {

@@ -42,6 +42,7 @@ export class Minimap {
     // walkable ground
     const zone = ZONES[zoneAt(p.x)];
     ctx.fillStyle = zoneAt(p.x) === 'emberfall' ? '#6b3a2a' : '#5d5578';
+    if (zone.grid) world.minimapHook?.(ctx, sx, sz, scale, p.x, p.z);
     for (const r of zone.regions) {
       ctx.beginPath();
       if (r.type === 'circle') ctx.arc(sx(r.x), sz(r.z), r.r * scale, 0, Math.PI * 2);

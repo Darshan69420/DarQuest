@@ -117,6 +117,7 @@ export const SPELLS = {
   pet_ward:       { name: 'Pet: Frost Ward', school: 'frost',   pips: 0, type: 'shield', pct: 0.35, pet: true },
   pet_edge:       { name: 'Pet: Owl Edge',   school: 'arcane',  pips: 0, type: 'blade', pct: 0.25, pet: true },
   pet_leech:      { name: 'Pet: Bat Leech',  school: 'umbral',  pips: 0, type: 'drain', min: 80, max: 120, heal: 0.6, target: 'one', pet: true },
+  pet_void:       { name: 'Pet: Void Gaze',  school: 'umbral',  pips: 0, type: 'damage', min: 150, max: 210, target: 'one', pet: true },
 };
 
 for (const [id, s] of Object.entries(SPELLS)) s.id = id;
@@ -341,6 +342,12 @@ export const NPCS = {
     lines: ['The canyon runs north to the Molten Throne. Everything between here and there wants to cook you.',
             'Frost magic works wonders on these fire beasts. Just saying.'],
   },
+  nyx: {
+    name: 'Warden Nyx', title: 'Keeper of the Rift', x: 14, z: 21, robe: 0x2a1a44, hat: 0x1a1030, trim: 0xc542ff, service: 'rift', hatStyle: 'hood', hair: 0xe8e8f0, skin: 0xb8a0d0, eyeColor: 0xc542ff, gem: 0xc542ff,
+    lines: ['The Rift is never the same twice. Every floor is new, and every floor is deeper.',
+            'Fall in there and you keep half your shards. Leave through a Rift Exit and you keep them all.',
+            'Shrines in the Rift grant boons. They fade when your run ends, but the shards do not.'],
+  },
   brisa: {
     name: 'Forewoman Brisa', title: 'Gatherers\' Guild', x: 42, z: 4, robe: 0x5a7a3a, hat: 0x3a4a24, trim: 0xd8b060, service: 'guild', hatStyle: 'hood', backpack: true, hair: 0x6a3a1a, skin: 0xc68a5e, eyeColor: 0x3a6a2a,
     lines: ['Trees, rocks, fish and flowers: the whole meadow is a treasure chest if you know how to open it.',
@@ -553,6 +560,7 @@ export const PETS = {
   frost_pup:    { name: 'Frost Pup',    school: 'frost',   kind: 'pup',    color: 0x9fe6ff, spell: 'pet_ward',  chance: 0.22, stats: { resist: 3 } },
   bat_familiar: { name: 'Bat Familiar', school: 'umbral',  kind: 'bat',    color: 0x9a8cff, spell: 'pet_leech', chance: 0.22, stats: { hp: 30, dmg: 1 } },
   storm_beetle: { name: 'Storm Beetle', school: 'tempest', kind: 'beetle', color: 0xb46bff, spell: 'pet_zap',   chance: 0.22, stats: { acc: 3 } },
+  voidling:     { name: 'Voidling',     school: 'umbral',  kind: 'voidling', color: 0xc542ff, spell: 'pet_void', chance: 0.25, stats: { dmg: 4, hp: 20 }, special: 'Rift upgrade from Warden Nyx' },
 };
 for (const [id, p] of Object.entries(PETS)) p.id = id;
 
@@ -582,8 +590,17 @@ export const ZONES = {
     atmosphere: { fog: 0x6a2a18, top: 0x240a10, mid: 0x8c3a2a, bottom: 0xffa050, hemi: 0xffb080 },
     music: 'ember',
   },
+  // the Endless Rift is rebuilt for every floor (see rift.js)
+  rift: {
+    name: 'The Endless Rift',
+    regions: [],
+    grid: true,
+    spawn: { x: -1400, z: 0, heading: 0 },
+    atmosphere: { fog: 0x1a0a2e, top: 0x05020a, mid: 0x2a1045, bottom: 0x5a2a8a, hemi: 0xb09aff, fogNear: 22, fogFar: 80, hemiI: 1.1, sunI: 1.2 },
+    music: 'rift',
+  },
 };
-export function zoneAt(x) { return x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x < -1000 ? 'rift' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Named places inside a zone: they get their own title card and music.
 export const AREAS = [

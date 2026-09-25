@@ -292,6 +292,7 @@ export class World {
       const x = Math.sin(a) * (COURTYARD_R - 2), z = Math.cos(a) * (COURTYARD_R - 2);
       if (z > 20 && Math.abs(x) < 12) continue;   // leave the south exit open
       if (x > 20 && Math.abs(z) < 11) continue;   // and the east gate to the meadow
+      if (Math.hypot(x - 21, z - 17) < 7) continue; // and the Rift Gate
       if (z < -24 && Math.abs(x) < 20) continue;  // academy front
       const tree = i % 2 ? makeTree(0.9 + Math.random() * 0.3) : makeRoundTree(0.9 + Math.random() * 0.3, [0xd36fae, 0xf29a6b, 0xb46bff][i % 3]);
       this.add(tree, x, z, Math.random() * 6, 1.2);
@@ -349,6 +350,12 @@ export class World {
     }
     this.motes = motes;
 
+    // the Rift Gate, a crack into the Endless Rift
+    const rg = this.add(makePortal(0x7a3aff), 21, 17, -2.3);
+    this.riftGate = rg;
+    for (const s of [-1, 1]) this.colliders.push({ x: 21 + Math.cos(-2.3) * s * 2.4, z: 17 - Math.sin(-2.3) * s * 2.4, r: 0.7 });
+    this.addLabel(rg, '<div class="name">🌀 Rift Gate</div><div class="sub">The Endless Rift</div>', 'npc portal', 6.4);
+
     // Millbrook Meadow (skilling), Chapter 2 zone, and the portals that connect the zones
     buildMeadow(this);
     const ember = buildEmberfall(this);
@@ -387,24 +394,39 @@ export class World {
   }
 
   spawnEnemies() {
-    SPAWNS.forEach((sp, idx) => {
-      const def = ENEMIES[sp.enemy];
-      const model = makeEnemy(def.model);
-      model.userData.height = measure(model);
-      const box = new THREE.Box3().setFromObject(model);
-      model.userData.width = box.max.x - box.min.x;
-      model.position.set(sp.x, 0, sp.z);
-      model.rotation.y = Math.PI;
-      this.scene.add(model);
-      const color = SCHOOLS[def.school].css;
-      const label = this.addLabel(model,
-        `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div><div class="ehp"><div class="fill"></div></div><div class="ecast"><div class="fill"></div></div>`,
-        'enemy', model.userData.height + 0.5);
-      this.enemies.push({
-        uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
-        state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0,
-      });
-    });
+    for (const sp of SPAWNS) this.addEnemy(ENEMIES[sp.enemy], sp.x, sp.z, sp.r, false);
+  }
+
+  // Puts an enemy in the world. Enemies added later (dungeons, events) never respawn.
+  addEnemy(def, x, z, wanderR = 3, temporary = true) {
+    const model = makeEnemy(def.model);
+    if (def.scale) model.scale.multiplyScalar(def.scale);
+    model.userData.height = measure(model);
+    const box = new THREE.Box3().setFromObject(model);
+    model.userData.width = box.max.x - box.min.x;
+    model.position.set(x, 0, z);
+    model.rotation.y = Math.PI;
+    this.scene.add(model);
+    const color = def.elite ? '#ffd23d' : SCHOOLS[def.school].css;
+    const label = this.addLabel(model,
+      `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : def.elite ? ' · Elite' : ''}</div><div class="ehp"><div class="fill"></div></div><div class="ecast"><div class="fill"></div></div>`,
+      'enemy' + (def.elite ? ' elite' : ''), model.userData.height + 0.5);
+    this.enemyUid = (this.enemyUid || 0) + 1;
+    const e = {
+      uid: this.enemyUid, def, model, label, home: V(x, 0, z), wanderR, baseScale: model.scale.x,
+      state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0, noRespawn: temporary,
+    };
+    this.enemies.push(e);
+    return e;
+  }
+
+  removeEnemy(e) {
+    this.scene.remove(e.model);
+    e.model.traverse(c => { if (c.isMesh) c.geometry.dispose(); });
+    e.label.el.remove();
+    this.labels = this.labels.filter(l => l !== e.label);
+    this.enemies = this.enemies.filter(x => x !== e);
+    if (this.targetEntity === e) this.setTargetRing(null);
   }
 
   // Rebuilds the player model (e.g. after changing gear) and keeps its place.
@@ -640,7 +662,13 @@ export class World {
   // ------------------------------------------------------------ movement
 
   walkable(x, z) {
-    const regions = ZONES[zoneAt(x)].regions;
+    const zone = ZONES[zoneAt(x)];
+    if (zone.grid) {
+      if (!this.riftWalk?.(x, z)) return false;
+      for (const c of this.colliders) if ((x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return false;
+      return true;
+    }
+    const regions = zone.regions;
     const inside = regions.some(r => r.type === 'circle'
       ? (x - r.x) ** 2 + (z - r.z) ** 2 < r.r * r.r
       : x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
@@ -1144,6 +1172,10 @@ export class World {
     const k = this.atmo ? 1 - Math.exp(-dt * 2) : 1;
     this.atmo = true;
     this.scene.fog.color.lerp(new THREE.Color(a.fog), k);
+    this.scene.fog.near += ((a.fogNear ?? 50) - this.scene.fog.near) * k;
+    this.scene.fog.far += ((a.fogFar ?? 170) - this.scene.fog.far) * k;
+    this.hemi.intensity += ((a.hemiI ?? 1.3) - this.hemi.intensity) * k;
+    this.sun.intensity += ((a.sunI ?? 2.2) - this.sun.intensity) * k;
     u.top.value.lerp(new THREE.Color(a.top), k);
     u.mid.value.lerp(new THREE.Color(a.mid), k);
     u.bottom.value.lerp(new THREE.Color(a.bottom), k);
@@ -1206,7 +1238,7 @@ export class World {
       this.camera.lookAt(look);
     } else {
       ({ pos, look } = this.followCam());
-      pos = this.safeCam(look, pos);
+      if (!ZONES[zoneAt(this.player.position.x)].grid) pos = this.safeCam(look, pos);
       this.camera.position.lerp(pos, 1 - Math.exp(-7 * dt));
       this.camera.lookAt(look);
     }

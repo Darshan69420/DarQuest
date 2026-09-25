@@ -47,6 +47,8 @@ function upgrade(p) {
   p.side ??= {};
   p.buffs ??= {};
   p.stats_log ??= { kills: 0, gathered: 0, crafted: 0, deaths: 0 };
+  // the Endless Rift: shards, records and permanent upgrades
+  p.rift ??= { shards: 0, best: 0, runs: 0, upgrades: {}, run: null };
   return p;
 }
 
@@ -64,6 +66,10 @@ export function newPlayer(name, school, difficulty = 'normal') {
   return p;
 }
 
+// Max-health bonus from rift boons while a run is active.
+let runHp = 0;
+export function setRunHp(v) { runHp = v || 0; }
+
 // Totals every bonus from gear and the active pet, and updates max health.
 export function recalc(p) {
   const s = { hp: 0, dmg: 0, acc: 0, resist: 0, pip: 0, heal: 0 };
@@ -72,7 +78,7 @@ export function recalc(p) {
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
   for (const [id, left] of Object.entries(p.buffs || {})) if (left > 0 && BUFFS[id]) add(BUFFS[id].stats);
   p.stats = s;
-  p.maxHp = baseHpFor(p.school, p.level) + s.hp;
+  p.maxHp = Math.round((baseHpFor(p.school, p.level) + s.hp) * (1 + runHp));
   p.maxMana = 100 + (p.level - 1) * 6;
   p.mana = Math.min(p.mana ?? p.maxMana, p.maxMana);
   if (p.hp != null) p.hp = Math.min(p.hp, p.maxHp);

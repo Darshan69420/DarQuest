@@ -554,7 +554,11 @@ export class World {
     const worn = (slot) => GEAR[p.equipped?.[slot]?.b];
     const hat = worn('hat')?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
     const robe = worn('robe')?.color ?? c;
-    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c, cape: worn('cloak')?.color, orb: worn('offhand')?.color });
+    // a cosmetic outfit (the Sol Mage holder perks) replaces the gear's colours
+    const o = this.cosmetic;
+    this.player = o
+      ? makeWizard({ robe: o.robe, hat: o.hat, trim: o.trim, gem: o.gem, cape: o.cape ?? worn('cloak')?.color, orb: o.orb ?? worn('offhand')?.color })
+      : makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c, cape: worn('cloak')?.color, orb: worn('offhand')?.color });
     this.player.userData.height = measure(this.player);
     this.scene.add(this.player);
     this.setPet(p.activePet);

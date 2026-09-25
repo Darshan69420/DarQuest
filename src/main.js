@@ -12,7 +12,7 @@ import {
 import { openAtlas, openStable, openInn, openArena, openUndercroft } from './ui_world.js';
 import { Companion, COMPANIONS } from './companions.js';
 import { ARENA_X, ARENA_RANKS, arenaRewards } from './arena.js';
-import { checkAchievements, hunterBonus, displayName } from './achievements.js';
+import { checkAchievements, hunterBonus, displayName, extraTitles } from './achievements.js';
 import { assignTask, slayerKill, slayerBonus } from './slayer.js';
 import { openJournal, openSlayer } from './ui_journal.js';
 import { WEATHER_INFO } from './sky.js';
@@ -42,6 +42,8 @@ import { npcSideQuests, accept as acceptSideQuest, complete as completeSideQuest
 import * as SK from './ui_skills.js';
 import { Hints } from './hints.js';
 import { Objectives } from './objectives.js';
+import { wallet, outfit, perkTitles, tier, onWallet, refresh as refreshWallet } from './chain.js';
+import { openWallet } from './ui_wallet.js';
 
 const $ = (sel) => document.querySelector(sel);
 installIcons();
@@ -157,6 +159,7 @@ function buildTitle() {
   });
   $('#ng-cancel').addEventListener('click', () => $('.new-game').classList.add('hidden'));
   $('#title-settings').addEventListener('click', () => UI.openSettings());
+  $('#title-wallet').addEventListener('click', () => openWallet());
   $('#title-import').addEventListener('click', async () => {
     const text = await UI.pickFile();
     if (!text) return;
@@ -189,6 +192,7 @@ function startGame(p, isNew) {
   }
   $('#title').classList.add('hidden');
   $('#joystick').classList.toggle('hidden', !matchMedia('(pointer: coarse)').matches);
+  world.cosmetic = outfit();
   world.spawnPlayer(p, isNew ? null : p.pos);
   world.mode = 'explore';
   combat.setPlayer(p);
@@ -1493,6 +1497,7 @@ function openGameMenu() {
     ...(player.activeMount ? [{ label: world.mounted ? '🐴 Dismount' : '🐴 Ride your mount', action: toggleMount }] : []),
     ...(inHomestead() ? [{ label: homestead.building ? '🔨 Stop building' : '🔨 Build mode', action: toggleBuild }] : []),
     { label: '⚙️ Settings', action: () => UI.openSettings() },
+    { label: '🔮 Sol Mage wallet', action: () => openWallet() },
     { label: Audio.isMuted() ? '🔊 Sound on' : '🔇 Sound off', action: toggleMute },
     { label: '❓ How to play', action: () => UI.openHelp() },
     { label: '📤 Export save file', action: () => UI.downloadText(`darquest-${player.name.replace(/\W+/g, '_')}-lv${player.level}.json`, exportSave(player)) },
@@ -1612,6 +1617,41 @@ setInterval(() => {
   if (world.mode === 'explore' && UI.isDialogOpen()) { world.mode = 'menu'; world.keys = {}; }
   else if (world.mode === 'menu' && !UI.isDialogOpen()) world.mode = 'explore';
 }, 100);
+
+// ------------------------------------------------------------ Sol Mage holder perks
+
+// Holding Sol Mage tokens dresses every wizard on this device and unlocks titles. Only looks.
+extraTitles.list = perkTitles;
+let wornOutfit = JSON.stringify(outfit());
+onWallet(() => {
+  if (!player) return;
+  const now = JSON.stringify(outfit());
+  if (now !== wornOutfit) {
+    wornOutfit = now;
+    world.cosmetic = outfit();
+    world.spawnPlayer(player);
+    world.aura(world.player, 0xf2c14e);
+  }
+  // a perk title goes away with the perk
+  const perk = ['the Sol Mage', 'the Sunbound', 'Solar Archon'];
+  if (perk.includes(player.title) && !perkTitles().includes(player.title)) { player.title = null; save(player); }
+  refresh();
+});
+if (wallet.address) refreshWallet();
+
+// Solar Archons trail sunfire.
+let auraT = 0;
+const auraTick = world.onTick;
+world.onTick = (dt) => {
+  auraTick(dt);
+  if (!player || world.mode !== 'explore' || !tier()?.aura || !wallet.wear) return;
+  auraT -= dt;
+  if (auraT > 0) return;
+  auraT = 0.12;
+  const pp = world.player.position, a = Math.random() * Math.PI * 2;
+  world.particle({ x: pp.x + Math.cos(a) * 0.7, y: 0.3 + Math.random() * 1.4, z: pp.z + Math.sin(a) * 0.7 }, Math.random() < 0.5 ? 0xffd23d : 0x14f195,
+    { vel: { x: 0, y: 1.2 + Math.random(), z: 0 }, life: 0.9, size: 0.09, gravity: -0.5 });
+};
 
 // Handy for testing from the browser console.
 window.darquest = {

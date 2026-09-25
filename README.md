@@ -65,6 +65,18 @@ Every key can be changed in **Settings → Keys**.
 
 **Settings** cover three save slots with export and import, graphics quality, modern or classic controls, rebindable keys, Normal, Heroic and Legendary difficulty, tutorial hints, a colour-blind mode, text size and reduced motion. Phones get a touch joystick.
 
+## Sol Mage token (Solana)
+
+Players can connect a Solana wallet (Phantom, Solflare, Backpack or any Wallet Standard wallet) from the title screen or **Menu → Sol Mage wallet**. The game reads how many Sol Mage (SOLMAGE) tokens the wallet holds and unlocks cosmetic perks for every wizard on that device:
+
+| Hold | Perks |
+| --- | --- |
+| 1+ | Sol Mage robes (violet and gold), the title "the Sol Mage" |
+| 10,000+ | A sun-orange cape and green-fire orb, the title "the Sunbound" |
+| 1,000,000+ | Black-and-gold archon robes, a sunfire aura, the title "Solar Archon" |
+
+The game only reads the balance. It never asks a wallet to sign or send anything, the perks give no advantage in battle, and the whole game plays the same without a wallet. It points at **devnet** until launch. [docs/token/README.md](docs/token/README.md) walks through creating the token, testing it with `?solmint=<address>`, and moving to mainnet. The network, mint address and tiers live in `src/chain.js`.
+
 ## Code layout
 
 ```
@@ -87,6 +99,8 @@ src/companions.js hireable companions
 src/arena.js      the Arena of Stars and rival wizards
 src/challenges.js weekly challenges
 src/lore.js       conversation topics and story choices
+src/chain.js      the Sol Mage token: wallet connection, balance lookups and perk tiers
+src/ui_wallet.js  the Sol Mage wallet window
 src/objectives.js quest objectives beyond fighting: quest objects, ward circles, places to find
 src/hints.js      tutorial hint cards
 src/settings.js   settings and key bindings

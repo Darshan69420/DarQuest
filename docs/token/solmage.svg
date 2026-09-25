@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="face" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#3a2a78"/><stop offset=".7" stop-color="#1c1440"/><stop offset="1" stop-color="#100b24"/></radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3a0"/><stop offset=".5" stop-color="#d4a044"/><stop offset="1" stop-color="#8a5c1c"/></linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#f0a83a"/></linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient>
+    <linearGradient id="hat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2458"/><stop offset="1" stop-color="#171230"/></linearGradient>
+    <clipPath id="inner"><circle cx="256" cy="256" r="206"/></clipPath>
+  </defs>
+  <circle cx="256" cy="256" r="244" fill="url(#rim)" stroke="#2a1d0c" stroke-width="8"/>
+  <circle cx="256" cy="256" r="222" fill="none" stroke="#2a1d0c" stroke-width="4"/>
+  <circle cx="256" cy="256" r="233" fill="none" stroke="#fff3c8" stroke-width="3" stroke-dasharray="2 14" opacity=".7"/>
+  <circle cx="256" cy="256" r="206" fill="url(#face)" stroke="#2a1d0c" stroke-width="6"/>
+  <g clip-path="url(#inner)">
+    <g stroke="#f2c14e" stroke-width="10" stroke-linecap="round" opacity=".9">
+      <path d="M256 150V96M186 172l-30-44M326 172l30-44M142 226l-48-22M370 226l48-22M124 290H70M388 290h54"/>
+    </g>
+    <circle cx="256" cy="300" r="112" fill="url(#sun)" stroke="#2a1d0c" stroke-width="6"/>
+    <rect x="40" y="360" width="432" height="160" fill="#100b24"/>
+    <path d="M40 362h432" stroke="#2a1d0c" stroke-width="6"/>
+  </g>
+  <g stroke="#0b0716" stroke-width="10" stroke-linejoin="round">
+    <path d="M112 372c40-15 88-23 144-23s104 8 144 23c-7 24-66 40-144 40s-137-16-144-40z" fill="url(#hat)"/>
+    <path d="M168 356 238 156c14-40 60-54 96-32l38 22-48 6c-12 64-6 136 10 204z" fill="url(#hat)"/>
+  </g>
+  <path d="M174 326c56 11 112 11 168 0" stroke="url(#band)" stroke-width="22" fill="none"/>
+  <path d="M268 222l9 19 21 3-15 14 4 21-19-11-19 11 4-21-15-14 21-3z" fill="#ffe9a8" stroke="#0b0716" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M96 170a190 190 0 0 1 94-86" stroke="#fff" stroke-opacity=".25" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>

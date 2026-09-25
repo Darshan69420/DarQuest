@@ -152,8 +152,11 @@ export function checkAchievements(p) {
   return got;
 }
 
+// Titles from elsewhere (the Sol Mage holder perks) join the earned ones.
+export const extraTitles = { list: () => [] };
+
 export function unlockedTitles(p) {
-  return ACHIEVEMENTS.filter(a => a.reward.title && p.achievements[a.id]).map(a => a.reward.title);
+  return [...ACHIEVEMENTS.filter(a => a.reward.title && p.achievements[a.id]).map(a => a.reward.title), ...extraTitles.list()];
 }
 
 // "Nova the Brave", "Nova of the Guild", or "Nova, Flamebreaker".

@@ -86,9 +86,11 @@ export function isDialogOpen() { return dialogOpen || !$('#modal').classList.con
 // buttons: [{label, action?, primary?}] — the dialog closes after any button.
 export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
   const el = $('#dialog');
+  const face = uiHooks.portrait?.(speaker);
   el.innerHTML = `<div class="dlg-speaker">${esc(speaker)}<span>${esc(title || '')}</span></div>
-    <div class="dlg-text"></div>
+    ${face ? `<img class="dlg-portrait" src="${face}" alt="">` : ''}<div class="dlg-text"></div>
     <div class="dlg-buttons">${buttons.map((b, i) => `<button class="btn ${b.primary ? 'primary' : ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div>`;
+  el.classList.toggle('has-portrait', !!face);
   el.classList.remove('hidden');
   dialogOpen = true;
   typewriter(el.querySelector('.dlg-text'), text);

@@ -1,6 +1,6 @@
 # DarQuest
 
-A 3D action RPG that runs in your web browser. You're a new apprentice at **Starfall Academy**. Pick a school of magic, learn spells, and battle through Hollow Lane, the Emberfall Wilds, the dragon-haunted Dragonspire Peaks, frozen Glacierreach, the floating islands of Stormspire, the giant forest of Thornwood and the underworld of the Hollow Deep in real-time fights, all the way to the Pale Magister himself.
+A 3D fantasy RPG that runs in your browser. You start as a new apprentice at Starfall Academy, pick one of six schools of magic, and fight your way through seven lands to the Pale Magister, the Headmaster's brightest former pupil.
 
 | | |
 | --- | --- |
@@ -49,29 +49,21 @@ Every key can be changed in **Settings → Keys**.
 
 ## How it plays
 
-- **Six schools:** Blaze 🔥, Frost ❄️, Tempest ⚡, Verdant 🌿, Umbral 💀 and Arcane ✨, each with its own health and 11 spells from level 1 to level 48 (ultimates like Phoenix Ascension and Cosmic Titan). Astral 🌙 support spells can be learned by everyone.
-- **Real-time combat:** key `1` is your school's free basic attack (every third hit in a row is a combo strike), and keys `2`–`5` hold the spells you pick. Enemies wind up big attacks: **red shapes on the ground** show where they will land, so step out or dodge through them.
-- **Seven chapters of story (51 quests) and an ending:** Hollow Lane (Lord Hollowmere), the Emberfall Wilds (Pyrrhon, the Molten King), the **Dragonspire Peaks**, where Vorathrax the Sky Tyrant flies above the battlefield and rains fire until you shout her down, and **Glacierreach**: the snowy town of Frostholm, the frozen Mirror Lake, the Rime Caverns and Queen Sylvara's ice castle under the northern lights, and **Stormspire**: floating islands joined by rope bridges over a sea of clouds, sky pirates, airships, and Voltaris the Storm Herald, a giant thunderbird who flies into the storm and rains lightning, and **Thornwood**: a forest of colossal trees, the root-house village of Greenhollow, a glowing mushroom hollow, and the blighted Thornmother, whose seed pods heal her until you cut them down. The finale is the **Hollow Deep**: rivers of souls, the Deathless Legion, echoes of the bosses you beat, and a four-phase battle with **Malvoren, the Pale Magister** (a ward held by soul anchors, a flight phase, and the Unmaking), followed by an ending and credits.
-- **Varied quests:** besides fighting, quests have you thaw frozen lamps, smash totems, burn cult banners, light spirit braziers, recharge lightning rods and heal sick trees (sometimes with an ambush), hold a ward circle against waves of wolves or the Deathless Legion, and find the heart of the blight. A beam of light over the next objective shows the way.
-- **Conversations and choices:** ask the people you meet about the world ("Ask about…"), and make three big decisions (the Frozen Queen's fate, the Skyraiders, the Heartwood) that change your rewards and how the ending reads.
-- **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
-- **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking and Slayer, each from level 1 to 99. Gather in Millbrook Meadow and beyond (up to Stormglass and Voidstone veins, Heartwood trees, cloud-fishing off Skyport and soul-fishing in the Hollow Deep), then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations, all the way to the level-95 Heartwood Greatstaff.
-- **The Hollow Undercroft (dungeon):** a hand-built dungeon under Hollow Lane with puzzles (a lever, a rune-plate memory puzzle, a mirror-and-light-beam puzzle), a locked guard hall with elite waves, a swinging-blade gauntlet, and Morvain the Pale Warden, whose ward you break by shattering soul pylons. It scales to your level, has a Heroic mode, best times, and the Warden's gear set.
-- **The Endless Rift (roguelike):** a dungeon that is different every run, with shrines that grant boons, chests, traps, merchants, elites and a guardian boss every 5 floors. Spend Rift Shards on permanent upgrades.
-- **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
-- **Gear sets, a bank and a second school:** thirteen gear sets with 2-, 3-, 4- and 6-piece bonuses, the Starfall Bank (plus a vault at your Homestead), and a second school of magic from level 10.
-- **Gear, pets and side quests:** 90 gear pieces (drops, shops and crafting), 12 pets that level up to 10 and learn tricks, 19 side quests (the Gatherers' Guild chain plus three in each of the four newest lands), and a quest journal.
-- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 62 achievements, and titles like "the Dragonborn" or "the Rift Walker".
-- **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
-- **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
-- **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
-- **Mounts and fast travel:** seven mounts (Starfall Steed, Dire Wolf, Emberback, Frost Elk, Void Stalker, Sky Drake, Pale Nightmare), waystones across the world, and a World Atlas to fast-travel between them.
-- **Day and night, weather:** a 15-minute day with a moving sun and moon, starry nights with night-only spirits and bonus XP, rain, thunderstorms, snow, blizzards and ashfall.
-- **Endgame:** a level cap of 50, then up to 100 Archmage ranks; optional **world scaling** (Skyrim style) so every land keeps up with you; **New Game+** that restarts the story with everything you own against tougher, better-paying foes; and three **weekly challenges** every Monday.
-- **Difficulty:** Normal, Heroic or Legendary.
-- **Presentation:** soft bloom around spells, lava and crystals, a vignette and a colour mood for each land (Settings → Graphics), and a composed music theme for every land: a celesta waltz at the Academy, Phrygian brass and taiko in Emberfall, horns and war drums on the Dragonspire, glass bells in Glacierreach, and driving battle and boss themes. All generated in the browser, with no audio files.
-- **Quality of life:** three save slots with export and import, tutorial hints that explain each thing the first time you meet it, a settings menu (volume, graphics quality, modern or classic controls, rebindable keys), a minimap, and a touch joystick on phones, where you can tap the interact prompt too.
-- **Accessibility:** a text and menu size slider, a colour-blind friendly mode (amber danger zones, striped health bars), reduce motion (no shake, hit-pause or flashes), and optional damage numbers.
+**The story** runs to 51 quests over seven chapters. You clear shadow weeds out of Hollow Lane, then follow the Spiral Doors to the lava fields of Emberfall, the Dragonspire Peaks (where Vorathrax circles overhead until you shout her out of the sky), the snowed-in town of Frostholm, the floating islands of Stormspire, the giant trees of Thornwood, and finally the Hollow Deep. Some quests ask you to thaw frozen lamps, burn cult banners or hold a road against a wolf pack instead of just killing things. You can ask people about the world, and three decisions along the way (what happens to the Frozen Queen, the sky pirates and the Heartwood) change your rewards and the ending.
+
+**Fighting** happens in real time. Key `1` is your school's free basic attack, and keys `2` to `5` hold the spells you choose. Big enemy attacks paint the ground red a moment before they land, so you step out or dodge through. Bosses fly, summon, raise wards and change phases. From Chapter 3 you can learn dragon shouts at Word Walls.
+
+**Between fights** there is plenty to do:
+
+- Nine skills that go to level 99, RuneScape style: mining, woodcutting, fishing, foraging, cooking, smithing, alchemy, woodworking and Slayer.
+- The Endless Rift, a roguelike dungeon that changes every run, and the Hollow Undercroft, a hand-built dungeon with puzzles and a Heroic mode.
+- A floating Homestead island where you build with crafted blocks.
+- Gear in five rarities with 13 sets, talent trees, a second school from level 10, pets that level up, six hireable companions and seven mounts.
+- The Arena of Stars, a bestiary, 62 achievements, weekly challenges, and New Game+ after the ending.
+
+**Presentation:** the models are built in code and toon-shaded, with a day and night cycle, weather, bloom and a colour grade for each land. Each land also has its own music, written as chord progressions and melodies and played by a small synthesizer in the page. There are no audio files at all.
+
+**Settings** cover three save slots with export and import, graphics quality, modern or classic controls, rebindable keys, Normal, Heroic and Legendary difficulty, tutorial hints, a colour-blind mode, text size and reduced motion. Phones get a touch joystick.
 
 ## Code layout
 
@@ -108,8 +100,9 @@ src/ui_*.js       windows for skills, the Rift and shouts
 src/minimap.js    corner minimap
 src/audio.js      synthesized sound effects, and the music themes with their sequencer
 src/ui.js         dialogue, menus, cards
+src/icons.js      the icon set: every emoji in the game's text is drawn as an inked SVG icon
 src/main.js       ties everything together
-lib/              vendored Three.js and its post-processing add-ons (MIT licence)
+lib/              vendored Three.js and its post-processing add-ons (MIT licence), and the fonts (SIL OFL)
 tests/            headless playthrough and fuzz tests (see tests/README.md)
 gallery.html      model gallery: preview every model (?group=foes1, ?group=frost, ?group=storm, ?group=thorn, ?group=deep, ?model=knight)
 .github/workflows GitHub Pages deploy

@@ -3,17 +3,17 @@
 
 export const SCHOOLS = {
   blaze:   { name: 'Blaze',   color: 0xff6a2b, css: '#ff6a2b', icon: '🔥', acc: 0.75, baseHp: 500,
-             desc: 'Wild fire magic. Big hits and burning damage over time.', role: 'Burst damage' },
+             desc: 'Big hits that leave foes burning. Nobody hits harder in one blow.', role: 'Burst damage' },
   frost:   { name: 'Frost',   color: 0x6fd3ff, css: '#6fd3ff', icon: '❄️', acc: 0.80, baseHp: 620,
-             desc: 'Patient and tough. The most health and the best wards.', role: 'Tank' },
+             desc: 'The most health and the best wards. Slow, stubborn and hard to kill.', role: 'Tank' },
   tempest: { name: 'Tempest', color: 0xb46bff, css: '#b46bff', icon: '⚡', acc: 0.70, baseHp: 450,
-             desc: 'Raw lightning. The hardest hitters and the most fragile.', role: 'Glass cannon' },
+             desc: 'Lightning that chains between foes. Hits hard, breaks easily.', role: 'Glass cannon' },
   verdant: { name: 'Verdant', color: 0x5fdc6a, css: '#5fdc6a', icon: '🌿', acc: 0.90, baseHp: 560,
-             desc: 'Life and growth. Powerful healers who outlast anything.', role: 'Healer' },
+             desc: 'Roots, thorns and healing. You win by still standing at the end.', role: 'Healer' },
   umbral:  { name: 'Umbral',  color: 0x9a8cff, css: '#9a8cff', icon: '💀', acc: 0.85, baseHp: 520,
-             desc: 'Shadow magic that drains the life from foes to heal yourself.', role: 'Life drain' },
+             desc: 'Shadow that steals life from foes to keep you on your feet.', role: 'Life drain' },
   arcane:  { name: 'Arcane',  color: 0xf2c14e, css: '#f2c14e', icon: '✨', acc: 0.85, baseHp: 540,
-             desc: 'The balance of all things. Blades, traps and hits on every foe.', role: 'Crowd control' },
+             desc: 'Blades of force, traps and tricks. Few foes resist it.', role: 'Crowd control' },
   // Astral spells can be learned by every school.
   astral:  { name: 'Astral',  color: 0xe8e4ff, css: '#e8e4ff', icon: '🌙', acc: 0.95, baseHp: 500,
              desc: 'Universal support magic.', hidden: true },
@@ -952,7 +952,7 @@ export const NPCS = {
   },
   ingrid: {
     name: 'Seer Ingrid', title: 'Frostholm Seer', x: 2300 - 9, z: -3, robe: 0x7affd0, hat: 0x2a6a5a, trim: 0xf8fcff, hair: 0xf8fcff, skin: 0xf0d8c0, eyeColor: 0x7affd0, glasses: true,
-    lines: ['The aurora whispers at night. It speaks of a pale hand pulling every string: Hollowmere, Pyrrhon, the dragons, and now our Queen.',
+    lines: ['The aurora talks at night, if you know how to listen. It speaks of a pale hand pulling every string: Hollowmere, Pyrrhon, the dragons, and now our Queen.',
             'Fire magic is strong here. Ice melts; that is the one law even a queen must obey.'],
   },
   frida: {
@@ -979,7 +979,7 @@ export const QUESTS = [
     id: 'q2', name: 'Weeds of Shadow', giver: 'mirabel', turnIn: 'mirabel',
     objective: { type: 'defeat', enemy: 'gloomsprig', count: 3 },
     offer: 'Shadowy weeds called Gloomsprigs have sprouted in Hollow Lane, south through the gate. Defeat 3 of them and prove your magic is ready.',
-    done: 'Splendid! Your spells are growing stronger. Take these coins, and a potion from Madame Fizz\'s stock.',
+    done: 'Three fewer weeds, and not a singed eyebrow on you. Take these coins, and a potion from Madame Fizz\'s stock.',
     reward: { xp: 100, gold: 25, potions: 1 },
   },
   {
@@ -1355,7 +1355,7 @@ export const RULES = {
 export const DIFFICULTIES = {
   normal: {
     name: 'Normal', icon: '🙂', hp: 1, dmg: 0, reward: 1, drop: 1, smart: false, speed: 1,
-    desc: 'The intended adventure. Fair fights and forgiving enemies.',
+    desc: 'The game as it was meant to be played. Fair fights, forgiving foes.',
   },
   heroic: {
     name: 'Heroic', icon: '😤', hp: 1.5, dmg: 0.3, reward: 1.3, drop: 1.5, smart: true, speed: 1.15,
@@ -1363,7 +1363,7 @@ export const DIFFICULTIES = {
   },
   legendary: {
     name: 'Legendary', icon: '💀', hp: 2.2, dmg: 0.6, reward: 1.7, drop: 2, smart: true, speed: 1.3,
-    desc: 'For true archmages. Enemies have over double health, hit 60% harder and attack much faster.',
+    desc: 'Enemies have over double health, hit 60% harder and attack much faster. Good luck.',
   },
 };
 

@@ -1,4 +1,5 @@
 // Game bootstrap: title screen, NPC conversations, quests, portals and real-time combat.
+import { installIcons } from './icons.js';
 import { World } from './world.js';
 import { Combat } from './combat.js';
 import { Minimap } from './minimap.js';
@@ -43,10 +44,16 @@ import { Hints } from './hints.js';
 import { Objectives } from './objectives.js';
 
 const $ = (sel) => document.querySelector(sel);
+installIcons();
 const world = new World($('#game'), $('#labels'));
 const minimap = new Minimap($('#minimap'), world);
 const hints = new Hints($('#hint'));
 hints.onSeen = () => player && save(player);
+// Conversations show the speaker's face, rendered from their model where they stand.
+UI.uiHooks.portrait = (name) => {
+  const id = Object.keys(NPCS).find(k => NPCS[k].name === name);
+  try { return id && settings.portraits !== false ? world.portrait(id) : null; } catch { return null; }
+};
 UI.uiHooks.resetHints = () => { if (player) { player.hints = {}; hints.reset(); save(player); } };
 let player = null;
 let hudTimer = 0;
@@ -201,7 +208,7 @@ function startGame(p, isNew) {
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
-      `Welcome to Starfall Academy, ${UI.esc(p.name)}! ${d.hp > 1 ? `${d.name} difficulty? Brave! ` : ''}Dark things are stirring beyond the Spiral Doors, and we need every young wizard we can find. Come and find me in front of the Academy: just follow the beam of light. ${settings.hints ? 'I will send you a tip whenever you meet something new.' : ''}`,
+      `Welcome to Starfall, ${UI.esc(p.name)}. You picked a strange week to arrive: three of the Spiral Doors woke up at once, and I have more questions than wizards. ${d.hp > 1 ? `${d.name} difficulty, I hear. Good, you will need the nerve. ` : ''}Come and find me on the Academy steps. If you lose your way, follow the beam of light.`,
       [{ label: 'Let\'s go!', primary: true }, { label: 'How to play', action: UI.openHelp }]), 700);
   }
 }

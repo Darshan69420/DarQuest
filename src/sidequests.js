@@ -75,7 +75,7 @@ export const SIDE_QUESTS = [
     id: 'frost2', after: 'frost1', name: 'Lake Supper', giver: 'frida', turnIn: 'frida',
     objective: { type: 'bring', item: 'cooked_frostcod', count: 5 },
     offer: 'The whole town is hungry, and the Mirror Lake is full of frostcod. Fish through the ice holes, cook the catch at the hearth, and bring 5 Frostcod Fillets.',
-    done: 'The smell alone brought half of Frostholm running! Thank you, truly.',
+    done: 'The smell alone brought half of Frostholm running! Thank you.',
     reward: { xp: 4000, gold: 500, skillXp: { fishing: 700, cooking: 700 }, items: { hearty_stew: 3 } },
   },
   {

@@ -1264,6 +1264,54 @@ export class World {
     });
   }
 
+  // A head-and-shoulders portrait of an NPC for the dialogue box, rendered from their model
+  // where they stand (so the background is their own town, at the current time of day).
+  portrait(id) {
+    const npc = this.npcs.find(n => n.id === id);
+    if (!npc || !this.player) return null;
+    // reading pixels back from the GPU costs a moment, so each face is kept for an in-game hour
+    this.portraits ??= new Map();
+    const key = `${id}:${Math.floor((this.skyCycle?.time || 0) * 24)}`;
+    if (this.portraits.has(key)) return this.portraits.get(key);
+    const S = 160;
+    if (!this.portraitRT) {
+      this.portraitRT = new THREE.WebGLRenderTarget(S, S, { samples: 4 });
+      this.portraitRT.texture.colorSpace = THREE.SRGBColorSpace;
+      this.portraitCam = new THREE.PerspectiveCamera(26, 1, 0.1, 120);
+      this.portraitCam.layers.enableAll();
+      this.portraitBuf = new Uint8Array(S * S * 4);
+    }
+    const m = npc.model, box = new THREE.Box3().setFromObject(m);
+    const h = box.max.y - box.min.y;
+    const head = V(m.position.x, box.min.y + h * 0.66, m.position.z);
+    // look at them from where you stand, a little above eye level
+    const to = V(this.player.position.x - head.x, 0, this.player.position.z - head.z);
+    if (to.lengthSq() < 0.01) to.set(Math.sin(m.rotation.y), 0, Math.cos(m.rotation.y));
+    to.normalize();
+    const side = V(-to.z, 0, to.x);
+    const cam = this.portraitCam;
+    cam.position.copy(head).addScaledVector(to, h * 1.6).addScaledVector(side, h * 0.26).add(V(0, h * 0.06, 0));
+    cam.lookAt(head.x, head.y + h * 0.02, head.z);
+    const r = this.renderer, prev = r.getRenderTarget();
+    const playerVisible = this.player.visible;
+    this.player.visible = false;
+    r.setRenderTarget(this.portraitRT);
+    r.render(this.scene, cam);
+    r.readRenderTargetPixels(this.portraitRT, 0, 0, S, S, this.portraitBuf);
+    r.setRenderTarget(prev);
+    this.player.visible = playerVisible;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const ctx = c.getContext('2d'), img = ctx.createImageData(S, S);
+    // the render target is upside down compared with a canvas
+    for (let y = 0; y < S; y++) img.data.set(this.portraitBuf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+    ctx.putImageData(img, 0, 0);
+    const url = c.toDataURL();
+    if (this.portraits.size > 60) this.portraits.clear();
+    this.portraits.set(key, url);
+    return url;
+  }
+
   // A soft beam of golden light over wherever the quest leads. It fades out as you arrive.
   setBeacon(t, dt) {
     if (!this.beacon) {

@@ -22,7 +22,7 @@ export const TOPICS = {
     { id: 'rift', q: 'What is the Endless Rift?', a: 'A crack in the world that never heals. Every time you enter, it rearranges itself. Some say it goes down forever. I have been to floor forty. There was a floor forty-one.' },
   ],
   ingrid: [
-    { id: 'aurora', need: 24, q: 'What does the aurora say?', a: 'It remembers everything that happens under it. Lately it has shown me a pale hand pulling strings: Hollowmere, Pyrrhon, the dragons, and now our Queen. All puppets of the same puppeteer.' },
+    { id: 'aurora', need: 24, q: 'What does the aurora say?', a: 'It remembers everything that happens beneath it. Lately it keeps showing me the same pale hand, and strings running from it to every land. Hollowmere. Pyrrhon. The dragons. Our Queen. The same puppeteer, every time.' },
   ],
   tavi: [
     { id: 'rods', need: 31, q: 'How do the islands float?', a: 'The lightning rods catch the storm\'s power and feed it to the crystals under each island. No storm, no floating. That is why Voltaris is so clever, and so dangerous: he controls the one thing keeping us in the sky.' },

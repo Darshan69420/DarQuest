@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Sol Mage</title>
   <meta name="description" content="Sol Mage: a 3D fantasy RPG in your browser. Six schools of magic, seven lands, dragons, skills, a roguelike Rift and a homestead to build.">
   <meta name="theme-color" content="#1b140e">
@@ -15,7 +15,7 @@
 </head>
 <body>
   <div id="loading"><svg class="ld-hat" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#2a1d14" stroke-width="1.1" stroke-linejoin="round"><path d="M3.8 18.6c2.5-1 5.2-1.5 8.2-1.5s5.7.5 8.2 1.5c-.4 1.3-3.9 2.3-8.2 2.3s-7.8-1-8.2-2.3z" fill="#3e4c7c"/><path d="M7 17.6 11.2 6c.9-2.3 3.6-3.1 5.7-1.8l1.6.9-2.4.3.4 12.2z" fill="#3e4c7c"/></g><path d="M7.4 15.9c3 .6 6 .6 9.1 0" stroke="#e3b04b" stroke-width="1.7" fill="none"/><path d="M12.6 9l.5 1.1 1.2.1-.9.8.3 1.2-1.1-.6-1.1.6.3-1.2-.9-.8 1.2-.1z" fill="#ffe28e"/></svg><div class="ld-title">Sol Mage</div><div class="ld-bar"><div></div></div><div class="ld-tip">Lighting the lamps on Hollow Lane…</div></div>
-  <canvas id="game"></canvas>
+  <canvas id="game" role="img" aria-label="3D game world"></canvas>
   <div id="labels"></div>
 
   <!-- Exploration HUD -->
@@ -39,18 +39,18 @@
       <div id="quest-goal" class="quest-goal"></div>
       <div id="side-tracker"></div>
     </div>
-    <canvas id="minimap" title="Minimap · click for the World Atlas (N)"></canvas>
-    <div id="clock"></div>
+    <canvas id="minimap" role="img" aria-label="Minimap · click for the World Atlas (N)" title="Minimap · click for the World Atlas (N)"></canvas>
+    <div id="clock" aria-hidden="true"></div>
     <div id="rift-hud" class="hud-card hidden"></div>
-    <div id="zone-name" class="zone-name"></div>
+    <div id="zone-name" class="zone-name" role="status"></div>
     <div class="hud-buttons">
-      <button class="btn round" id="btn-char" title="Character, gear &amp; pets (C)">🎒</button>
-      <button class="btn round" id="btn-bag" title="Materials bag (I)">👜</button>
-      <button class="btn round" id="btn-skills" title="Skills (K)">📊</button>
-      <button class="btn round" id="btn-book" title="Spellbook (B)">📖</button>
-      <button class="btn round" id="btn-journal" title="Quest journal (J)">📜</button>
-      <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
-      <button class="btn round" id="btn-menu" title="Menu &amp; settings (Esc)">☰</button>
+      <button class="btn round" id="btn-char" aria-label="Character, gear and pets (C)" title="Character, gear &amp; pets (C)">🎒</button>
+      <button class="btn round" id="btn-bag" aria-label="Materials bag (I)" title="Materials bag (I)">👜</button>
+      <button class="btn round" id="btn-skills" aria-label="Skills (K)" title="Skills (K)">📊</button>
+      <button class="btn round" id="btn-book" aria-label="Spellbook (B)" title="Spellbook (B)">📖</button>
+      <button class="btn round" id="btn-journal" aria-label="Quest journal (J)" title="Quest journal (J)">📜</button>
+      <button class="btn round" id="btn-help" aria-label="How to play (?)" title="How to play (?)">❓</button>
+      <button class="btn round" id="btn-menu" aria-label="Menu and settings (Escape)" title="Menu &amp; settings (Esc)">☰</button>
     </div>
     <div id="prompt" class="hidden"></div>
     <div id="hint" class="hint-card hidden"></div>
@@ -58,18 +58,18 @@
     <div id="action-bar" class="hidden"><div class="ab-label"></div><div class="ab-track"><div class="ab-fill"></div></div></div>
   </div>
 
-  <div id="hurt"></div>
+  <div id="hurt" aria-hidden="true"></div>
   <div id="target-frame" class="hidden"></div>
-  <div id="combat-msg"></div>
-  <div id="hotbar" class="hidden"></div>
-  <div id="dialog" class="hidden"></div>
-  <div id="modal" class="hidden"></div>
-  <div id="result" class="hidden"></div>
-  <div id="toasts"></div>
-  <div id="fade"></div>
-  <div id="fps" class="hidden"></div>
-  <div id="countdown" class="hidden"></div>
-  <div id="joystick" class="hidden"><div class="knob"></div></div>
+  <div id="combat-msg" role="status" aria-live="polite"></div>
+  <div id="hotbar" class="hidden" role="group" aria-label="Spell hotbar"></div>
+  <div id="dialog" class="hidden" role="dialog" aria-label="Conversation"></div>
+  <div id="modal" class="hidden" role="dialog" aria-label="Game menu"></div>
+  <div id="result" class="hidden" role="dialog" aria-label="Encounter result"></div>
+  <div id="toasts" role="status" aria-live="polite"></div>
+  <div id="fade" aria-hidden="true"></div>
+  <div id="fps" class="hidden" aria-hidden="true"></div>
+  <div id="countdown" class="hidden" role="status"></div>
+  <div id="joystick" class="hidden" aria-hidden="true"><div class="knob"></div></div>
 
   <!-- Title screen -->
   <div id="title">

@@ -19,10 +19,29 @@ const talkTo = async (id, pick) => {
 };
 const killAll = async (id, n) => {
   let k = 0;
-  for (const e of w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead')) {
+  const matches = () => w.enemies.filter(e => (e.def.id === id || e.def.questAs === id) && e.state !== 'dead');
+  let foes = matches();
+  if (!foes.length) {
+    // Bosses (and rare spawns) may not be loaded yet: go to their spawn point first.
+    const data = await import('./src/data.js');
+    const sp = (data.SPAWNS || []).find(s => s.enemy === id || data.ENEMIES[s.enemy]?.questAs === id);
+    if (sp) {
+      w.teleport({ x: sp.x, z: sp.z - 6, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9;
+      for (let t = 0; t < 10 && !matches().length; t++) { w.simulate(0.3); await sleep(30); }
+      foes = matches();
+    }
+  }
+  for (const e of foes) {
     if (k >= n) break;
     w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
-    for (let t = 0; t < (e.def.boss ? 2000 : 300) && e.state !== "dead"; t++) { c.setTarget(w.enemies.find(o => o.def.id === 'soul_anchor' && o.state !== 'dead') || e); for (let i = 0; i < 5; i++) c.castSlot(i); w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0); }
+    for (let t = 0; t < (e.def.boss ? 2000 : 500) && e.state !== "dead"; t++) {
+      // stay in range: knockbacks, boss movement and flight circles can push the fight apart
+      const dx = e.model.position.x - w.player.position.x, dz = e.model.position.z - w.player.position.z;
+      if (Math.hypot(dx, dz) > 18) { w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; }
+      c.setTarget(w.enemies.find(o => o.def.id === 'soul_anchor' && o.state !== 'dead') || e);
+      for (let i = 0; i < 5; i++) c.castSlot(i);
+      w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0);
+    }
     if (e.state === 'dead') k++;
   }
   return k;

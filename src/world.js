@@ -40,6 +40,9 @@ import { Sky } from './sky.js';
 import { buildArena } from './arena.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+// Scratch objects reused every frame so the hot loop doesn't allocate.
+const _projV = new THREE.Vector3(), _floaterV = new THREE.Vector3(), _shakeV = new THREE.Vector3(), _zeroV = new THREE.Vector3();
+const _labelOut = {}, _floaterOut = {};
 // Shortest signed angle from b to a.
 export const angDiff = (a, b) => ((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
@@ -1042,31 +1045,35 @@ export class World {
     m.className = 'marker' + (marker ? ' on' : '') + (side ? ' side' : '');
   }
 
-  projectToScreen(v) {
-    const p = v.clone().project(this.camera);
-    return { x: (p.x * 0.5 + 0.5) * window.innerWidth, y: (-p.y * 0.5 + 0.5) * window.innerHeight, visible: p.z < 1 };
+  projectToScreen(v, out = {}) {
+    const p = _projV.copy(v).project(this.camera);
+    out.x = (p.x * 0.5 + 0.5) * window.innerWidth;
+    out.y = (-p.y * 0.5 + 0.5) * window.innerHeight;
+    out.visible = p.z < 1;
+    return out;
   }
 
   updateLabels() {
-    const tmp = V();
+    const tmp = V(), s = _labelOut;
     const showWorld = this.mode === 'explore';
     for (const l of this.labels) {
-      if (!showWorld || !l.obj.visible) { l.el.style.display = 'none'; continue; }
+      if (!showWorld || !l.obj.visible || l.obj.userData.culled) { l.el.style.display = 'none'; continue; }
       l.obj.getWorldPosition(tmp);
       const dist = tmp.distanceTo(this.camera.position);
+      if (dist > 45) { l.el.style.display = 'none'; continue; }
       tmp.y += l.y;
-      const s = this.projectToScreen(tmp);
-      if (!s.visible || dist > 45) { l.el.style.display = 'none'; continue; }
+      this.projectToScreen(tmp, s);
+      if (!s.visible) { l.el.style.display = 'none'; continue; }
       l.el.style.display = '';
       l.el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
       l.el.style.opacity = dist > 35 ? String(1 - (dist - 35) / 10) : '1';
     }
     this.floaters = this.floaters.filter(f => {
       f.t += this.dt;
-      const pos = f.pos.clone();
+      const pos = _floaterV.copy(f.pos);
       pos.y += f.t * 1.2;
-      const s = this.projectToScreen(pos);
-      f.el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -50%) scale(${Math.min(1, 0.5 + f.t * 4)})`;
+      const fs = this.projectToScreen(pos, _floaterOut);
+      f.el.style.transform = `translate(${fs.x}px, ${fs.y}px) translate(-50%, -50%) scale(${Math.min(1, 0.5 + f.t * 4)})`;
       f.el.style.opacity = String(f.t < 1.1 ? 1 : 1 - (f.t - 1.1) / 0.5);
       if (f.t > 1.6) { f.el.remove(); return false; }
       return true;
@@ -1602,7 +1609,12 @@ export class World {
       });
       this.moteMesh.instanceMatrix.needsUpdate = true;
     }
-    this.effects = this.effects.filter(fn => fn(dt) !== false);
+    // run effects in place: compacts dead ones without allocating a new array each frame
+    const fxArr = this.effects, fxLen = fxArr.length;
+    let fxW = 0;
+    for (let r = 0; r < fxLen; r++) { const fn = fxArr[r]; if (fn(dt) !== false) fxArr[fxW++] = fn; }
+    for (let r = fxLen; r < fxArr.length; r++) fxArr[fxW++] = fxArr[r]; // keep effects spawned this tick
+    fxArr.length = fxW;
 
     // camera
     let pos, look;
@@ -1619,12 +1631,12 @@ export class World {
       this.camera.lookAt(look);
     }
     if (this.shakeAmt > 0) {
-      this.camera.position.add(V((Math.random() - 0.5) * this.shakeAmt, (Math.random() - 0.5) * this.shakeAmt, 0));
+      this.camera.position.add(_shakeV.set((Math.random() - 0.5) * this.shakeAmt, (Math.random() - 0.5) * this.shakeAmt, 0));
       this.shakeAmt = Math.max(0, this.shakeAmt - dt * 1.5);
     }
 
     // keep the shadow camera and sky centred on the action
-    const focus = this.player ? this.player.position : V();
+    const focus = this.player ? this.player.position : _zeroV;
     this.sun.target.position.copy(focus);
     this.sky.position.copy(this.camera.position);
 

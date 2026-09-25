@@ -200,6 +200,7 @@ function blightPod() {
 
 const PROPS = { lamp: frozenLamp, totem: ashTotem, banner: cultBanner, brazier: spiritBrazier, rod: stormRod, tree: sickTree, pod: blightPod };
 const NAMES = { lamp: 'Frozen Lamp', totem: 'Ash Totem', banner: 'Cult Banner', brazier: 'Spirit Brazier', rod: 'Lightning Rod', tree: 'Sick Tree', pod: 'Heart of the Blight' };
+const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
 // A ward circle for "hold this place" objectives: a glowing ring, rune stones round the edge
 // and a crystal in the middle. Plain (not additive) colours so it reads on snow as well as rock.
@@ -367,8 +368,11 @@ export class Objectives {
         pr.done = true;
         pr.model.userData.done(false);
         this.world.burst(V(o.x, pr.model.userData.fxY, o.z), pr.model.userData.color, 40, 7);
-        this.world.shake(0.4);
       }
+      // arrival should feel like arriving: a gold ring rolling out and a banner over the hero
+      this.world.shockwave(V(o.x, 0, o.z), 0xffe9a8, 8);
+      this.world.float(this.world.player, `✦ ${o.place || 'You have arrived'}`, 'status');
+      this.world.shake(0.4);
       this.hooks.sfx('shrine');
       this.hooks.arrived(o);
       this.hooks.changed();
@@ -390,8 +394,35 @@ export class Objectives {
     const n = p.quest.progress, count = o.spots.length;
     this.world.float(this.world.player, `✦ ${n}/${count}`, 'status');
     if (o.ambush?.on.includes(n)) this.ambush(o.ambush, pr.model.position);
+    else this.extraAmbush(o, n, count, pr.model.position);
     if (n >= count) p.quest.state = 'ready';
     this.hooks.changed();
+  }
+
+  // Even quiet spots bite back: a lone scout may spot you early, and the last spot
+  // always calls a fight, so a use-quest never ends in a shrug.
+  extraAmbush(o, n, count, at) {
+    const p = this.hooks.player();
+    if (n === 1 && count >= 3 && Math.random() < 0.6) {
+      const id = o.ambush?.enemy || this.localFoe(at);
+      if (id) this.ambush({ enemy: id, count: 1, scout: true }, at);
+      return;
+    }
+    if (n === count) {
+      const id = o.ambush?.enemy || this.localFoe(at);
+      if (id) this.ambush({ enemy: id, count: Math.min(3, (o.ambush?.count || 1) + (p.level >= 30 ? 1 : 0)) }, at);
+    }
+  }
+
+  // The creature most likely to object to your meddling: the nearest local foe's kind.
+  localFoe(at) {
+    let best = null, bd = 80;
+    for (const e of this.world.enemies) {
+      if (e.def.boss || e.def.elite || !e.home) continue;
+      const d = Math.hypot(e.home.x - at.x, e.home.z - at.z);
+      if (d < bd) { bd = d; best = e.def.id; }
+    }
+    return best;
   }
 
   // Foes that come running when you meddle with their things.
@@ -405,7 +436,7 @@ export class Objectives {
       this.combat.aggro(e);
       this.world.puff(pos.x, 0.6, pos.z, 0x2a1a3a, 12, 3);
     }
-    this.hooks.message(`⚠️ ${def.name}${a.count > 1 ? 's' : ''} ${a.count > 1 ? 'come' : 'comes'} to stop you!`);
+    this.hooks.message(a.scout ? `⚠️ A ${def.name} scout spots you!` : `⚠️ ${def.name}${a.count > 1 ? 's' : ''} ${a.count > 1 ? 'come' : 'comes'} to stop you!`);
     this.hooks.sfx('warn');
   }
 
@@ -449,15 +480,25 @@ export class Objectives {
     d.spawnT -= dt;
     if (d.spawnT <= 0 && d.t < o.time - 3) {
       d.spawnT = o.every;
-      for (let k = 0; k < o.per && d.foes.length < (o.max || 6); k++) {
+      // every third wave is a surge: one extra foe, a horn, and a warning with a direction
+      const surge = d.wave > 0 && d.wave % 3 === 2;
+      const cap = (o.max || 6) + (surge ? 1 : 0);
+      let sx = 0, sz = 0, made = 0;
+      for (let k = 0; k < o.per + (surge ? 1 : 0) && d.foes.length < cap; k++) {
         const def = ENEMIES[o.waves[(d.wave + k) % o.waves.length]];
-        const pos = this.spawnPoint(o.x, o.z, o.r + 11, d.wave * 3 + k);
+        const pos = this.spawnPoint(o.x, o.z, o.r + 11, d.wave * 3 + k * 5);
         if (!pos) continue;
         const e = this.world.addEnemy(def, pos.x, pos.z, 3);
         this.hooks.addFoe(e);
         this.combat.aggro(e);
         this.world.puff(pos.x, 0.6, pos.z, 0x2a1a3a, 12, 3);
         d.foes.push(e);
+        sx += pos.x - o.x; sz += pos.z - o.z; made++;
+      }
+      if (made && Math.hypot(sx, sz) > 2) {
+        const dir = COMPASS[Math.round(((Math.atan2(sx, -sz) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
+        if (surge) { this.hooks.message(`⚠️ They press harder from the ${dir}!`); this.hooks.sfx('horn'); }
+        else if (d.wave % 2 === 0) this.hooks.message(`Foes come from the ${dir}!`);
       }
       d.wave++;
     }

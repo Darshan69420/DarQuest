@@ -9,6 +9,7 @@ import {
   makeHouse, makeIceCrystal, makeIceTower, makeIceWall, makeIceThrone, makeAurora,
   makeSkyIsland, makeAirship, makeRopeBridge, makeLightningRod, makeStormCloud, makeCrystal,
   makeGiantTree, makeRootHouse, makeThornBush, makeMushroom, makeStalagmites, makePaleSpire, makeGrave, makeTorch,
+  makeLavaVent, makeRuinedPillar,
 } from './models.js';
 import { EMBER_X as X, DRAGON_X as D, GLACIER_X as GX, STORM_X as SX, THORN_X as TX, DEEP_X as DX, NPCS } from './data.js';
 import { HOME_X as HX, BS } from './homestead.js';
@@ -377,6 +378,15 @@ export function buildEmberfall(world) {
   }
   for (let k = 0; k < 8; k++) world.add(makeFireTree(0.9 + Math.random() * 0.4), X + (k % 2 ? 1 : -1) * 10.5, 25 + k * 16, Math.random() * 6);
   for (let k = 0; k < 12; k++) world.add(makeRock(0.4 + Math.random() * 0.6, 0x3a2a2a), X + (Math.random() > 0.5 ? 1 : -1) * (9.5 + Math.random()), 20 + Math.random() * 130);
+  // lava vents puff beside the pools; ruined pillars of the old court line the road to the throne
+  for (const [dx, z, s] of [[-12.5, 30, 0.9], [12.8, 55, 1.1], [-12.2, 82, 0.8], [12.5, 108, 1.0], [-12.8, 134, 1.2]]) {
+    world.add(makeLavaVent(s), X + dx, z, Math.random() * 6, 1.3);
+  }
+  for (const [dx, z, h] of [[-6.5, 142, 4.5], [6.5, 142, 3.2], [-7, 152, 5], [7.5, 152, 2.6]]) {
+    world.add(makeRuinedPillar(h), X + dx, z, Math.random() * 6, 1.1);
+  }
+  // charred war-banners at the canyon mouth
+  for (const s of [-1, 1]) world.add(makeBanner(0x6a1a0a), X + s * 8.5, 17, 0, 0.3);
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2 + 0.3;
     if (Math.cos(a) < -0.7) continue;  // keep the entrance clear

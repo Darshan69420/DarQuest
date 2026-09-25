@@ -550,6 +550,14 @@ button.boon-pick:hover .boon { transform: translateY(-4px); box-shadow: 0 0 24px
 body.cb .bar.hp .fill, body.cb .ehp .fill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.28) 0 4px, transparent 4px 9px), linear-gradient(var(--hp2), var(--hp)); }
 body.cb .ecast .fill { background: #ffb000 !important; }
 body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+/* honor the OS "reduce motion" setting even before/independent of the in-game toggle */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+/* keyboard focus for any interactive element that isn't a .btn (tabs, cards, custom controls) */
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--brass-hi); outline-offset: 2px;
+}
 .bank-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 760px) { .bank-cols { grid-template-columns: 1fr; } }
 .school-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }

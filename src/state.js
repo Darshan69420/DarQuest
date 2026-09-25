@@ -1,5 +1,5 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
-import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
+import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES, matchesFoe, foeName } from './data.js';
 import { BUFFS, addItem } from './items.js';
 import { SHOUTS } from './shouts.js';
 import { makeItem, normalize, gearTotals, itemValue, rollRarity, base } from './gear.js';
@@ -303,7 +303,7 @@ export function npcMarker(p, npcId) {
 export function recordKill(p, enemyId) {
   const q = currentQuest(p);
   if (!q || p.quest.state !== 'active' || q.objective.type !== 'defeat') return false;
-  if (q.objective.enemy !== enemyId && q.objective.enemy !== ENEMIES[enemyId]?.questAs) return false;
+  if (!matchesFoe(enemyId, q.objective.enemy)) return false;
   p.quest.progress = Math.min(q.objective.count, p.quest.progress + 1);
   if (p.quest.progress >= q.objective.count) p.quest.state = 'ready';
   return true;
@@ -336,9 +336,7 @@ export function questTrackerText(p) {
   if (p.quest.state === 'ready') return { title: q.name, goal: `Return to ${npc(q.turnIn)}` };
   if (q.objective.type === 'talk') return { title: q.name, goal: `Talk to ${npc(q.objective.npc)}` };
   if (q.objective.type === 'shout') return { title: q.name, goal: `Learn ${SHOUTS[q.objective.shout].name} at its Word Wall` };
-  const e = ENEMIES[q.objective.enemy];
-  const plural = q.objective.count > 1 ? 's' : '';
-  return { title: q.name, goal: `Defeat ${q.objective.count} ${e.name}${plural} (${p.quest.progress}/${q.objective.count})` };
+  return { title: q.name, goal: `Defeat ${q.objective.count} ${foeName(q.objective.enemy, q.objective.count)} (${p.quest.progress}/${q.objective.count})` };
 }
 
 export function applyReward(p, reward) {

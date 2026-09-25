@@ -6,7 +6,7 @@ import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
-  ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS,
+  ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS, matchesFoe,
 } from './data.js';
 import { openAtlas, openStable, openInn, openArena, openUndercroft } from './ui_world.js';
 import { Companion, COMPANIONS } from './companions.js';
@@ -267,7 +267,7 @@ function questTargetPos() {
   const p = world.player.position;
   let best = null, bestD = Infinity;
   for (const e of world.enemies) {
-    if (e.def.id !== t.enemy) continue;
+    if (!matchesFoe(e.def.id, t.enemy)) continue;
     if (zoneAt(e.home.x) !== here) return via(e.home.x);
     const d = Math.hypot(e.home.x - p.x, e.home.z - p.z);
     if (d < bestD) { bestD = d; best = { x: e.home.x, z: e.home.z }; }
@@ -977,7 +977,7 @@ function questZone() {
   if (!t) return null;
   if (t.npc) return zoneAt(NPCS[t.npc].x);
   if (t.shout) return zoneAt(WORD_WALLS.find(w => w.shout === t.shout).x);
-  const sp = SPAWNS.find(s => s.enemy === t.enemy);
+  const sp = SPAWNS.find(s => matchesFoe(s.enemy, t.enemy));
   return sp ? zoneAt(sp.x) : null;
 }
 

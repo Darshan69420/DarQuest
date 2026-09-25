@@ -698,6 +698,16 @@ ENEMIES.malvoren.attackRate = 1.5;
 ENEMIES.soul_anchor.attackRate = 3.2;
 ENEMIES.magma_serpent.speed = 0;
 
+// Quest objectives can name a group of foes instead of one kind (foes carry questAs: group id).
+export const FOE_GROUPS = { magister_echo: { name: 'Magister\'s Echo', plural: 'Magister\'s Echoes' } };
+export const matchesFoe = (enemyId, target) => enemyId === target || ENEMIES[enemyId]?.questAs === target;
+export function foeName(id, count = 1) {
+  const g = FOE_GROUPS[id];
+  if (g) return count > 1 ? g.plural : g.name;
+  const e = ENEMIES[id];
+  return e ? e.name + (count > 1 ? 's' : '') : id;
+}
+
 // Echoes of past bosses in Malvoren's Echo Halls: the old fights, remembered at level 46.
 // Every echo counts as a 'magister_echo' for quests.
 for (const [id, base, name] of [['echo_hollowmere', 'lord_hollowmere', 'Echo of Hollowmere'], ['echo_pyrrhon', 'pyrrhon', 'Echo of Pyrrhon'], ['echo_sylvara', 'sylvara', 'Echo of Sylvara']]) {
@@ -722,6 +732,8 @@ export const SPAWNS = [
   { enemy: 'cinder_rat', x: 4,  z: 70, r: 4 },
   { enemy: 'cinder_rat', x: -4, z: 75, r: 4 },
   { enemy: 'cinder_rat', x: 3,  z: 80, r: 4 },
+  { enemy: 'cinder_rat', x: -3, z: 86, r: 4 },
+  { enemy: 'cinder_rat', x: 5,  z: 90, r: 4 },
   { enemy: 'frost_wisp', x: -4, z: 88, r: 4 },
   { enemy: 'frost_wisp', x: 4,  z: 94, r: 4 },
   { enemy: 'frost_wisp', x: -2, z: 100, r: 4 },
@@ -736,9 +748,11 @@ export const SPAWNS = [
   { enemy: 'lava_imp', x: X - 4, z: 28, r: 4 },
   { enemy: 'lava_imp', x: X + 4, z: 34, r: 4 },
   { enemy: 'lava_imp', x: X - 2, z: 42, r: 4 },
+  { enemy: 'lava_imp', x: X + 5, z: 46, r: 4 },
   { enemy: 'cinderhound', x: X + 4, z: 52, r: 4 },
   { enemy: 'cinderhound', x: X - 4, z: 58, r: 4 },
   { enemy: 'cinderhound', x: X + 2, z: 66, r: 4 },
+  { enemy: 'cinderhound', x: X - 5, z: 72, r: 4 },
   { enemy: 'ashen_shaman', x: X - 4, z: 76, r: 3 },
   { enemy: 'ashen_shaman', x: X + 4, z: 84, r: 3 },
   { enemy: 'ashen_shaman', x: X - 1, z: 92, r: 3 },

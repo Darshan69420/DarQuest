@@ -9,7 +9,7 @@
 //   after: another side quest that must be finished first · minLevel: character level needed
 import { ITEMS, bagCount, removeItem, addItem } from './items.js';
 import { skillLevel, totalLevel, SKILLS, addSkillXp, RECIPES } from './skills.js';
-import { ENEMIES, NPCS, GEAR } from './data.js';
+import { ENEMIES, NPCS, GEAR, foeName } from './data.js';
 
 export const SIDE_QUESTS = [
   // ---------------- The Gatherers' Guild (Brisa, Millbrook Meadow) ----------------
@@ -194,7 +194,7 @@ export function goalText(p, q) {
     case 'bring': return `Bring ${o.count} ${ITEMS[o.item].name} ${n}`;
     case 'gather': return `Gather ${o.count} ${ITEMS[o.item].name} ${n}`;
     case 'craft': return `Make ${o.count} × ${RECIPES[o.recipe].out.item ? ITEMS[RECIPES[o.recipe].out.item].name : RECIPES[o.recipe].out.gear ? GEAR[RECIPES[o.recipe].out.gear].name : 'Healing Potion'} ${n}`;
-    case 'defeat': return `Defeat ${o.count} ${o.enemy === 'any' ? 'enemies' : ENEMIES[o.enemy].name + (o.count > 1 ? 's' : '')} ${n}`;
+    case 'defeat': return `Defeat ${o.count} ${o.enemy === 'any' ? 'enemies' : foeName(o.enemy, o.count)} ${n}`;
     case 'skill': return `Reach ${o.skill === 'total' ? 'total skill level' : SKILLS[o.skill].name + ' level'} ${o.level} ${n}`;
     case 'talk': return `Talk to ${NPCS[o.npc].name}`;
   }

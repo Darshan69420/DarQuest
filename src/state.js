@@ -86,6 +86,8 @@ function upgrade(p) {
   p.weekly ??= null;
   p.bank = (p.bank || []).map(normalize).filter(Boolean);
   p.second ??= null;
+  p.choices ??= {};
+  p.heard ??= {};
   if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
 }

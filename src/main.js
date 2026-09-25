@@ -25,6 +25,7 @@ import { weekly, isDone as challengeDone, weeklyReward, CHALLENGES } from './cha
 import { Rift, UPGRADES } from './rift.js';
 import { Undercroft, clock } from './dungeon.js';
 import { makeChest } from './models.js';
+import { topicsFor, pendingChoice, epilogueLines } from './lore.js';
 import * as RU from './ui_rift.js';
 import { SHOUTS, castShout, learnWord, shoutWords } from './shouts.js';
 import { WORD_WALLS } from './maps.js';
@@ -323,6 +324,9 @@ function talk(id) {
   if (npc.service === 'bank') extra.push({ label: '🏦 Bank', action: () => UI.openBank(player, onChange) });
   if (npc.service === 'guild') extra.push({ label: '🌾 Tools & Trading', action: () => SK.openGuildShop(player, onChange) });
   for (const svc of extraServices) if (svc.npc === id && (!svc.when || svc.when())) extra.push({ label: svc.label, action: svc.action });
+  if (topicsFor(player, id).length) extra.unshift({ label: '💬 Ask about…', action: () => askAbout(id) });
+  const choice = pendingChoice(player, id);
+  if (choice) extra.unshift({ label: `⚖️ ${choice.title}`, action: () => decide(choice) });
   const side = npcSideQuests(player, id);
 
   if (q) {
@@ -356,6 +360,44 @@ function talk(id) {
   }
   const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
   UI.dialog(npc.name, npc.title, line, [...extra, { label: 'Goodbye' }]);
+}
+
+// "Ask about...": questions about the world. Topics you have heard get a tick.
+function askAbout(id) {
+  const npc = NPCS[id];
+  UI.dialog(npc.name, npc.title, 'What would you like to know?', [
+    ...topicsFor(player, id).map(t => ({
+      label: `${player.heard[`${id}:${t.id}`] ? '✓ ' : ''}${t.q}`,
+      action: () => {
+        player.heard[`${id}:${t.id}`] = true;
+        save(player);
+        UI.dialog(npc.name, npc.title, t.a, [{ label: 'Ask something else', primary: true, action: () => askAbout(id) }, { label: 'Goodbye' }]);
+      },
+    })),
+    { label: 'Never mind' },
+  ]);
+}
+
+// A decision that changes your reward and the ending.
+function decide(ch) {
+  const npc = NPCS[ch.npc];
+  UI.dialog(npc.name, npc.title, ch.text, [
+    ...ch.options.map(o => ({
+      label: o.label,
+      action: () => {
+        player.choices[ch.id] = o.id;
+        let got = '';
+        if (o.reward.gold) { player.gold += o.reward.gold; got = `+${o.reward.gold} gold`; }
+        if (o.reward.gear) { const r = giveItem(player, o.reward.gear, o.reward.rarity); got = `🎁 <span style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</span>`; }
+        Audio.sfx('quest');
+        refresh();
+        save(player);
+        UI.dialog(npc.name, npc.title, o.reply, [{ label: 'Goodbye' }]);
+        UI.toast(`⚖️ <b>${UI.esc(ch.title)}</b>: your choice is made. ${got}`, 'good');
+      },
+    })),
+    { label: 'I need time to think' },
+  ]);
 }
 
 function travel(portal) {
@@ -772,6 +814,7 @@ function showEnding() {
   UI.resultScreen(`<h2 class="win">🌟 The Pale Magister Falls</h2>
     <p>Malvoren's crown rolls across the floor of the Pale Spire. The violet flame at its peak gutters and goes out, and for the first time in a hundred years, the Hollow Deep is quiet.</p>
     <p>Up above, the Spiral Doors hum softly. In Emberfall the lava cools to a gentle glow. The dragons of the Peaks sleep. Frostholm thaws, Skyport's ships sail again, and the Elder Mother blooms.</p>
+    ${epilogueLines(p).map(l => `<p>${UI.esc(l)}</p>`).join('')}
     <p><b>${UI.esc(p.name)}</b> came to Starfall Academy as an apprentice. Now every land knows the name.</p>
     <div class="credits"><b>DarQuest</b><br>A game by Darshan<br>Made with Three.js · music and sound made in code<br><br>
       Level ${p.level}${p.arch ? ` · Archmage ${p.arch}` : ''} · ${s.kills} foes defeated · ${s.deaths || 0} falls · ${Object.keys(p.bestiary).length} kinds of foe met${p.ngplus ? ` · New Game+ ${p.ngplus}` : ''}</div>

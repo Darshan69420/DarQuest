@@ -45,6 +45,7 @@ Every key can be changed in **Settings → Keys**.
 - **Six schools:** Blaze 🔥, Frost ❄️, Tempest ⚡, Verdant 🌿, Umbral 💀 and Arcane ✨, each with its own health and spell list. Astral 🌙 support spells can be learned by everyone.
 - **Real-time combat:** key `1` is your school's free basic attack (every third hit in a row is a combo strike), and keys `2`–`5` hold the spells you pick. Enemies wind up big attacks: **red shapes on the ground** show where they will land, so step out or dodge through them.
 - **Seven chapters of story (51 quests) and an ending:** Hollow Lane (Lord Hollowmere), the Emberfall Wilds (Pyrrhon, the Molten King), the **Dragonspire Peaks**, where Vorathrax the Sky Tyrant flies above the battlefield and rains fire until you shout her down, and **Glacierreach**: the snowy town of Frostholm, the frozen Mirror Lake, the Rime Caverns and Queen Sylvara's ice castle under the northern lights, and **Stormspire**: floating islands joined by rope bridges over a sea of clouds, sky pirates, airships, and Voltaris the Storm Herald, a giant thunderbird who flies into the storm and rains lightning, and **Thornwood**: a forest of colossal trees, the root-house village of Greenhollow, a glowing mushroom hollow, and the blighted Thornmother, whose seed pods heal her until you cut them down. The finale is the **Hollow Deep**: rivers of souls, the Deathless Legion, echoes of the bosses you beat, and a four-phase battle with **Malvoren, the Pale Magister** (a ward held by soul anchors, a flight phase, and the Unmaking), followed by an ending and credits.
+- **Conversations and choices:** ask the people you meet about the world ("Ask about…"), and make three big decisions (the Frozen Queen's fate, the Skyraiders, the Heartwood) that change your rewards and how the ending reads.
 - **Dragon shouts:** learn the Voice, read Word Walls to learn six shouts (Unrelenting Force, Fire Breath, Frost Breath, Whirlwind Sprint, Become Ethereal, Dragonrend), and absorb dragon souls to unlock their deeper words.
 - **Skills (RuneScape style):** Mining, Woodcutting, Fishing, Foraging, Cooking, Smithing, Alchemy, Woodworking and Slayer, each from level 1 to 99. Gather in Millbrook Meadow and beyond, then craft bars, tools, food, potions, elixirs, amulets, wands and staffs at crafting stations.
 - **The Hollow Undercroft (dungeon):** a hand-built dungeon under Hollow Lane with puzzles (a lever, a rune-plate memory puzzle, a mirror-and-light-beam puzzle), a locked guard hall with elite waves, a swinging-blade gauntlet, and Morvain the Pale Warden, whose ward you break by shattering soul pylons. It scales to your level, has a Heroic mode, best times, and the Warden's gear set.
@@ -52,7 +53,7 @@ Every key can be changed in **Settings → Keys**.
 - **Your Homestead (Minecraft style):** a floating island where you build anything from 14 kinds of crafted blocks (wood, stone, brick, glass, lanterns, crystal, gold, dragonscale and more), with a ghost preview and step-up walking, plus your own crafting stations.
 - **Gear sets, a bank and a second school:** thirteen gear sets with 2-, 3-, 4- and 6-piece bonuses, the Starfall Bank (plus a vault at your Homestead), and a second school of magic from level 10.
 - **Gear, pets and side quests:** 90 gear pieces (drops, shops and crafting), 12 pets, the Gatherers' Guild quest chain, and a quest journal.
-- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 60 achievements, and titles like "the Dragonborn" or "the Rift Walker".
+- **Journal, Bestiary, Achievements and titles:** a bestiary with lore and hunter bonuses, 62 achievements, and titles like "the Dragonborn" or "the Rift Walker".
 - **Slayer (a 9th skill):** kill assignments from Slayer Master Grimm, streaks, Slayer Points and slayer gear.
 - **Companions:** hire one of six wizards from other schools to fight, heal, shield or buff at your side.
 - **The Arena of Stars:** duel 13 rival wizards across five ranks (Bronze to Starfall Champion) for gold, Arena Tokens and gladiator gear, in a colosseum with a cheering crowd.
@@ -84,6 +85,7 @@ src/slayer.js     Slayer tasks
 src/companions.js hireable companions
 src/arena.js      the Arena of Stars and rival wizards
 src/challenges.js weekly challenges
+src/lore.js       conversation topics and story choices
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects

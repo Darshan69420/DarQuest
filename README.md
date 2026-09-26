@@ -16,12 +16,11 @@ A 3D fantasy RPG that runs in your browser. You start as a new apprentice at Sta
 The game uses JavaScript modules, so it needs a tiny local web server. Opening `index.html` directly won't work. From this folder, run one of these:
 
 ```bash
-python3 -m http.server 8000
-# or
-npx serve .
+node tests/serve.cjs 8000        # with Node.js (Windows, Mac or Linux)
+python3 -m http.server 8000      # or with Python (on Windows: py -m http.server 8000)
 ```
 
-Then open <http://localhost:8000>.
+Then open <http://localhost:8000>. If the port is taken, pick another number (8080, 8001...).
 
 To share it online, turn on **GitHub Pages** for this repo (Settings → Pages → Source: **GitHub Actions**). The workflow in `.github/workflows/pages.yml` publishes the game whenever `main` changes. It's a plain static site with no build step, and it can be installed to a phone's home screen.
 

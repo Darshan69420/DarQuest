@@ -285,9 +285,22 @@ export class World {
     obj.rotation.y = rotY;
     this.scene.add(obj);
     if (collideR) this.colliders.push({ x, z, r: collideR });
-    if (obj.userData.anim) this.animated.push(obj);
+    if (obj.userData.anim) { this.animated.push(obj); this.trimShadows(obj); }
     else if (obj.userData.static) this.staticObjs.push(obj);
     return obj;
+  }
+
+  // Animated props and townsfolk keep their own meshes, so each part that casts a shadow is one more
+  // draw call in the shadow pass; fingers, gems and buttons cast specks nobody sees, so they stop.
+  trimShadows(obj, min = 0.16) {
+    obj.updateMatrixWorld(true);
+    const s = new THREE.Vector3();
+    obj.traverse(m => {
+      if (!m.isMesh || !m.castShadow) return;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      m.getWorldScale(s);
+      if (m.geometry.boundingSphere.radius * Math.max(s.x, s.y, s.z) < min) m.castShadow = false;
+    });
   }
 
   // Merges all static scenery into one mesh per material per map area,
@@ -348,7 +361,8 @@ export class World {
       o.traverse(k => { if (k.isMesh || k.isPoints || k.isLine) k.layers.set(c ? 5 : 0); });
     };
     // foes and small props fade into the fog well before the scenery does
-    const foeFar = Math.min(far, 105) ** 2, propFar = (Math.min(far, 120) + 40) ** 2;
+    // (foes past 75 are specks in the fog: every one you keep costs a couple of dozen draw calls)
+    const foeFar = Math.min(far, 75) ** 2, propFar = (Math.min(far, 120) + 40) ** 2;
     for (const e of this.enemies) setCulled(e.model, d2(e.model.position.x, e.model.position.z) > foeFar);
     for (const o of this.animated) setCulled(o, d2(o.position.x, o.position.z) > propFar);
     // level of detail: past a distance (set by graphics quality) characters and props drop their outline
@@ -359,7 +373,7 @@ export class World {
       if (!o.userData.hulls) { o.userData.hulls = []; o.traverse(k => { if (k.userData.isHull) o.userData.hulls.push(k); }); }
       for (const h of o.userData.hulls) h.visible = !lo;
     };
-    for (const e of this.enemies) setDetail(e.model, d2(e.model.position.x, e.model.position.z) > od2);
+    for (const e of this.enemies) setDetail(e.model, d2(e.model.position.x, e.model.position.z) > od2 * 0.5);   // foes: outline to ~70% of the distance
     for (const o of this.animated) setDetail(o, d2(o.position.x, o.position.z) > od2);
   }
 
@@ -533,6 +547,19 @@ export class World {
     model.userData.width = model.userData.bodyWidth ? model.userData.bodyWidth * (def.scale || 1) : box.max.x - box.min.x;
     model.position.set(x, 0, z);
     model.rotation.y = Math.PI;
+    // ordinary ground foes wear a soft blob shadow instead of casting a real one: the shadow
+    // pass would otherwise draw every piece of every foe a second time
+    if (!def.boss && !model.userData.setFlying && !model.userData.hover) {
+      model.traverse(m => { if (m.isMesh) m.castShadow = false; });
+      const blob = new THREE.Mesh(this.blobGeo || (this.blobGeo = new THREE.CircleGeometry(1, 20)), this.blobMat || (this.blobMat = new THREE.MeshBasicMaterial({ color: 0x0a0610, transparent: true, opacity: 0.3, depthWrite: false })));
+      const r = Math.max(0.5, Math.min(2.6, (model.userData.bodyWidth || model.userData.width) * 0.32 / (model.scale.x || 1)));
+      blob.scale.set(r, r, r);
+      blob.rotation.x = -Math.PI / 2;
+      blob.position.y = 0.04 / (model.scale.x || 1);
+      blob.raycast = () => {};
+      blob.userData.noOutline = true;
+      model.add(blob);
+    }
     this.scene.add(model);
     const color = def.elite ? '#ffd23d' : SCHOOLS[def.school].css;
     const label = this.addLabel(model,

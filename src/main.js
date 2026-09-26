@@ -300,7 +300,8 @@ function questTargetPos() {
   }
   if (t.spots) {
     const p = world.player.position, d = (s) => Math.hypot(s.x - p.x, s.z - p.z);
-    const best = t.spots.reduce((b, s) => (!b || d(s) < d(b) ? s : b), null);
+    const live = objectives.targets();   // a hunted leader moves; props already used drop out
+    const best = (live?.length ? live : t.spots).reduce((b, s) => (!b || d(s) < d(b) ? s : b), null);
     return best && (via(best.x) || best);
   }
   if (t.npc) {
@@ -310,6 +311,9 @@ function questTargetPos() {
     return via(pos.x) || { x: pos.x, z: pos.z };
   }
   const p = world.player.position;
+  // something a foe dropped for the quest beats looking for more foes
+  const drops = objectives.targets();
+  if (drops?.length) return drops.reduce((b, s) => (!b || Math.hypot(s.x - p.x, s.z - p.z) < Math.hypot(b.x - p.x, b.z - p.z) ? s : b), null);
   let best = null, bestD = Infinity;
   for (const e of world.enemies) {
     if (!matchesFoe(e.def.id, t.enemy)) continue;
@@ -1308,6 +1312,7 @@ function rewardKill(e) {
   player.gold += gold;
   world.float(e.model, `+${xp} XP${moonlit ? ' 🌙' : ''}`, 'xp');
   const quest = recordKill(player, def.id);
+  objectives.onKill(e);
   player.stats_log.kills++;
   player.bestiary[def.id] = (player.bestiary[def.id] || 0) + 1;
   // your pet learns from every victory
@@ -1701,7 +1706,7 @@ world.onTick = (dt) => {
 // Handy for testing from the browser console.
 // (it kept its first name, DarQuest, so older test scripts still work)
 // Which build this is: shown on the title screen so a playtest can say what it played.
-export const BUILD = '2026-09-26 · playtest fixes 3';
+export const BUILD = '2026-09-26 · hunts & rescues';
 document.querySelector('#build-tag')?.replaceChildren(`build ${BUILD}`);
 
 window.darquest = window.solmage = {

@@ -92,6 +92,13 @@ function upgrade(p) {
   p.heard ??= {};
   // tutorial hints: wizards who were already on their way when hints arrived skip them
   p.hints ??= p.level > 2 || p.quest.index > 2 ? { _old: 1 } : {};
+  // eight story quests became hunts, pick-ups and rescues: progress made on the old
+  // "defeat N" version starts over
+  if (!p.questRev) {
+    const q = QUESTS[p.quest.index];
+    if (p.quest.state === 'active' && ['q5', 'q10', 'q12', 'q21', 'q28', 'q35', 'q39', 'q46'].includes(q?.id)) { p.quest.progress = 0; p.quest.used = []; }
+    p.questRev = 2;
+  }
   if (p.level > RULES.maxLevel) p.level = RULES.maxLevel;
   return p;
 }
@@ -332,7 +339,7 @@ export function questTarget(p) {
   if (q.objective.type === 'talk') return { npc: q.objective.npc };
   if (q.objective.type === 'shout') return { shout: q.objective.shout };
   if (q.objective.type === 'use') return { spots: q.objective.spots.filter((_, i) => !p.quest.used?.includes(i)).map(([x, z]) => ({ x, z })) };
-  if (q.objective.type === 'defend' || q.objective.type === 'visit') return { spots: [{ x: q.objective.x, z: q.objective.z }] };
+  if (['defend', 'visit', 'hunt'].includes(q.objective.type)) return { spots: [{ x: q.objective.x, z: q.objective.z }] };
   return { enemy: q.objective.enemy };
 }
 
@@ -347,6 +354,8 @@ export function questTrackerText(p) {
   if (q.objective.type === 'use') return { title: q.name, goal: `${q.objective.goal} (${p.quest.progress}/${q.objective.spots.length})` };
   if (q.objective.type === 'defend') return { title: q.name, goal: `${q.objective.goal} for ${q.objective.time} seconds` };
   if (q.objective.type === 'visit') return { title: q.name, goal: `${q.objective.goal} in ${q.objective.place}` };
+  if (q.objective.type === 'collect') return { title: q.name, goal: `${q.objective.goal} (${p.quest.progress}/${q.objective.count})` };
+  if (q.objective.type === 'hunt') return { title: q.name, goal: q.objective.goal };
   return { title: q.name, goal: `Defeat ${q.objective.count} ${foeName(q.objective.enemy, q.objective.count)} (${p.quest.progress}/${q.objective.count})` };
 }
 

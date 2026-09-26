@@ -1011,9 +1011,9 @@ export const QUESTS = [
   },
   {
     id: 'q5', name: 'The Hollow Guard', giver: 'brannoc', turnIn: 'brannoc',
-    objective: { type: 'defeat', enemy: 'hollow_knight', count: 3 },
-    offer: 'Hollow Knights patrol the lane near the old crypt: suits of armour with nobody inside, walking anyway. Defeat 3 of them, and mind their swords. They remember being knights.',
-    done: 'Empty armour, empty orders. But armour does not walk on its own. Someone is pulling those strings, and I mean to find out who.',
+    objective: { type: 'use', kind: 'cage', goal: 'Free the first-years from the cages', label: 'break the lock', verb: 'Breaking the lock', spots: [[-7, 100], [8, 108], [-6, 116]], ambush: { enemy: 'hollow_knight', count: 1, on: [2, 3] } },
+    offer: 'Bad news from the crypt end of the lane. The Hollow Knights have locked three first-years in iron cages by the old crypt, and nobody knows what for. Break the locks and get the children out. Those knights will come running when they hear it.',
+    done: 'Three shaken first-years, all accounted for, and not a scratch on them. Armour with nobody inside does not take prisoners of its own accord. Someone is giving the orders, and I mean to find out who.',
     reward: { xp: 300, gold: 70, potions: 1 },
   },
   {
@@ -1047,9 +1047,9 @@ export const QUESTS = [
   },
   {
     id: 'q10', name: 'Hounds of Ash', giver: 'kestra', turnIn: 'kestra',
-    objective: { type: 'defeat', enemy: 'cinderhound', count: 4 },
-    offer: 'Cinderhounds hunt in packs further up. They howl to power each other up, so strike fast and strike first. Defeat 4.',
-    done: 'The howling has stopped. I can finally hear myself think, and what I am thinking is: thank you.',
+    objective: { type: 'hunt', enemy: 'cinderhound', name: 'Scorchmaw', title: 'Leader of the Pack', goal: 'Hunt down Scorchmaw', x: 699, z: 64, scale: 1.7, hp: 5, dmg: 1.3, pack: { enemy: 'cinderhound', count: 2 } },
+    offer: 'The Cinderhounds up the canyon follow one old dog: Scorchmaw. Twice the size of the others, and when he howls the whole pack catches fire. Kill him and the rest will scatter. He never runs alone, so strike fast.',
+    done: 'The howling has stopped. I can finally hear myself think, and what I am thinking is: thank you. Without Scorchmaw the rest will run for the hills.',
     reward: { xp: 600, gold: 70, potions: 1 },
   },
   {
@@ -1061,9 +1061,9 @@ export const QUESTS = [
   },
   {
     id: 'q12', name: 'Hearts of Stone', giver: 'tumblewick', turnIn: 'tumblewick',
-    objective: { type: 'defeat', enemy: 'obsidian_golem', count: 3 },
-    offer: 'Obsidian Golems guard the middle of the canyon. Tough as anvils, and they shrug off fire. Crack 3 of them open. Lightning works well.',
-    done: 'Obsidian shards! I\'ll make some fine wands from these.',
+    objective: { type: 'collect', enemy: 'obsidian_golem', count: 3, item: 'Ember Core', goal: 'Recover Ember Cores from the Obsidian Golems', color: 0xff7a2a },
+    offer: 'Obsidian Golems guard the middle of the canyon. Tough as anvils, and they shrug off fire. Inside each one sits an Ember Core, still warm. Crack them open and fetch me 3 cores. Lightning works well. Grab the cores before they cool!',
+    done: 'Still warm! Feel that. With these I can make wands that never go cold. Here, for your trouble.',
     reward: { xp: 800, gold: 90 },
   },
   {
@@ -1125,9 +1125,9 @@ export const QUESTS = [
   },
   {
     id: 'q21', name: 'Wings over the Cliffs', giver: 'kael', turnIn: 'kael',
-    objective: { type: 'defeat', enemy: 'wyvern', count: 3 },
-    offer: 'Stormwing Wyverns guard the cliffs below the Roost. They dive at you in a straight line and rain fire from above. Bring down 3 of them.',
-    done: 'The cliffs are quiet. Only the Roost is left, and the tyrant who lives there.',
+    objective: { type: 'hunt', enemy: 'wyvern', name: 'Old Stormwing', title: 'Eldest of the Wyverns', goal: 'Hunt down Old Stormwing', x: 1484, z: 108, scale: 1.6, hp: 3.5, dmg: 1.25, pack: { enemy: 'wyvern', count: 1 } },
+    offer: 'The Stormwing Wyverns below the Roost follow the oldest of them, a scarred brute we call Old Stormwing. She dives in a straight line and rains fire from above. Bring her down and the cliffs are ours.',
+    done: 'Old Stormwing is down. I watched her rule those cliffs for three winters. Only the Roost is left now, and the tyrant who lives there.',
     reward: { xp: 3000, gold: 300, potions: 1 },
   },
   {
@@ -1175,9 +1175,9 @@ export const QUESTS = [
   },
   {
     id: 'q28', name: 'Hearts of Ice', giver: 'ingrid', turnIn: 'ingrid',
-    objective: { type: 'defeat', enemy: 'ice_golem', count: 4 },
-    offer: 'The Queen\'s Rime Golems guard the caverns before her castle. Their slam freezes everything around them. Shatter 4 of them.',
-    done: 'Inside one golem\'s heart I found a pale crystal carved with the same rune as Hollowmere\'s locket. It is all connected.',
+    objective: { type: 'collect', enemy: 'ice_golem', count: 3, item: 'Rime Heart', goal: 'Recover Rime Hearts from the Rime Golems', color: 0x9fe6ff },
+    offer: 'The Queen\'s Rime Golems guard the caverns before her castle. Their slam freezes everything around them. Something keeps them moving: a heart of rime in each chest. Shatter them and bring me 3 of those hearts.',
+    done: 'Look here, inside the heart: a pale crystal carved with the same rune as Hollowmere\'s locket. It is all connected.',
     reward: { xp: 6500, gold: 500, tp: 1 },
   },
   {
@@ -1225,9 +1225,9 @@ export const QUESTS = [
   },
   {
     id: 'q35', name: 'Pirates of the Upper Air', giver: 'aeris', turnIn: 'aeris',
-    objective: { type: 'defeat', enemy: 'skyraider', count: 5 },
-    offer: 'The Skyraiders made a deal with Voltaris: he lets them fly, and they rob everyone else. Their roost is west of the Crystal Spire. Take down 5 of them.',
-    done: 'Ha! The Skyraiders won\'t forget you. Their captain\'s logbook says Voltaris answers to someone called the Pale Magister.',
+    objective: { type: 'collect', enemy: 'skyraider', count: 4, item: 'Stolen Cargo', goal: 'Take back the stolen cargo from the Skyraiders', color: 0xf2c14e },
+    offer: 'The Skyraiders made a deal with Voltaris: he lets them fly, and they rob everyone else. Their roost is west of the Crystal Spire, stacked with our stolen cargo. Take back 4 crates. They will not hand it over nicely.',
+    done: 'Every crate accounted for! And look what was packed in with the cargo: a captain\'s logbook. It says Voltaris answers to someone called the Pale Magister.',
     reward: { xp: 8500, gold: 700, potions: 1 },
   },
   {
@@ -1254,9 +1254,9 @@ export const QUESTS = [
   },
   {
     id: 'q39', name: 'Briar Patch', giver: 'rowan', turnIn: 'rowan',
-    objective: { type: 'defeat', enemy: 'briar_stalker', count: 5 },
-    offer: 'Briar Stalkers prowl the path south to the Mossy Glade. They were gentle forest cats once; the blight turned their fur to thorns. Stop 5 of them.',
-    done: 'The path is safe. Wren has been tracking something stranger in the glade.',
+    objective: { type: 'use', kind: 'snare', goal: 'Free the fox kits from the briar snares', label: 'cut the snare', verb: 'Cutting the briars', spots: [[4393, 40], [4406, 52], [4394, 64]], ambush: { enemy: 'briar_stalker', count: 1, on: [2, 3] } },
+    offer: 'The Briar Stalkers along the path south to the Mossy Glade were gentle forest cats once; the blight turned their fur to thorns. Now they set snares of briar, and there are fox kits caught in three of them. Cut them free before the stalkers come back to check.',
+    done: 'Three kits back in their den, and their mother has not stopped yapping about it. The path is safer too. Wren has been tracking something stranger in the glade.',
     reward: { xp: 10000, gold: 650, potions: 1 },
   },
   {
@@ -1304,9 +1304,9 @@ export const QUESTS = [
   },
   {
     id: 'q46', name: 'Sorrow on the Shore', giver: 'lyra', turnIn: 'lyra',
-    objective: { type: 'defeat', enemy: 'sorrowshade', count: 5 },
-    offer: 'Past the Bone Road lies the Weeping Shore, where Sorrowshades drain the life from anyone who passes. Set 5 of them free.',
-    done: 'Listen: the shore is quiet. Sir Aldric has been waiting to march on the Ossuary.',
+    objective: { type: 'hunt', enemy: 'sorrowshade', name: 'The Weeping Widow', title: 'Mother of Sorrows', goal: 'Hunt down the Weeping Widow', x: 5500, z: 66, scale: 1.7, hp: 4, dmg: 1.25, pack: { enemy: 'sorrowshade', count: 2 } },
+    offer: 'Past the Bone Road lies the Weeping Shore. The Sorrowshades there gather around one old spirit, the Weeping Widow, and feed on her grief. Set her free and the others lose their anchor.',
+    done: 'Listen: the shore is quiet. The Widow\'s grief was holding the others there. Sir Aldric has been waiting to march on the Ossuary.',
     reward: { xp: 13000, gold: 850, potions: 1 },
   },
   {

@@ -33,19 +33,23 @@ const killAll = async (id, n) => {
   }
   for (const e of foes) {
     if (k >= n) break;
-    w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
-    for (let t = 0; t < (e.def.boss ? 2000 : 500) && e.state !== "dead"; t++) {
-      // stay in range: knockbacks, boss movement and flight circles can push the fight apart
-      const dx = e.model.position.x - w.player.position.x, dz = e.model.position.z - w.player.position.z;
-      if (Math.hypot(dx, dz) > 18) { w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; }
-      c.setTarget(w.enemies.find(o => o.def.id === 'soul_anchor' && o.state !== 'dead') || e);
-      for (let i = 0; i < 5; i++) c.castSlot(i);
-      w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0);
-    }
-    if (e.state === 'dead') k++;
+    if (await fight(e)) k++;
   }
   return k;
 };
+// Fights one foe to the end (or the time budget). True if it died.
+async function fight(e) {
+  w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; w.invulnUntil = 1e9; w.simulate(0.2);
+  for (let t = 0; t < (e.def.boss || e.def.hunt ? 2000 : 500) && e.state !== "dead"; t++) {
+    // stay in range: knockbacks, boss movement and flight circles can push the fight apart
+    const dx = e.model.position.x - w.player.position.x, dz = e.model.position.z - w.player.position.z;
+    if (Math.hypot(dx, dz) > 18) { w.teleport({ x: e.model.position.x, z: e.model.position.z - 4, heading: 0 }); w.mode = 'explore'; }
+    c.setTarget(w.enemies.find(o => o.def.id === 'soul_anchor' && o.state !== 'dead') || e);
+    for (let i = 0; i < 5; i++) c.castSlot(i);
+    w.simulate(0.2); p.mana = p.maxMana; if (e.fly) { e.fly.forced = true; } await sleep(0);
+  }
+  return e.state === 'dead';
+}
 const steps = [];
 for (let qi = 0; qi < COUNT; qi++) {
   p.mana = p.maxMana;
@@ -57,6 +61,23 @@ for (let qi = 0; qi < COUNT; qi++) {
   if (cur.objective.type === 'shout') { (await import('./src/state.js')).recordShout(p, cur.objective.shout); r += 'shout ' + p.quest.state + ' '; }
   if (cur.objective.type === 'defeat') r += 'killed ' + await killAll(cur.objective.enemy, cur.objective.count) + '/' + cur.objective.count + ' ';
   const o = cur.objective;
+  if (o.type === 'hunt') {
+    const leader = () => w.enemies.find(x => x.def.hunt === cur.id && x.state !== 'dead');
+    if (!leader()) { w.teleport({ x: o.x, z: o.z - 8, heading: 0 }); w.mode = 'explore'; for (let t = 0; t < 10 && !leader(); t++) { w.simulate(0.3); await sleep(30); } }
+    if (leader()) await fight(leader());
+    r += 'hunted ' + o.name + ':' + p.quest.state + ' ';
+  }
+  if (o.type === 'collect') {
+    for (let round = 0; round < o.count * 5 && p.quest.state === 'active'; round++) {
+      const drops = dq.objectives.targets();
+      if (drops?.length) {
+        for (const d of drops) { w.teleport({ x: d.x, z: d.z, heading: 0 }); w.mode = 'explore'; w.simulate(0.2); await sleep(0); }
+        continue;
+      }
+      if (!(await killAll(o.enemy, 1))) { for (let t = 0; t < 12; t++) { w.simulate(2); await sleep(0); } }   // all down: wait for them to come back
+    }
+    r += 'collected ' + p.quest.progress + '/' + o.count + ' ';
+  }
   if (o.type === 'use') {
     for (let i = 0; i < o.spots.length; i++) {
       const [x, z] = o.spots[i];

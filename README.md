@@ -50,7 +50,7 @@ Every key can be changed in **Settings → Keys**.
 
 ## How it plays
 
-**The story** runs to 51 quests over seven chapters. You clear shadow weeds out of Hollow Lane, then follow the Spiral Doors to the lava fields of Emberfall, the Dragonspire Peaks (where Vorathrax circles overhead until you shout her out of the sky), the snowed-in town of Frostholm, the floating islands of Stormspire, the giant trees of Thornwood, and finally the Hollow Deep. Some quests ask you to thaw frozen lamps, burn cult banners or hold a road against a wolf pack instead of just killing things. You can ask people about the world, and three decisions along the way (what happens to the Frozen Queen, the sky pirates and the Heartwood) change your rewards and the ending.
+**The story** runs to 51 quests over seven chapters. You clear shadow weeds out of Hollow Lane, then follow the Spiral Doors to the lava fields of Emberfall, the Dragonspire Peaks (where Vorathrax circles overhead until you shout her out of the sky), the snowed-in town of Frostholm, the floating islands of Stormspire, the giant trees of Thornwood, and finally the Hollow Deep. Some quests ask you to thaw frozen lamps, burn cult banners, break captured students out of cages, track down a named pack leader, pick up what the sky pirates drop or hold a road against a wolf pack instead of just killing things. You can ask people about the world, and three decisions along the way (what happens to the Frozen Queen, the sky pirates and the Heartwood) change your rewards and the ending.
 
 **Fighting** happens in real time. Key `1` is your school's free basic attack, and keys `2` to `5` hold the spells you choose. Big enemy attacks paint the ground red a moment before they land, so you step out or dodge through. Bosses fly, summon, raise wards and change phases. From Chapter 3 you can learn dragon shouts at Word Walls.
 
@@ -102,7 +102,7 @@ src/challenges.js weekly challenges
 src/lore.js       conversation topics and story choices
 src/chain.js      the Sol Mage token: wallet connection, balance lookups and perk tiers
 src/ui_wallet.js  the Sol Mage wallet window
-src/objectives.js quest objectives beyond fighting: quest objects, ward circles, places to find
+src/objectives.js quest objectives beyond fighting: quest objects, cages, ward circles, drops, hunts
 src/hints.js      tutorial hint cards
 src/settings.js   settings and key bindings
 src/state.js      player stats, levelling, quests, save/load

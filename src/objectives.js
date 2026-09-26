@@ -1,9 +1,9 @@
-// Quest objectives beyond "defeat": using things in the world (thaw a lamp, smash a totem),
-// holding ground against waves of foes, and finding places. Their props exist only while
-// the quest is active.
+// Quest objectives beyond "defeat": using things in the world (thaw a lamp, smash a totem,
+// break a cage), holding ground against waves of foes, finding places, picking up what foes
+// drop, and hunting down a named leader. Their props exist only while the quest is active.
 import * as THREE from 'three';
-import { ENEMIES } from './data.js';
-import { makeLamp, makeBanner, makeDeadTree, makeOak, makeCrystal, mat, glowMat } from './models.js';
+import { ENEMIES, matchesFoe } from './data.js';
+import { makeLamp, makeBanner, makeDeadTree, makeOak, makeCrystal, makeWizard, makePet, mat, glowMat } from './models.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const mesh = (geo, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; return o; };
@@ -198,8 +198,120 @@ function blightPod() {
   return g;
 }
 
-const PROPS = { lamp: frozenLamp, totem: ashTotem, banner: cultBanner, brazier: spiritBrazier, rod: stormRod, tree: sickTree, pod: blightPod };
-const NAMES = { lamp: 'Frozen Lamp', totem: 'Ash Totem', banner: 'Cult Banner', brazier: 'Spirit Brazier', rod: 'Lightning Rod', tree: 'Sick Tree', pod: 'Heart of the Blight' };
+// Someone waiting to be let out. Once freed they hop clear, run for home and are gone.
+function withCaptive(g, captive, dir, onOpen) {
+  let freedAt = -1, gone = false;
+  g.add(captive);
+  g.userData.done = (instant) => {
+    onOpen(instant);
+    if (instant) { captive.visible = false; gone = true; } else freedAt = 0;
+  };
+  return (t, done, dt = 0.016) => {
+    if (gone) return;
+    if (freedAt < 0) { captive.userData.anim?.(t, false); captive.rotation.y = Math.sin(t * 0.7) * 0.5; return; }
+    freedAt += dt;
+    captive.userData.anim?.(t, true);
+    captive.rotation.y = dir;
+    const run = Math.max(0, freedAt - 0.25);
+    captive.position.x = Math.sin(dir) * run * 3.2;
+    captive.position.z = Math.cos(dir) * run * 3.2;
+    captive.position.y = freedAt < 0.25 ? Math.sin((freedAt / 0.25) * Math.PI) * 0.6 : Math.abs(Math.sin(run * 9)) * 0.12;
+    if (run > 2.2) captive.scale.setScalar(Math.max(0.001, captive.userData.s0 * (1 - (run - 2.2) / 0.5)));
+    if (run > 2.7) { captive.visible = false; gone = true; }
+  };
+}
+
+// An iron cage with a frightened first-year inside.
+function cage() {
+  const g = new THREE.Group();
+  const iron = mat(0x2e2a36), rust = mat(0x5a3a2a), wood = mat(0x4a3424);
+  g.add(mesh(new THREE.BoxGeometry(2.1, 0.24, 2.1), wood, 0, 0.12, 0));
+  g.add(mesh(new THREE.BoxGeometry(2.1, 0.14, 2.1), iron, 0, 2.55, 0));
+  g.add(mesh(new THREE.ConeGeometry(0.2, 0.4, 6), iron, 0, 2.82, 0));
+  const door = new THREE.Group();
+  door.position.set(-0.95, 0, 1.0);
+  g.add(door);
+  for (let i = 0; i < 16; i++) {
+    const side = Math.floor(i / 4), k = (i % 4) / 4 + 0.125;
+    const [x, z] = side === 0 ? [-1 + k * 2, 1] : side === 1 ? [1, 1 - k * 2] : side === 2 ? [1 - k * 2, -1] : [-1, -1 + k * 2];
+    const bar = mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.3, 6), i % 5 ? iron : rust, 0, 1.35, 0);
+    if (side === 0) { bar.position.set(x + 0.95, 1.35, 0); door.add(bar); } else { bar.position.set(x, 1.35, z); g.add(bar); }
+  }
+  door.add(mesh(new THREE.BoxGeometry(1.9, 0.08, 0.08), iron, 0.95, 0.5, 0));
+  door.add(mesh(new THREE.BoxGeometry(1.9, 0.08, 0.08), iron, 0.95, 2.2, 0));
+  const lock = mesh(new THREE.BoxGeometry(0.26, 0.3, 0.14), mat(0x3a2448), 1.72, 1.3, 0.1);
+  door.add(lock);
+  const seal = mesh(new THREE.OctahedronGeometry(0.1), glowMat(0xc542ff, 2.4), 1.72, 1.32, 0.2);
+  door.add(seal);
+  const kid = makeWizard({ robe: [0x3355ff, 0x2e7d6b, 0xa0346a][Math.floor(Math.random() * 3)], hatStyle: 'wizard', hair: [0x6b4226, 0xe0b060, 0x2a1a14][Math.floor(Math.random() * 3)] });
+  kid.scale.setScalar(0.55);
+  kid.userData.s0 = 0.55;
+  kid.position.y = 0.24;
+  const anim = withCaptive(g, kid, Math.PI * 0.85, (instant) => { door.rotation.y = instant ? -1.9 : 0; lock.visible = seal.visible = false; g.userData.opening = !instant; });
+  let swing = 0;
+  g.userData.fxY = 1.4;
+  g.userData.color = 0xc542ff;
+  g.userData.anim = (t, done, dt) => {
+    if (g.userData.opening && swing < 1) { swing = Math.min(1, swing + (dt || 0.016) * 4); door.rotation.y = -1.9 * (1 - (1 - swing) ** 3); }
+    seal.rotation.y = t * 2;
+    anim(t, done, dt);
+  };
+  return g;
+}
+
+// A fox kit caught in a snare of blighted briars.
+function snare() {
+  const g = new THREE.Group();
+  const thorn = mat(0x3a2a38), vine = mat(0x5a3a6a);
+  const briars = new THREE.Group();
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const arc = mesh(new THREE.TorusGeometry(0.75, 0.07, 5, 10, Math.PI * 0.9), i % 2 ? vine : thorn, Math.cos(a) * 0.35, 0.55, Math.sin(a) * 0.35);
+    arc.rotation.set(Math.PI / 2 + (i % 3) * 0.3, a, 0);
+    briars.add(arc);
+    const spike = mesh(new THREE.ConeGeometry(0.05, 0.3, 4), thorn, Math.cos(a) * 0.95, 0.4 + (i % 2) * 0.5, Math.sin(a) * 0.95);
+    spike.rotation.z = -Math.cos(a) * 1.2;
+    spike.rotation.x = Math.sin(a) * 1.2;
+    briars.add(spike);
+  }
+  briars.add(mesh(new THREE.OctahedronGeometry(0.12), glowMat(0xd06aff, 2.2), 0, 1.25, 0));
+  g.add(briars);
+  const kit = makePet('pup', 0xd8703a);
+  kit.scale.setScalar(0.8);
+  kit.userData.s0 = 0.8;
+  let wither = -1;
+  const anim = withCaptive(g, kit, -Math.PI * 0.35, (instant) => { if (instant) briars.visible = false; else wither = 0; });
+  g.userData.fxY = 1;
+  g.userData.color = 0x9fff7a;
+  g.userData.anim = (t, done, dt) => {
+    if (wither >= 0 && briars.visible) {
+      wither += dt || 0.016;
+      briars.scale.set(1 + wither, Math.max(0.001, 1 - wither * 2), 1 + wither);
+      if (wither > 0.5) briars.visible = false;
+    }
+    anim(t, done, dt);
+  };
+  return g;
+}
+
+// Something a foe dropped: a bright token over a pool of light, easy to spot from afar.
+function pickup(color) {
+  const g = new THREE.Group();
+  const gem = mesh(new THREE.OctahedronGeometry(0.28), glowMat(color, 2.6), 0, 1, 0);
+  gem.scale.y = 1.4;
+  g.add(gem);
+  const pool = mesh(new THREE.CircleGeometry(0.9, 20), see(color, 0.35), 0, 0.05, 0);
+  pool.rotation.x = -Math.PI / 2;
+  g.add(pool);
+  const beam = mesh(new THREE.CylinderGeometry(0.08, 0.2, 3.5, 8, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 0, 1.75, 0);
+  beam.castShadow = false;
+  g.add(beam);
+  g.userData.anim = (t) => { gem.position.y = 1 + Math.sin(t * 3) * 0.15; gem.rotation.y = t * 2; pool.material.opacity = 0.25 + Math.sin(t * 3) * 0.1; };
+  return g;
+}
+
+const PROPS = { lamp: frozenLamp, totem: ashTotem, banner: cultBanner, brazier: spiritBrazier, rod: stormRod, tree: sickTree, pod: blightPod, cage, snare };
+const NAMES = { lamp: 'Frozen Lamp', totem: 'Ash Totem', banner: 'Cult Banner', brazier: 'Spirit Brazier', rod: 'Lightning Rod', tree: 'Sick Tree', pod: 'Heart of the Blight', cage: 'Locked Cage', snare: 'Briar Snare' };
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
 // A ward circle for "hold this place" objectives: a glowing ring, rune stones round the edge
@@ -242,6 +354,9 @@ export class Objectives {
     this.ring = null;
     this.channel = null;    // { i, t, dur, from }
     this.defense = null;    // { t, spawnT, foes, outside }
+    this.drops = [];        // { model, label } things foes dropped for a collect quest
+    this.missed = 0;        // kills in a row that dropped nothing (the next one always drops)
+    this.hunt = null;       // { e, pack } the named leader of a hunt quest
     this.t = 0;
     world.extraInteractables = [...(world.extraInteractables || []), () => this.interactables()];
   }
@@ -257,7 +372,7 @@ export class Objectives {
     const o = q?.objective;
     // used props stay (in their used look) until the quest is handed in; the defend ring goes at once
     const st = p?.quest.state;
-    const live = p && q && ['use', 'defend', 'visit'].includes(o.type) && (st === 'active' || (st === 'ready' && o.type !== 'defend'));
+    const live = p && q && ['use', 'defend', 'visit', 'collect', 'hunt'].includes(o.type) && (st === 'active' || (st === 'ready' && ['use', 'visit'].includes(o.type)));
     const key = live ? `${q.id}${o.type === 'defend' ? ':' + st : ''}` : null;
     if (key === this.built) return;
     this.clear();
@@ -290,6 +405,7 @@ export class Objectives {
       this.ring.position.set(o.x, 0, o.z);
       this.world.scene.add(this.ring);
     }
+    if (o.type === 'hunt') this.spawnHunt(q, o);
   }
 
   clear() {
@@ -301,6 +417,13 @@ export class Objectives {
     if (this.ring) { this.world.scene.remove(this.ring); this.ring = null; }
     this.channel = null;
     this.endDefense(false);
+    for (const d of this.drops) this.removeDrop(d);
+    this.drops = [];
+    this.missed = 0;
+    if (this.hunt) {
+      for (const e of [this.hunt.e, ...this.hunt.pack]) if (this.world.enemies.includes(e)) this.world.removeEnemy(e);
+      this.hunt = null;
+    }
   }
 
   interactables() {
@@ -315,7 +438,88 @@ export class Objectives {
     if (!o) return null;
     if (o.type === 'use') return this.props.filter(pr => !pr.done).map(pr => ({ x: pr.model.position.x, z: pr.model.position.z }));
     if (o.type === 'defend' || o.type === 'visit') return [{ x: o.x, z: o.z }];
+    if (o.type === 'collect' && this.drops.length) return this.drops.map(d => ({ x: d.model.position.x, z: d.model.position.z }));
+    if (o.type === 'hunt' && this.hunt?.e.state !== 'dead' && this.hunt) return [{ x: this.hunt.e.model.position.x, z: this.hunt.e.model.position.z }];
     return null;
+  }
+
+  // ------------------------------------------------------------ what foes drop, and named leaders
+
+  // Called for every kill: drops for collect quests, the end of a hunt.
+  onKill(e) {
+    const p = this.hooks.player(), q = this.hooks.quest(), o = this.objective();
+    if (!o) return;
+    if (o.type === 'hunt' && e.def.hunt === q.id) {
+      p.quest.progress = 1;
+      p.quest.state = 'ready';
+      this.world.shockwave(e.model.position, 0xffd23d, 7);
+      this.hooks.message(`✦ ${o.name} is dead. The rest will scatter.`);
+      this.hooks.sfx('quest');
+      this.hooks.changed();
+      return;
+    }
+    if (o.type !== 'collect' || !matchesFoe(e.def.id, o.enemy)) return;
+    if (p.quest.progress + this.drops.length >= o.count) return;
+    if (Math.random() >= (o.chance ?? 0.7) && this.missed < 1) { this.missed++; return; }
+    this.missed = 0;
+    const model = pickup(o.color ?? 0xffd23d);
+    const pos = e.model.position;
+    model.position.set(pos.x, 0, pos.z);
+    this.world.scene.add(model);
+    const label = this.world.addLabel(model, `<div class="name quest-obj">✦ ${o.item}</div>`, 'npc', 2.6);
+    this.drops.push({ model, label });
+    this.world.burst(V(pos.x, 1, pos.z), o.color ?? 0xffd23d, 16, 3);
+  }
+
+  removeDrop(d) {
+    this.world.scene.remove(d.model);
+    if (d.label) { d.label.el.remove(); this.world.labels = this.world.labels.filter(l => l !== d.label); }
+  }
+
+  updateDrops(o, pp) {
+    for (const d of [...this.drops]) {
+      d.model.userData.anim(this.t);
+      if (Math.hypot(d.model.position.x - pp.x, d.model.position.z - pp.z) > 1.8) continue;
+      const p = this.hooks.player();
+      this.removeDrop(d);
+      this.drops = this.drops.filter(x => x !== d);
+      p.quest.progress = Math.min(o.count, p.quest.progress + 1);
+      this.world.burst(V(d.model.position.x, 1, d.model.position.z), o.color ?? 0xffd23d, 24, 4);
+      this.world.float(this.world.player, `✦ ${o.item} ${p.quest.progress}/${o.count}`, 'status');
+      this.hooks.sfx('loot');
+      if (p.quest.progress >= o.count) p.quest.state = 'ready';
+      this.hooks.changed();
+    }
+  }
+
+  // A named leader: the pack's own kind, bigger, tougher and harder-hitting, with a few
+  // of its pack around it. It only exists while the hunt is on.
+  spawnHunt(q, o) {
+    const base = ENEMIES[o.enemy];
+    const def = {
+      ...base, name: o.name, title: o.title, elite: true, hunt: q.id,
+      scale: (base.scale || 1) * (o.scale || 1.4),
+      hp: Math.round(base.hp * (o.hp || 4)), xp: Math.round(base.xp * 5), gold: base.gold.map(g => g * 4),
+      dmgMult: (base.dmgMult || 1) * (o.dmg || 1.3), aggro: Math.max(base.aggro || 10, 12),
+    };
+    const e = this.world.addEnemy(def, o.x, o.z, 4);
+    this.hooks.addFoe(e);
+    // a faint gold ring marks the leader out from its pack
+    const ring = mesh(new THREE.RingGeometry(0.9, 1.15, 32), see(0xffd23d, 0.55), 0, 0.05, 0);
+    ring.rotation.x = -Math.PI / 2;
+    ring.castShadow = false;
+    ring.raycast = () => {};
+    e.model.add(ring);
+    const pack = [];
+    const pk = o.pack;
+    for (let k = 0; pk && k < pk.count; k++) {
+      const pos = this.spawnPoint(o.x, o.z, 3.5, k * 2);
+      if (!pos) continue;
+      const m = this.world.addEnemy(ENEMIES[pk.enemy], pos.x, pos.z, 3);
+      this.hooks.addFoe(m);
+      pack.push(m);
+    }
+    this.hunt = { e, pack };
   }
 
   interact(id) {
@@ -379,6 +583,12 @@ export class Objectives {
     }
 
     if (o.type === 'defend') this.updateDefense(o, dt, pp);
+    if (o.type === 'collect') this.updateDrops(o, pp);
+    // the leader was cleared away (you left and came back, or it wandered off for good)
+    if (o.type === 'hunt' && this.hunt && !this.world.enemies.includes(this.hunt.e) && Math.hypot(pp.x - o.x, pp.z - o.z) > 30) {
+      this.hunt = null;
+      this.spawnHunt(this.hooks.quest(), o);
+    }
   }
 
   use(pr, o) {

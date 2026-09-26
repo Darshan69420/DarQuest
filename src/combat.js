@@ -2,6 +2,7 @@
 import { SCHOOLS, SPELLS, SCROLLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
 import { basicSpell, spendScroll } from './state.js';
 import { sfx } from './audio.js';
+import { archiveModifier } from './archive.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -47,7 +48,8 @@ export class Combat {
   get now() { return this.world.time; }
 
   initEnemy(e) {
-    e.maxHp = Math.round(e.def.hp * this.diff.hp);
+    const modifier = e.dungeon ? archiveModifier(this.p?.archive) : null;
+    e.maxHp = Math.round(e.def.hp * this.diff.hp * (modifier === 'fragile' ? 0.8 : 1));
     e.hp = e.maxHp;
     e.mods = mods();
     e.cd = {};
@@ -304,6 +306,7 @@ export class Combat {
   damageEnemy(e, amount, school, color, crit = false) {
     if (e.state === 'dead') return 0;
     let m = 1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0);
+    if (e.dungeon && archiveModifier(this.p?.archive) === 'resonance') m *= 1.2;
     for (const t of e.mods.traps) m *= 1 + t;
     for (const s of e.mods.shields) m *= 1 - s;
     e.mods.traps = [];
@@ -334,7 +337,12 @@ export class Combat {
     let m = 1 + this.diff.dmg;
     // Rift targets hit harder on later stages; ordinary quest enemies keep
     // their usual tuning, even while a contract is active.
-    if (p.rift?.status === 'active' && from.def.id === p.rift.target) m *= 1 + p.rift.stage * 0.15;
+    if (!from.dungeon && p.rift?.status === 'active' && from.def.id === p.rift.target) m *= 1 + p.rift.stage * 0.15;
+    if (from.dungeon) {
+      const modifier = archiveModifier(p.archive);
+      if (modifier === 'fragile') m *= 1.2;
+      if (modifier === 'resonance') m *= 1.15;
+    }
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
     from.mods.blades = [];
@@ -420,7 +428,7 @@ export class Combat {
   // Winds up an attack so the player can see it coming (and dodge).
   startAttack(e) {
     const spell = this.chooseSpell(e);
-    const speed = this.diff.speed;
+    const speed = this.diff.speed * (e.dungeon && archiveModifier(this.p?.archive) === 'frenzy' ? 1.25 : 1);
     e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15);
     if (!spell) return;
     e.cd[spell.id] = this.now + (1 + spell.pips * 2.4) / speed;
@@ -574,7 +582,8 @@ export class Combat {
     }
 
     // regenerate: slowly in a fight, quickly out of one
-    p.mana = Math.min(p.maxMana, p.mana + (fighting ? 5 : 15) * dt);
+    const manaRate = fighting ? (w.player.position.x > 1100 && p.archive?.status === 'active' && archiveModifier(p.archive) === 'frenzy' ? 7.5 : 5) : 15;
+    p.mana = Math.min(p.maxMana, p.mana + manaRate * dt);
     if (!fighting && alivePlayer && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.02 * dt);
 
     if (this.target && (this.target.state === 'dead' || flat(this.target.model.position, pp) > 50)) this.setTarget(null);

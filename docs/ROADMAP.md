@@ -11,7 +11,7 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 - Two hand-built zones, 14 quests, combat, six schools, equipment, pets, difficulty settings and browser saves.
 - One-use spell scrolls available through drops and a shop, plus Astral Pulse, a close-range area spell learnable by every school. Two rideable stags bought at the academy, with faster travel and automatic combat dismount. Magic cast sigils add a short readable anticipation cue.
 - Rift Contracts: talk to Vale at Starfall Academy. Complete three stages against enemies in a chosen unlocked zone; choose one of three offered boons before each stage. Targets deal 15% more damage per stage. Return for a payout after stage three, or lose the temporary boons on defeat. A run resumes after reload.
-- The Shattered Archive: an academy gate opens after Hollow Lane. Four authored, isolated chambers contain two seeded fights, a rest or scroll choice, and a guardian. The run saves its seed, room and individual defeated foes, so reloading does not duplicate kills. Defeat or leaving ends the run; the final payout can only be claimed once.
+- The Shattered Archive: an academy gate opens after Hollow Lane. Four authored, isolated chambers contain two seeded fights, a rest, scroll or Rune choice, and a guardian. Three seeded encounter rules change combat numbers and mana recovery. The run saves its seed, room, Rune and individual defeated foes, so reloading does not duplicate kills. Defeat or leaving ends the run and removes its Rune; the final payout can only be claimed once.
 
 ## Next milestones and acceptance criteria
 
@@ -19,7 +19,7 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 | --- | --- | --- | --- |
 | 1 | Movement and camera | Strafing, sprinting and a clear interact prompt work with keyboard, mouse and touch. Mount animation and camera remain readable around narrow paths. | Play from new game to first fight on desktop and narrow mobile viewport; no stuck movement or unreadable HUD. |
 | 2 | First dungeon prototype (implemented) | A portal leads to a small, seeded dungeon with a sequence of rooms, encounters, a rest choice and a final guardian. Exits return to the world. | Seed, remaining foes and one-time payout covered by tests. Full browser playthrough and device QA still needed. |
-| 3 | Run variety | Enemy groups, room events and two mutually exclusive rewards change the next decision. Builds have visible strengths and limits. | Simulate at least 1,000 seeds; no impossible enemy or room combination; verify reward caps and death cleanup. |
+| 3 | Run variety (in progress) | Enemy groups, encounter rules and two seeded Rune offers change the next fight. Room events and more consequential routes remain. | 1,200 seeded routes checked; verify combat rules, reward cleanup and both choices in a browser playthrough. |
 | 4 | World agency | One new settlement, explorable side areas, NPC schedules or reactions, and at least one quest with a meaningful choice and consequence. | Save/load both outcomes; every branch reaches a conclusion; optional path is signposted in game. |
 | 5 | Character depth | Small skill trees for the six schools, equipment comparisons, crafting materials and a respec path. | Each build can clear a standard run; tooltips match the damage calculations; old saves migrate. |
 | 6 | Presentation and release | Replace key procedural models with original animated assets, add settings and accessibility options, then publish a stable web build. | Performance budget and device coverage below; no errors in a complete chapter and dungeon run. |
@@ -28,7 +28,7 @@ Milestones are ordered to keep each release playable. Complete the dungeon proto
 
 ## Dungeon design for milestone 2
 
-The **Shattered Archive** prototype uses a fixed four-room route with a seed selecting enemy groups. Each room has its own geometry and a gated portal. The third room offers recovery or a scroll. The guardian has a second phase; the final door grants persistent XP and gold once. Next, add room events and temporary combat modifiers, then tune the run length through hands-on play.
+The **Shattered Archive** uses a fixed four-room route with a seed selecting enemy groups, combat modifiers and two Rune offers. Each room has its own geometry and a gated portal. The third room offers recovery, a scroll or one temporary Rune. The guardian has a second phase; the final door grants persistent XP and gold once. Next, add room events and route choices, then tune the run length through hands-on play.
 
 The technical boundary: `src/archive.js` owns saved progression and deterministic enemy selection; `src/archive-map.js` owns geometry; `src/world.js` manages temporary foes; save migration stays in `src/state.js`. Store the seed, room and defeated enemy indices, never generated meshes.
 

@@ -1,7 +1,7 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES, SCROLLS, MOUNTS } from './data.js';
 import { RIFT_BOONS } from './rifts.js';
-import { archiveWave } from './archive.js';
+import { archiveWave, ARCHIVE_RUNES, archiveRuneChoices } from './archive.js';
 
 const SAVE_KEY = 'darquest-save-v1';
 
@@ -51,6 +51,8 @@ function upgrade(p) {
       new Set(p.archive.defeated).size !== p.archive.defeated.length ||
       p.archive.defeated.some(i => i >= archiveWave(p.archive.seed, p.archive.room).length) ||
       p.archive.kills !== p.archive.defeated.length ||
+      (p.archive.rune != null && (p.archive.room < 2 || !archiveRuneChoices(p.archive).includes(p.archive.rune))) ||
+      (p.archive.status === 'rest' && p.archive.rune != null) ||
       (p.archive.room === 2 && !['rest', 'cleared'].includes(p.archive.status)) ||
       (p.archive.status === 'rest' && p.archive.room !== 2) ||
       (p.archive.status === 'claim' && p.archive.room !== 3) ||
@@ -83,6 +85,7 @@ export function recalc(p) {
   for (const id of Object.values(p.equipped)) if (id && GEAR[id]) add(GEAR[id].stats);
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
   for (const id of p.rift?.boons || []) if (RIFT_BOONS[id]) add(RIFT_BOONS[id].stats);
+  if (p.archive?.rune && ARCHIVE_RUNES[p.archive.rune]) add(ARCHIVE_RUNES[p.archive.rune].stats);
   p.stats = s;
   p.maxHp = baseHpFor(p.school, p.level) + s.hp;
   p.maxMana = 100 + (p.level - 1) * 6;

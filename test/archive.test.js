@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newPlayer, save, load } from '../src/state.js';
+import { newPlayer, save, load, recalc } from '../src/state.js';
 import { ENEMIES, PORTALS, ZONES, zoneAt } from '../src/data.js';
-import { ARCHIVE_ROOMS, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive } from '../src/archive.js';
+import { Combat } from '../src/combat.js';
+import { ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveModifier, archiveRuneChoices, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive } from '../src/archive.js';
 
 test('all seeded encounters use real foes and reachable rooms', () => {
-  for (let seed = 0; seed < 300; seed++) {
+  for (let seed = 0; seed < 1200; seed++) {
     const p = newPlayer('Explorer', 'blaze');
     assert.equal(startArchive(p, seed), true);
     for (let room = 0; room < ARCHIVE_ROOMS.length; room++) {
@@ -31,6 +32,23 @@ test('all seeded encounters use real foes and reachable rooms', () => {
   }
 });
 
+test('seeded room rules and rune offers vary while remaining stable', () => {
+  const seen = new Set();
+  for (let seed = 0; seed < 1200; seed++) {
+    const p = newPlayer('Explorer', 'arcane');
+    startArchive(p, seed);
+    const first = archiveModifier(p.archive);
+    const next = archiveModifier(p.archive, 1);
+    seen.add(first);
+    assert.ok(ARCHIVE_MODIFIERS[first] && ARCHIVE_MODIFIERS[next]);
+    assert.equal(archiveModifier(p.archive), first);
+    assert.equal(archiveRuneChoices(p.archive).length, 2);
+    assert.equal(new Set(archiveRuneChoices(p.archive)).size, 2);
+    assert.ok(archiveRuneChoices(p.archive).every(id => ARCHIVE_RUNES[id]));
+  }
+  assert.deepEqual(seen, new Set(Object.keys(ARCHIVE_MODIFIERS)));
+});
+
 test('reload keeps exact defeated foe indices and rest can only be taken once', () => {
   const storage = new Map();
   const prior = globalThis.localStorage;
@@ -52,4 +70,82 @@ test('reload keeps exact defeated foe indices and rest can only be taken once', 
     assert.ok(resumed.hp > 1);
     assert.equal(restArchive(resumed, 'scroll'), false);
   } finally { globalThis.localStorage = prior; }
+});
+
+test('a chosen rune changes stats through reload and leaves after claiming', () => {
+  const storage = new Map();
+  const prior = globalThis.localStorage;
+  globalThis.localStorage = { setItem: (k, v) => storage.set(k, v), getItem: k => storage.get(k) ?? null };
+  try {
+    const p = newPlayer('Scholar', 'blaze');
+    startArchive(p, 88);
+    for (let room = 0; room < 2; room++) {
+      for (let i = 0; i < archiveWave(88, room).length; i++) archiveKill(p, i);
+      advanceArchive(p);
+    }
+    const rune = archiveRuneChoices(p.archive)[0];
+    assert.equal(restArchive(p, 'rune', 'invalid'), false);
+    assert.equal(restArchive(p, 'rune', rune), true);
+    assert.equal(restArchive(p, 'rune', rune), false);
+    recalc(p);
+    assert.equal(p.stats[Object.keys(ARCHIVE_RUNES[rune].stats)[0]], Object.values(ARCHIVE_RUNES[rune].stats)[0]);
+    save(p);
+    const resumed = load();
+    assert.equal(resumed.archive.rune, rune);
+    advanceArchive(resumed);
+    archiveKill(resumed, 0);
+    assert.ok(claimArchive(resumed));
+    recalc(resumed);
+    assert.deepEqual(resumed.stats, { hp: 0, dmg: 0, acc: 0, resist: 0, pip: 0, heal: 0 });
+  } finally { globalThis.localStorage = prior; }
+});
+
+test('fragile and resonance rules change actual combat numbers', () => {
+  const seedFor = (id) => Array.from({ length: 100 }, (_, i) => i).find(seed => archiveModifier({ seed, room: 0 }) === id);
+  const world = { time: 10, player: { position: { x: 1400, z: 0 } }, enemies: [],
+    float() {}, hitReact() {}, burst() {}, chest() { return {}; }, shake() {}, defeat() {} };
+  const combat = new Combat({ world });
+  const p = newPlayer('Combatant', 'arcane');
+  p.hp = 10000;
+  p.maxHp = 10000;
+  combat.p = p;
+  const makeFoe = () => ({ dungeon: true, def: ENEMIES.hollow_knight,
+    model: { position: { x: 1400, z: 1 }, visible: true }, state: 'idle' });
+  startArchive(p, seedFor('fragile'));
+  p.rift = { status: 'active', stage: 2, target: 'hollow_knight', boons: [] };
+  const fragile = makeFoe();
+  world.enemies = [fragile];
+  combat.initEnemy(fragile);
+  assert.equal(fragile.maxHp, Math.round(fragile.def.hp * 0.8));
+  assert.equal(combat.hitHero(100, 'arcane', 0xffffff, fragile), undefined);
+  assert.equal(p.hp, 9880);
+  p.rift = null;
+  p.archive = null;
+  startArchive(p, seedFor('resonance'));
+  const echo = makeFoe();
+  world.enemies = [echo];
+  combat.initEnemy(echo);
+  assert.equal(echo.maxHp, echo.def.hp);
+  assert.equal(combat.damageEnemy(echo, 100, 'blaze', 0xffffff), 120);
+  assert.equal(p.archive.status, 'active');
+});
+
+test('quickened pages actually shortens enemy attack intervals', () => {
+  const seed = Array.from({ length: 100 }, (_, i) => i).find(i => archiveModifier({ seed: i, room: 0 }) === 'frenzy');
+  const world = { time: 10, enemies: [], player: { position: { x: 1400, z: 0 } } };
+  const combat = new Combat({ world });
+  const p = newPlayer('Caster', 'frost');
+  startArchive(p, seed);
+  combat.p = p;
+  combat.chooseSpell = () => null;
+  const e = { dungeon: true, def: ENEMIES.hollow_knight };
+  const random = Math.random;
+  try {
+    Math.random = () => 0.5;
+    combat.startAttack(e);
+    assert.equal(e.nextAttack, 10 + e.def.attackRate / 1.25);
+    e.dungeon = false;
+    combat.startAttack(e);
+    assert.equal(e.nextAttack, 10 + e.def.attackRate);
+  } finally { Math.random = random; }
 });

@@ -13,7 +13,7 @@ import {
   recalc, scrollCount, giveScroll,
 } from './state.js';
 import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
-import { ARCHIVE_X, ARCHIVE_ROOMS, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, archiveText } from './archive.js';
+import { ARCHIVE_X, ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveWave, archiveModifier, archiveRuneChoices, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, archiveText } from './archive.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -199,6 +199,7 @@ function talk(id) {
       'Leaving now abandons the expedition. You keep any ordinary loot you earned.', [
         { label: 'Leave expedition', action: () => {
           player.archive = null;
+          recalc(player);
           combat.setTarget(null);
           world.clearArchiveEnemies();
           travel(portal);
@@ -318,6 +319,8 @@ function syncArchiveEncounter() {
     e.archiveIndex = i;
     combat.initEnemy(e);
   }
+  const rule = ARCHIVE_MODIFIERS[archiveModifier(run)];
+  UI.toast(`📖 <b>${UI.esc(rule.name)}</b>: ${UI.esc(rule.description)}`, 'quest');
 }
 
 function showArchiveDoor(room, portal) {
@@ -326,7 +329,7 @@ function showArchiveDoor(room, portal) {
   if (run.status === 'active') return UI.dialog('Sealed Chapter', 'The Archive',
     `The seal holds until you defeat the remaining ${archiveWave(run.seed, room).length - run.kills} foe(s).`);
   if (run.status === 'rest') return UI.dialog('Quiet Alcove', 'Choose your respite',
-    'Restore half your health and all mana, or take a Restoration Scroll for the road.', [
+    'Choose once. Rest for health and mana, take a scroll, or bind one of two runes until you leave the Archive.', [
       { label: 'Rest and recover', primary: true, action: () => {
         restArchive(player, 'heal');
         world.aura(world.player, 0x7fe3ff);
@@ -336,13 +339,24 @@ function showArchiveDoor(room, portal) {
         if (scrollCount(player) >= 12) return UI.toast('Your scroll bag is full. Choose rest instead.');
         if (restArchive(player, 'scroll')) giveScroll(player, 'mend');
         refresh(); save(player);
-      } }, { label: 'Decide later' },
+      } },
+      ...archiveRuneChoices(run).map(id => ({ label: `${ARCHIVE_RUNES[id].name}: ${ARCHIVE_RUNES[id].description}`, action: () => {
+        const oldMax = player.maxHp;
+        if (!restArchive(player, 'rune', id)) return;
+        recalc(player);
+        player.hp = Math.min(player.maxHp, player.hp + player.maxHp - oldMax + Math.ceil(player.maxHp * 0.2));
+        world.aura(world.player, 0xcaa6ff);
+        UI.toast(`📖 ${UI.esc(ARCHIVE_RUNES[id].name)} bound until you leave.`, 'good');
+        refresh(); save(player);
+      } })),
+      { label: 'Decide later' },
     ]);
   if (run.status === 'claim') return UI.dialog('Final Chapter', 'Expedition complete',
     'The Curator falls silent. Claim your reward and return to Starfall Academy.', [
       { label: 'Claim and return', primary: true, action: () => {
         const reward = claimArchive(player);
         if (!reward) return;
+        recalc(player);
         player.gold += reward.gold;
         announceLevels(gainXp(player, reward.xp));
         combat.setTarget(null);

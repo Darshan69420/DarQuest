@@ -1393,7 +1393,8 @@ export class World {
     for (let i = 0; i < 10; i++) this.particle(p, 0x777777, { vel: V((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), life: 0.8, size: 0.14 });
   }
 
-  castPose(obj) {
+  castPose(obj, big = false) {
+    obj.userData.cast?.(big);
     const gem = obj.userData.gem;
     const base = obj.scale.x;
     let t = 0;

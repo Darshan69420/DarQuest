@@ -87,6 +87,9 @@ export class Combat {
     e.lungeReady = 0;      // lunging packs: next time they may burst forward
     e.grasp = null;        // Lord Hollowmere's chasing grave circles
     e.graspReady = 0;
+    e.flinch = 0;          // body language: lean back from hits, forward into strikes
+    e.strikeT = 9;
+    e.model.rotation.order = 'YXZ';   // so a lean tips along the way the foe is facing
     e.state = e.state === 'dead' ? 'dead' : 'idle';
     this.updateBar(e);
   }
@@ -152,7 +155,7 @@ export class Combat {
     this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste) * (1 + this.rm('cd'));
     this.gcd = t + GLOBAL_COOLDOWN;
     this.p.mana -= cost;
-    this.world.castPose(this.world.player);
+    this.world.castPose(this.world.player, spell.pips >= 4 || spell.type === 'heal');
     sfx('cast', spell.school);
     // every third basic attack in a row is an empowered combo strike
     let power = 1;
@@ -404,6 +407,10 @@ export class Combat {
     e.hp = Math.max(0, e.hp - dealt);
     this.world.float(e.model, crit ? `${dealt}!` : `${dealt}`, crit ? 'dmg crit' : 'dmg');
     this.world.hitReact(e.model);
+    // flinch in proportion to the blow; big foes barely rock
+    const blow = Math.min(0.38, 0.1 + (dealt / e.maxHp) * 2) * (crit ? 1.4 : 1) * (e.def.boss ? 0.4 : 1);
+    e.flinch = Math.max(e.flinch, blow);
+    if (crit || dealt > e.maxHp * 0.25) this.world.hitStop(0.045);
     if (crit) sfx('crit');
     if (knock && !e.def.boss && e.def.speed > 0 && e.hp > dealt) this.world.knock(e, this.world.player.position, crit ? 1.9 : 1.4);
     this.aggro(e);
@@ -443,6 +450,7 @@ export class Combat {
     if (this.rm('thorns') && from.state !== 'dead') this.damageEnemy(from, dealt * this.rm('thorns'), 'verdant', 0x5fdc6a);
     if (from.def.drainHit) { from.hp = Math.min(from.maxHp, from.hp + dealt * from.def.drainHit); this.updateBar(from); }
     w.burst(w.chest(w.player), color, 10, 3);
+    w.player.userData.hurt?.();
     if (dealt > p.maxHp * 0.15) { w.shake(0.3); w.hitStop(0.05); }
     this.onHurt?.();
     if (p.hp <= 0) this.heroDown();
@@ -477,6 +485,7 @@ export class Combat {
     if (e.fly) { e.fly = null; e.model.userData.setFlying?.(false); }
     e.mods = mods();
     e.respawnAt = this.now + (e.def.boss ? 60 : 20);
+    if (!e.def.boss) this.world.hitStop(0.04);
     this.world.defeat(e.model, { color: SCHOOLS[e.def.school]?.color, boss: e.def.boss });
     this.updateBar(e);
     if (this.target === e) this.setTarget(this.alive().find(x => x.state === 'aggro') || null);
@@ -524,6 +533,25 @@ export class Combat {
         }
       }
     }
+  }
+
+  // Body language: a foe rears back while it winds up (further for a big ground attack),
+  // lunges forward as the blow lands, and flinches away from your hits.
+  pose(e, dt) {
+    if (e.fly) return;
+    let lean = 0;
+    const c = e.cast;
+    if (c && c.t < c.dur) {
+      const k = Math.min(1, c.t / c.dur);
+      lean -= (c.aoe ? 0.3 : 0.2) * k * k;
+    }
+    if (e.strikeT < 0.35) {
+      e.strikeT += dt;
+      const s = e.strikeT;
+      lean += 0.34 * (s < 0.07 ? s / 0.07 : Math.max(0, 1 - (s - 0.07) / 0.28));
+    }
+    if (e.flinch > 0.001) { lean -= e.flinch; e.flinch *= Math.exp(-dt * 14); } else e.flinch = 0;
+    e.model.rotation.x = lean;
   }
 
   // ------------------------------------------------------------ behaviour twists
@@ -694,7 +722,8 @@ export class Combat {
   resolveAoe(e, c) {
     const w = this.world, spell = c.spell;
     const color = SCHOOLS[spell.school].color;
-    w.castPose(e.model);
+    w.castPose(e.model, true);
+    e.strikeT = 0;
     for (const sp of c.aoe) {
       if (sp.breath) {
         e.model.userData.breathe?.(0.9);
@@ -723,7 +752,8 @@ export class Combat {
     const w = this.world;
     const color = SCHOOLS[spell.school].color;
     const pp = w.player.position;
-    this.world.castPose(e.model);
+    this.world.castPose(e.model, spell.pips >= 4);
+    e.strikeT = 0;
     if (OFFENSIVE.has(spell.type)) {
       if (this.p.hp <= 0) return;
       const melee = e.def.range <= 3;
@@ -873,6 +903,7 @@ export class Combat {
           if (t >= e.nextAttack) this.startAttack(e);
         }
       }
+      this.pose(e, dt);
       this.updateBar(e);
     }
 

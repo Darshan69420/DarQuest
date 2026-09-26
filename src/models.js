@@ -541,10 +541,18 @@ export function makeWizard(o = {}) {
 
   head.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
   const blink = blinker(face.userData.eyes);
+  // a cast is a short wind-up, a thrust of the staff and a recovery; big spells raise both
+  // arms. A hit snaps the head and body back.
+  let castReq = false, castAt = -9, castBig = false, hurtReq = false, hurtAt = -9;
+  const ease = (k) => 1 - (1 - k) * (1 - k);
   g.userData = {
     body, head, gem: gemMesh,
+    cast(big = false) { castReq = true; castBig = big; },
+    hurt() { hurtReq = true; },
     anim(t, moving) {
       blink(t);
+      if (castReq) { castAt = t; castReq = false; }
+      if (hurtReq) { hurtAt = t; hurtReq = false; }
       const w = Math.sin(t * 10);
       body.position.y = moving ? Math.abs(w) * 0.1 : 0;
       body.rotation.x = moving ? 0.07 : 0;
@@ -565,6 +573,30 @@ export function makeWizard(o = {}) {
         const a = t * 3 + i * Math.PI;
         s.position.set(Math.cos(a) * 0.26, 1.16 + Math.sin(a * 1.5) * 0.1, Math.sin(a) * 0.26);
       });
+      const c = t - castAt;
+      if (c >= 0 && c < 0.5) {
+        const up = c < 0.09 ? c / 0.09 : Math.max(0, 1 - (c - 0.09) / 0.05);
+        const thrust = c < 0.09 ? 0 : c < 0.17 ? ease((c - 0.09) / 0.08) : c < 0.3 ? 1 : 1 - ease((c - 0.3) / 0.2);
+        // the wrist keeps the staff pointing where it should: raised high for a big spell,
+        // tipped at the foe for a quick one
+        if (castBig) {
+          armR.grp.rotation.x = 0.3 * up - 2.3 * thrust;
+          armL.grp.rotation.x = 0.3 * up - 2.1 * thrust;
+          staff.rotation.x = -armR.grp.rotation.x + 0.15 * thrust;
+          body.rotation.x = -0.1 * thrust;
+          body.position.y += 0.08 * thrust;
+        } else {
+          armR.grp.rotation.x = 0.5 * up - 1.3 * thrust;
+          staff.rotation.x = -armR.grp.rotation.x - 0.35 * up + 1.0 * thrust;
+          body.rotation.x = -0.05 * up + 0.13 * thrust;
+        }
+      } else staff.rotation.x = 0;
+      const h = t - hurtAt;
+      if (h >= 0 && h < 0.32) {
+        const k = h < 0.06 ? h / 0.06 : 1 - (h - 0.06) / 0.26;
+        body.rotation.x -= 0.2 * k;
+        head.rotation.x = -0.3 * k;
+      } else head.rotation.x = 0;
     },
   };
   return finish(g, 0.026, 0.07);

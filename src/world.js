@@ -8,7 +8,7 @@ import {
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier, buildStormspire, buildThornwood, buildHollowDeep } from './maps.js';
-import { settings, keyFor, QUALITY, onSettings, setSetting } from './settings.js';
+import { settings, keyFor, QUALITY, onSettings } from './settings.js';
 import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
@@ -171,6 +171,7 @@ export class World {
     this.skyCycle = new Sky(this);
     this.applyQuality();
     onSettings((k) => {
+      if (k === 'quality' || k === '*') { this.qualityOverride = null; this.aqCut = 0; this.aqFails = {}; }   // your choice wins
       if (k === 'quality' || k === 'postfx' || k === '*') this.applyQuality();
       if (k === 'controls' || k === '*') this.camYaw = this.heading + this.camYawOffset;
     });
@@ -191,8 +192,8 @@ export class World {
   get viewYaw() { return this.modern ? this.camYaw : this.heading + this.camYawOffset; }
 
   applyQuality() {
-    const q = QUALITY[settings.quality] || QUALITY.high;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    const q = QUALITY[this.qualityKey] || QUALITY.high;
+    this.renderer.setPixelRatio(Math.max(0.75, Math.min(window.devicePixelRatio || 1, q.pixelRatio) - (this.aqCut || 0)));
     this.setupPost(q);
     this.sun.castShadow = q.shadows > 0;
     if (q.shadows && this.sun.shadow.mapSize.x !== q.shadows) {
@@ -205,7 +206,7 @@ export class World {
   }
 
   // Bloom and grading on Medium and High quality (and when the setting is on).
-  setupPost(q = QUALITY[settings.quality] || QUALITY.high) {
+  setupPost(q = QUALITY[this.qualityKey] || QUALITY.high) {
     if (this.composer) { this.composer.renderTarget1.dispose(); this.composer.renderTarget2.dispose(); this.bloom?.dispose(); }
     this.composer = null;
     this.bloom = null;
@@ -351,7 +352,7 @@ export class World {
     for (const e of this.enemies) setCulled(e.model, d2(e.model.position.x, e.model.position.z) > foeFar);
     for (const o of this.animated) setCulled(o, d2(o.position.x, o.position.z) > propFar);
     // level of detail: past a distance (set by graphics quality) characters and props drop their outline
-    const od = (QUALITY[settings.quality] || QUALITY.high).outline ?? 60, od2 = od * od;
+    const od = (QUALITY[this.qualityKey] || QUALITY.high).outline ?? 60, od2 = od * od;
     const setDetail = (o, lo) => {
       if (o.userData.lod === lo) return;
       o.userData.lod = lo;
@@ -477,7 +478,7 @@ export class World {
     const deep = buildHollowDeep(this);
     buildHomestead(this);
     buildArena(this);
-    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring, hearth_glacier: glacier.hearth, fountain_storm: storm.fountain, well_thorn: thorn.spring, font_deep: deep.spring };
+    this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring, spring_dragon: dragon.spring, hearth_glacier: glacier.hearth, brazier_stair: glacier.stairBrazier, fountain_storm: storm.fountain, well_thorn: thorn.spring, font_deep: deep.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
       const rot = pt.rot || 0;
@@ -1500,14 +1501,17 @@ export class World {
   castPose(obj, big = false) {
     obj.userData.cast?.(big);
     const gem = obj.userData.gem;
-    const base = obj.scale.x;
+    // the true size is remembered once: a new cast mid-pulse must not bake the swell in
+    const base = obj.userData.restScale ??= obj.scale.x;
+    const me = obj.userData.pulse = {};
     let t = 0;
     this.effects.push((dt) => {
+      if (obj.userData.pulse !== me) return false;   // a newer cast took over
       t += dt;
       const k = Math.sin(Math.min(1, t / 0.4) * Math.PI);
       obj.scale.setScalar(base * (1 + k * 0.08));
       if (gem) gem.scale.setScalar(1 + k * 1.5);
-      if (t >= 0.4) { obj.scale.setScalar(base); return false; }
+      if (t >= 0.4) { obj.scale.setScalar(base); obj.userData.pulse = null; return false; }
     });
   }
 
@@ -1650,7 +1654,11 @@ export class World {
   }
 
   // Keep it smooth: when the frame rate stays under 30 for about 8 seconds, draw fewer pixels
-  // (big on Retina screens), then drop a quality level. It never raises it again by itself.
+  // (big on Retina screens), then ease the quality down a level. It is a temporary override:
+  // your own setting is never changed, and after half a minute of smooth play the detail comes
+  // back (unless that level has struggled twice already this session).
+  get qualityKey() { return this.qualityOverride || settings.quality; }
+
   autoQuality(real) {
     if (settings.autoQuality === false || this.mode !== 'explore' || navigator.webdriver || document.hidden) { this.aqT = 0; this.aqN = 0; return; }
     this.aqT = (this.aqT || 0) + real;
@@ -1658,13 +1666,33 @@ export class World {
     if (this.aqT < 4) return;
     const fps = this.aqN / this.aqT;
     this.aqT = 0; this.aqN = 0;
-    if (fps >= 30) { this.aqSlow = 0; return; }
-    if (++this.aqSlow < 2) return;
-    this.aqSlow = 0;
-    const ratio = this.renderer.getPixelRatio();
-    if (ratio > 1.01) { this.renderer.setPixelRatio(Math.max(1, ratio - 0.25)); this.resize(); return; }
-    const next = { high: 'medium', medium: 'low' }[settings.quality];
-    if (next) { setSetting('quality', next); this.onAutoQuality?.(QUALITY[next].label); }
+    if (fps < 30) { this.aqFast = 0; if (++this.aqSlow >= 2) { this.aqSlow = 0; this.stepQuality(-1); } }
+    else if (fps >= 55 && (this.qualityOverride || this.aqCut)) { this.aqSlow = 0; if (++this.aqFast >= 8) { this.aqFast = 0; this.stepQuality(1); } }
+    else { this.aqSlow = 0; this.aqFast = 0; }
+  }
+
+  stepQuality(dir) {
+    const order = ['low', 'medium', 'high'];
+    const cur = this.qualityKey, fails = this.aqFails || (this.aqFails = {});
+    const full = Math.min(window.devicePixelRatio || 1, (QUALITY[cur] || QUALITY.high).pixelRatio);
+    if (dir < 0) {
+      if (full - (this.aqCut || 0) > 1.01) { this.aqCut = (this.aqCut || 0) + 0.25; this.applyQuality(); return; }
+      const i = order.indexOf(cur);
+      if (i <= 0) return;
+      fails[cur] = (fails[cur] || 0) + 1;
+      this.qualityOverride = order[i - 1];
+      this.aqCut = 0;
+      this.applyQuality();
+      this.onAutoQuality?.(QUALITY[order[i - 1]].label, false);
+      return;
+    }
+    if (this.aqCut) { this.aqCut = Math.max(0, this.aqCut - 0.25); this.applyQuality(); return; }
+    if (!this.qualityOverride) return;
+    const next = order[order.indexOf(this.qualityOverride) + 1];
+    if (!next || (fails[next] || 0) >= 2) return;
+    this.qualityOverride = order.indexOf(next) >= order.indexOf(settings.quality) ? null : next;
+    this.applyQuality();
+    this.onAutoQuality?.(QUALITY[this.qualityKey].label, true);
   }
 
   frame() {

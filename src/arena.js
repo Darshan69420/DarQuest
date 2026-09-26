@@ -37,8 +37,8 @@ export function rivalFor(rank, duel, playerLevel) {
   const def = {
     id: 'rival', rival: true, name: champion ? 'Grand Magus Elyndra' : `${FIRST[i % FIRST.length]} ${EPITHET[(i * 7) % EPITHET.length]}`,
     school, level, model: 'rival', boss: champion,
-    hp: Math.round((sc.baseHp + (level - 1) * 50) * (1.7 + r.lvl * 0.12)),
-    dmgMult: 0.7 + r.lvl * 0.06, xp: 40 + level * 25, gold: [0, 0],
+    hp: Math.round((sc.baseHp + (level - 1) * 50) * (2.3 + r.lvl * 0.12)),
+    dmgMult: 0.85 + r.lvl * 0.06, xp: 40 + level * 25, gold: [0, 0],
     spells, resist: { [school]: 0.2 }, boost: {}, speed: 3.2, aggro: 60, range: 11, attackRate: 2.2 - r.lvl * 0.08,
     evade: 0.1 + r.lvl * 0.015, drops: [],
   };

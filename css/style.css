@@ -273,6 +273,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .zone-name::before, .zone-name::after { content: ''; display: inline-block; width: 70px; height: 1px; margin: 0 16px; vertical-align: middle; background: linear-gradient(90deg, transparent, #e8c77a); }
 .zone-name::after { background: linear-gradient(90deg, #e8c77a, transparent); }
 .zone-name.show { opacity: 1; }
+#labels { transition: opacity .4s; }
+body.zone-title #labels { opacity: .2; }
 .label.portal .name { color: #e0b8ff; }
 .label.portal.locked .sub::after { content: ' · 🔒 locked'; }
 #fade { position: fixed; inset: 0; background: radial-gradient(circle, #fff8e0, #e0b35a 30%, #120d09 75%); opacity: 0; pointer-events: none; z-index: 65; transition: opacity .5s; }

@@ -575,7 +575,15 @@ export function buildGlacier(world) {
     scene.add(m);
     world.motes.push(m);
   }
-  return { hearth };
+  // a warded brazier at the foot of the Queen's stair: somewhere to catch your breath
+  const stairBrazier = campfire();
+  stairBrazier.scale.setScalar(1.5);
+  world.add(stairBrazier, G + 76, 123, 0, 1.5);
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2 + 0.3;
+    world.add(makeCrystal(0x9fe6ff, 0.55), G + 76 + Math.cos(a) * 4.2, 123 + Math.sin(a) * 4.2, a, 0.4);
+  }
+  return { hearth, stairBrazier };
 }
 
 // ------------------------------------------------------------ Stormspire (Chapter 5)

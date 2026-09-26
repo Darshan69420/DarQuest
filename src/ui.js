@@ -700,7 +700,7 @@ export function openSettings(tab = 'audio', onClose) {
     if (tab === 'audio') inner = slider('master', 'Master volume') + slider('music', 'Music') + slider('sfx', 'Sound effects');
     if (tab === 'graphics') inner = choice('quality', 'Quality', Object.entries(QUALITY).map(([k, q]) => [k, q.label]))
       + '<p class="modal-note">Low turns off shadows and draws fewer particles: great for older laptops and phones.</p>'
-      + toggle('autoQuality', 'Keep it smooth', 'If the game runs slowly for a while, draw fewer pixels first, then drop a quality level')
+      + toggle('autoQuality', 'Keep it smooth', 'If the game runs slowly for a while, ease the graphics down for a bit; your chosen quality comes back when it runs smoothly again')
       + toggle('postfx', 'Glow & colour grading', 'Bloom around magic and light, a soft vignette and a colour mood for each land (Medium and High quality)')
       + slider('shake', 'Screen shake', 0, 1.5, 0.1) + toggle('showFps', 'Show FPS counter') + toggle('damageNumbers', 'Damage numbers');
     if (tab === 'controls') inner = choice('controls', 'Movement', [['modern', 'Modern'], ['classic', 'Classic']])

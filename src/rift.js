@@ -91,7 +91,7 @@ const pick = (a) => a[rnd(a.length)];
 // Scales a normal enemy to the floor you are on (and your level).
 function riftFoe(baseId, floor, playerLevel, { elite = null, boss = null } = {}) {
   const b = ENEMIES[baseId];
-  const eff = Math.max(1, Math.round(Math.max(b.level, playerLevel * 0.85) + floor * 0.55));
+  const eff = Math.max(1, Math.round(Math.max(b.level, playerLevel) + floor * 0.55));
   const k = eff - b.level;
   const d = { ...b, id: b.id, level: eff, rift: true };
   d.hp = Math.round(b.hp * Math.max(0.6, 1 + k * 0.11));

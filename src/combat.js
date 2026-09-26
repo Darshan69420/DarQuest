@@ -442,7 +442,8 @@ export class Combat {
   hitHero(amount, school, color, from) {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
-    if (w.time < w.invulnUntil) { this.dodged(); return; }
+    // a dodged blow still spends whatever the foe had stored up for it
+    if (w.time < w.invulnUntil) { from.mods.blades = []; from.mods.weak = []; this.dodged(); return; }
     let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * ferocity(from.def) * (1 + this.rm('taken'));
     // a new apprentice's cushion while they learn to dodge
     m *= p.level <= 3 ? 0.75 : p.level <= 5 ? 0.88 : 1;
@@ -534,7 +535,7 @@ export class Combat {
       sfx('boss');
       this.world.shake(0.4);
       this.world.aura(e.model, SCHOOLS[e.def.school].color);
-      if (ph.blade) e.mods.blades.push(ph.blade);
+      if (ph.blade) e.mods.blades = [...e.mods.blades.slice(-1), ph.blade];
       if (ph.shield) e.mods.shields.push(ph.shield);
       if (ph.heal) { const h = Math.round(ph.heal * (e.power?.hp || 1)); e.hp = Math.min(e.maxHp, e.hp + h); this.world.float(e.model, `+${h}`, 'heal'); }
       if (ph.pips) e.nextAttack = this.now + 0.5;
@@ -547,9 +548,10 @@ export class Combat {
           const add = this.world.addEnemy(ENEMIES[id], e.model.position.x + Math.cos(a) * 5, e.model.position.z + Math.sin(a) * 5, 3);
           this.initEnemy(add);
           add.state = 'aggro';
-          // a boss's helpers arrive one after another and hit a little softer, so they add to
-          // the fight instead of ending it in one burst
+          // a boss's helpers arrive one after another, hit a little softer and fall faster, so
+          // they add to the fight instead of ending it in one burst
           add.summoned = true;
+          add.maxHp = add.hp = Math.round(add.maxHp * 0.6);
           add.nextAttack = this.now + 2.5 + n * 2.5;
           this.world.aura(add.model, 0xff6a2b);
         }
@@ -767,7 +769,10 @@ export class Combat {
     if (this.p.hp <= 0) return;
     const pp = w.player.position;
     if (c.aoe.some(sp => insideShape(sp, pp.x, pp.z))) this.applyEnemyHit(e, spell, color);
-    else if (c.aoe.some(sp => insideShape(sp, pp.x, pp.z, 4))) w.float(w.player, 'Avoided!', 'status');
+    else {
+      e.mods.blades = []; e.mods.weak = [];   // stepping out of it spends the buff too
+      if (c.aoe.some(sp => insideShape(sp, pp.x, pp.z, 4))) w.float(w.player, 'Avoided!', 'status');
+    }
   }
 
   enemySpell(e, spell) {
@@ -780,7 +785,7 @@ export class Combat {
       if (this.p.hp <= 0) return;
       const melee = e.def.range <= 3;
       if (melee) {
-        if (flat(e.model.position, pp) > e.def.range + 1.4) { w.float(e.model, 'Miss', 'fizzle'); return; }
+        if (flat(e.model.position, pp) > e.def.range + 1.4) { e.mods.blades = []; e.mods.weak = []; w.float(e.model, 'Miss', 'fizzle'); return; }
         this.applyEnemyHit(e, spell, color);
         return;
       }
@@ -798,7 +803,7 @@ export class Combat {
       w.float(hurt.model, `+${amount}`, 'heal');
       this.updateBar(hurt);
     } else if (spell.type === 'blade') {
-      e.mods.blades.push(spell.pct);
+      if (e.mods.blades.length < 2) e.mods.blades.push(spell.pct);   // two at most
       w.aura(e.model, color);
       w.float(e.model, '⚔️', 'status');
     } else if (spell.type === 'shield') {
@@ -886,7 +891,7 @@ export class Combat {
         this.wander(e, dt);
         // foes four or more levels below you leave you alone unless you start it
         const outclassed = !e.def.boss && p.level - (e.power?.level ?? e.def.level ?? 1) >= 4;
-        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil && !outclassed) this.aggro(e);
+        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil && !outclassed && !this.safeAt?.(pp.x, pp.z)) this.aggro(e);
       } else if (e.state === 'return') {
         const home = flat(e.model.position, e.home);
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.5 * dt);
@@ -897,7 +902,8 @@ export class Combat {
         fighting = true;
         if (e.def.boss) boss = true;
         const leash = e.def.boss ? 40 : 26;
-        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) {
+        // resting at a fountain or hearth: ordinary foes give up the fight
+        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45 || (!e.def.boss && !e.def.rival && this.safeAt?.(pp.x, pp.z))) {
           e.state = 'return';
           this.clearCast(e);
           if (e.fly) { e.fly = null; e.model.position.y = 0; e.model.userData.setFlying?.(false); }

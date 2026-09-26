@@ -238,7 +238,7 @@ const secs = (rounds) => `${rounds * 2} seconds`;
 
 // The school's first spell: the free basic attack on key 1.
 export function isBasic(s) {
-  return !!s && s.level === 1 && !s.enemy && !s.pet && Object.values(SPELLS).find(x => x.school === s.school && x.level === 1 && !x.enemy && !x.pet) === s;
+  return !!s && s.level === 1 && !s.enemy && !s.pet && !SCHOOLS[s.school]?.hidden && Object.values(SPELLS).find(x => x.school === s.school && x.level === 1 && !x.enemy && !x.pet) === s;
 }
 
 export function describe(s) {
@@ -586,10 +586,10 @@ export const ENEMIES = {
   sylvara: {
     name: 'Queen Sylvara of the Frozen Crown', school: 'frost', level: 28, hp: 16000, xp: 9000, gold: [1200, 1600], model: 'frost_queen', boss: true,
     spells: ['ice_lance', 'blizzard_storm', 'glacier_slam', 'ice_lance', 'winters_mend', 'frozen_tomb'],
-    resist: { frost: 0.55 }, boost: { blaze: 0.25 }, speed: 2, aggro: 18, powerPipChance: 0.6,
+    resist: { frost: 0.55 }, boost: { blaze: 0.25 }, speed: 2, aggro: 12, powerPipChance: 0.6,
     phases: [
       { at: 0.7, say: 'You dare trespass in my eternal winter? KNEEL!', summon: ['ice_golem'], shield: 0.4 },
-      { at: 0.45, say: 'My dragons! Tear them apart!', summon: ['frost_drake', 'frost_drake'] },
+      { at: 0.45, say: 'My dragons! Tear them apart!', summon: ['frost_drake'] },
       { at: 0.2, say: 'The Magister promised me forever... I will not melt!', blade: 0.5, heal: 2500 },
     ],
     reactions: [{ school: 'blaze', say: 'FIRE? In MY palace?!', cast: 'blizzard_storm' }],
@@ -601,7 +601,7 @@ export const ENEMIES = {
     resist: { blaze: 0.45 }, boost: { frost: 0.25 }, speed: 2.4, aggro: 16, powerPipChance: 0.6,
     phases: [
       { at: 0.72, say: 'You crawl, little wizard. I RULE THE SKY!', fly: { dur: 16, radius: 13 } },
-      { at: 0.45, say: 'Wyrmlings! To your mother!', summon: ['wyrmling', 'wyrmling'], blade: 0.3 },
+      { at: 0.45, say: 'Wyrmlings! To your mother!', summon: ['wyrmling'], blade: 0.3 },
       { at: 0.25, say: 'Enough! I will burn this mountain to ash!', fly: { dur: 14, radius: 11 }, blade: 0.4 },
     ],
     reactions: [{ school: 'frost', say: 'Frost?! My fire will swallow your cold!', cast: 'tail_sweep' }],
@@ -1827,6 +1827,7 @@ export const FOUNTAINS = [
   { id: 'fountain', name: 'Wellspring', x: 0, z: 0, r: 5.2 },
   { id: 'spring_ember', name: 'Cooling Spring', x: X - 9, z: -7, r: 4.5 },
   { id: 'hearth_glacier', name: 'Frostholm Hearth', x: GLACIER_X, z: 0, r: 5.5 },
+  { id: 'brazier_stair', name: 'Stairfoot Brazier', x: GLACIER_X + 76, z: 123, r: 4 },
   { id: 'fountain_storm', name: 'Skyport Fountain', x: STORM_X, z: 0, r: 5.2 },
   { id: 'well_thorn', name: 'Greenhollow Spring', x: THORN_X, z: 0, r: 5.2 },
   { id: 'font_deep', name: 'Refuge Wellspring', x: DEEP_X, z: 0, r: 5.2 },

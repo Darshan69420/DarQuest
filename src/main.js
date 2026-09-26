@@ -109,8 +109,11 @@ function renderSlots() {
     const p = load(i);
     if (p && confirm(`Delete ${p.name} (level ${p.level}) forever? Export them first if you might want them back.`)) { clearSave(i); renderSlots(); }
   }));
-  if (!slots.some(s => s.p)) showNewGame(0);
+  // a brand-new player goes straight to the form; after deleting a save, you choose the slot
+  if (!slots.some(s => s.p) && !slotsShown) showNewGame(0);
+  slotsShown = true;
 }
+let slotsShown = false;
 
 function showNewGame(i) {
   newSlot = i;
@@ -264,8 +267,9 @@ function showZoneName(zone) {
   const el = $('#zone-name');
   el.textContent = ZONES[zone]?.name || zone;
   el.classList.add('show');
+  document.body.classList.add('zone-title');   // nameplates fade back while the title is up
   clearTimeout(showZoneName.t);
-  showZoneName.t = setTimeout(() => el.classList.remove('show'), 2500);
+  showZoneName.t = setTimeout(() => { el.classList.remove('show'); document.body.classList.remove('zone-title'); }, 2500);
 }
 
 // Named areas (zones and the places inside them) get a title card and their own music.
@@ -665,7 +669,12 @@ const gatherer = new Gatherer({
 // Later systems (dungeons, shouts, building...) can add their own interactables and NPC services.
 const extraServices = [];
 
-world.onAutoQuality = (label) => UI.toast(`🖥️ Graphics set to <b>${label}</b> to keep things smooth. Change it in Settings → Graphics.`, 'quest');
+world.onAutoQuality = (label, back) => UI.toast(back
+  ? `🖥️ Graphics back to <b>${label}</b>.`
+  : `🖥️ Graphics eased to <b>${label}</b> while things are busy. They come back when it runs smoothly again.`, 'quest');
+
+// Fountains, springs and hearths are sanctuaries: nothing starts a fight with someone resting there.
+combat.safeAt = (x, z) => FOUNTAINS.some(f => (x - f.x) ** 2 + (z - f.z) ** 2 < (f.r + 3) ** 2);
 
 // Foes near an objective you still have to reach stay down until you are done with it.
 combat.holdRespawn = (e) => !!objectives.targets()?.some(s => Math.hypot(s.x - e.home.x, s.z - e.home.z) < 15);
@@ -1692,7 +1701,7 @@ world.onTick = (dt) => {
 // Handy for testing from the browser console.
 // (it kept its first name, DarQuest, so older test scripts still work)
 // Which build this is: shown on the title screen so a playtest can say what it played.
-export const BUILD = '2026-09-26 · playtest fixes 2';
+export const BUILD = '2026-09-26 · playtest fixes 3';
 document.querySelector('#build-tag')?.replaceChildren(`build ${BUILD}`);
 
 window.darquest = window.solmage = {

@@ -35,6 +35,12 @@ export function cardHTML(spell, { extra = '', cls = '', basic = false } = {}) {
 
 // ------------------------------------------------------------ HUD
 
+// The minimap and clock sit just under the quest card, however tall it grows.
+{
+  const card = document.querySelector('.hud-quest');
+  if (card && window.ResizeObserver) new ResizeObserver(() => document.documentElement.style.setProperty('--quest-h', card.offsetHeight + 'px')).observe(card);
+}
+
 export function showHUD(show) { $('#hud').classList.toggle('hidden', !show); }
 
 export function updateHUD(p) {
@@ -154,8 +160,9 @@ export function banner(kind, title, sub = '') {
 }
 function nextBanner() {
   const b = bannerQueue.shift();
-  if (!b) { bannerBusy = false; return; }
+  if (!b) { bannerBusy = false; document.body.classList.remove('banner-on'); return; }
   bannerBusy = true;
+  document.body.classList.add('banner-on');   // toasts step down below the banner meanwhile
   const label = { quest: '📜 Quest complete', level: '⭐ Level up', boss: '💀 A great foe', chapter: '✨ A new chapter', rank: '✦ Archmage rank' }[b.kind] || '';
   const el = document.createElement('div');
   el.className = `banner ${b.kind}`;
@@ -706,8 +713,7 @@ export function openSettings(tab = 'audio', onClose) {
       + '<p class="modal-note">New Game+ always scales the world, whatever this setting says. The Rift, the Undercroft and the Arena always match your level.</p>';
     if (tab === 'access') inner = slider('uiScale', 'Text & menu size', 0.8, 1.4, 0.05)
       + toggle('colorblind', 'Colour-blind friendly', 'Danger zones on the ground turn amber with bright edges, and health bars get stripes')
-      + toggle('reduceMotion', 'Reduce motion', 'No screen shake, hit-pause or lightning flashes')
-      + toggle('damageNumbers', 'Damage numbers');
+      + toggle('reduceMotion', 'Reduce motion', 'No screen shake, hit-pause or lightning flashes');
     if (tab === 'keys') inner = `<p class="modal-note">Click an action, then press the key you want. Arrow keys always move too.</p>
       <div class="keys-grid">${Object.entries(ACTIONS).map(([a, d]) => `<button class="key-row ${listening === a ? 'listening' : ''}" data-bind="${a}"><span>${d.label}</span><kbd>${listening === a ? 'Press a key…' : keyLabel(keyFor(a))}</kbd></button>`).join('')}</div>
       <p><button class="btn small" id="reset-keys">Reset keys</button></p>`;

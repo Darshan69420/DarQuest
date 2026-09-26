@@ -133,7 +133,8 @@ export const ACHIEVEMENTS = [
   A('mounts_3', 'Stable Keeper', '🐴', 'Own 3 mounts', p => (p.mounts?.length || 0) >= 3, { gold: 500 }),
   A('legendary', 'Legendary', '🧡', 'Own a legendary item', p => allGear(p).some(g => g?.r === 'legendary'), { gold: 500, title: 'the Legendary' }),
   A('full_kit', 'Dressed for Adventure', '🎒', 'Wear something in all 8 gear slots', p => Object.keys(SLOTS).every(s => p.equipped?.[s]), { gold: 300 }),
-  A('blocks_100', 'Builder', '🧱', 'Have 100 blocks placed at your Homestead', p => (p.home?.blocks?.length || 0) >= 100, { gold: 300 }),
+  // the starter cabin (98 blocks) is a gift, not your building
+  A('blocks_100', 'Builder', '🧱', 'Place 100 blocks of your own at your Homestead', p => (p.home?.blocks?.length || 0) - (p.home?.starter ?? (p.home?.init ? 98 : 0)) >= 100, { gold: 300 }),
   A('blocks_500', 'Architect', '🏛️', 'Have 500 blocks placed at your Homestead', p => (p.home?.blocks?.length || 0) >= 500, { gold: 1500, title: 'the Architect' }),
   A('arena_gold', 'Crowd Favourite', '🥇', 'Reach Gold rank in the Arena of Stars', p => (p.arena?.rank || 0) >= 2, { gold: 800 }),
   A('arena_champion', 'Arena Champion', '🏆', 'Defeat Grand Magus Elyndra and become Starfall Champion', p => !!p.arena?.champion, { gold: 3000, title: 'the Champion' }),

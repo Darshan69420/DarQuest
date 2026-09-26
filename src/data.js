@@ -708,9 +708,11 @@ ENEMIES.magma_serpent.speed = 0;
 
 // Health multiplier for every foe: higher-level foes are tougher, and bosses and elites more so.
 // (Wizards gain damage from levels, gear and a full spell bar far faster than raw enemy health grows.)
+// How much health a foe has for its level. Bosses get double early on, tapering to 0.7 by
+// level 31, so every chapter's boss takes a minute or two rather than growing past it.
 export function toughness(def) {
   const L = def.level || 1;
-  return (1 + L * 0.06) * (def.boss ? 2 : def.elite ? 1.3 : 1);
+  return (1 + L * 0.06) * (def.boss ? Math.max(0.7, 2 - Math.max(0, L - 13) * 0.075) : def.elite ? 1.3 : 1);
 }
 // Foes past level 20 also hit harder, 2% per level.
 export const ferocity = (def) => 1 + Math.max(0, (def.level || 1) - 20) * 0.02;
@@ -881,7 +883,7 @@ export const NPCS = {
   },
   juno: {
     name: 'Stablemaster Juno', title: 'Millbrook Stables', x: 69, z: -8, robe: 0x8a5a3a, hat: 0x5a3a20, trim: 0xf0d8a0, service: 'stable', hatStyle: 'hood', hair: 0xd8a040, skin: 0xe0b890, eyeColor: 0x5a8a3a,
-    lines: ['A good mount is worth ten pairs of boots. Press X to ride, and it will carry you twice as fast.',
+    lines: ['A good mount is worth ten pairs of boots. Press X to ride, and it will carry you over half again as fast.',
             'Mounts get spooked in battle, so you will hop off when a fight starts.'],
   },
   brisa: {

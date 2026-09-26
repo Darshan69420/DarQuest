@@ -7,7 +7,7 @@ import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
   SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, RULES, zoneAt, areaAt,
-  ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS, matchesFoe,
+  ENEMIES, NIGHT_SPAWNS, MOUNTS, WAYSTONES, SPAWNS, SHOP, matchesFoe,
 } from './data.js';
 import { openAtlas, openStable, openInn, openArena, openUndercroft } from './ui_world.js';
 import { Companion, COMPANIONS } from './companions.js';
@@ -534,10 +534,9 @@ function sideProgress(type, key) {
 
 function craft(r, n) {
   const skill = STATION_TYPES[r.station].skill;
-  let made = 0, burnt = 0, levels = 0;
+  let made = 0, burnt = 0, levels = 0, sold = 0;
   const crafted = [];
   for (let i = 0; i < n; i++) {
-    if (r.out.potions && player.potions >= RULES.maxPotions) { UI.toast('You can only carry 5 healing potions.'); break; }
     if (r.out.gear && player.inventory.length >= RULES.inventoryMax) { UI.toast('Your gear backpack is full!'); break; }
     const res = craftOnce(player, r);
     if (!res.ok) break;
@@ -545,13 +544,14 @@ function craft(r, n) {
     if (res.burnt) { burnt++; continue; }
     made++;
     if (r.out.gear) crafted.push(giveItem(player, r.out.gear, craftRarity(skillLevel(player, skill) - r.level)).inst);
-    if (r.out.potions) player.potions++;
+    // a full potion belt never stops the brewing (or a quest that wants it): the extra is sold
+    if (r.out.potions) { if (player.potions < RULES.maxPotions) player.potions++; else { sold++; player.gold += Math.round(SHOP.potion.price / 2); } }
     sideProgress('craft', r.id);
   }
   if (!made && !burnt) return;
   player.stats_log.crafted += made;
   const name = r.out.item ? ITEMS[r.out.item].name : r.out.gear ? GEAR[r.out.gear].name : 'Healing Potion';
-  UI.toast(made ? `${SKILLS[skill].icon} Made ${made}× <b>${UI.esc(name)}</b>${burnt ? ` · ${burnt} burnt` : ''}${r.out.gear ? ' · press C to equip' : ''}` : '🔥 Oops, you burnt it!', made ? 'good' : '');
+  UI.toast(made ? `${SKILLS[skill].icon} Made ${made}× <b>${UI.esc(name)}</b>${burnt ? ` · ${burnt} burnt` : ''}${r.out.gear ? ' · press C to equip' : ''}${sold ? ` · your belt is full, so ${sold} sold for ${sold * Math.round(SHOP.potion.price / 2)} gold` : ''}` : '🔥 Oops, you burnt it!', made ? 'good' : '');
   for (const inst of crafted.filter(x => x.r !== 'common')) UI.toast(`✨ Masterwork! <b style="color:${itemColor(inst)}">${UI.esc(itemName(inst))}</b> (${RARITIES[inst.r].label})`, 'good');
   Audio.sfx(made ? 'craft' : 'fail');
   world.castPose(world.player);
@@ -741,7 +741,7 @@ const undercroft = new Undercroft({
     toast: (t, c) => UI.toast(t, c),
     message: (t) => UI.combatMessage(t),
     sfx: (n) => Audio.sfx(n),
-    giveGear: (id, rarity) => { const r = giveItem(player, id, rarity); return `<span style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</span>${r.where === 'sold' ? ' (bag full: sold)' : ''}`; },
+    giveGear: (id, rarity) => { const r = giveItem(player, id, rarity); return `<span style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</span>${r.where === 'sold' ? ' (bag full: sold)' : r.where === 'equipped' ? ' (equipped)' : ''}`; },
     openEntrance: () => openUndercroftDoor(),
     leave: () => fadeThen(() => {
       undercroft.end('leave');
@@ -1167,7 +1167,7 @@ extraServices.push({
   npc: 'vex', label: '🏟️ The Arena',
   action: () => openArena(player, {
     onFight: startDuel,
-    onBuy: (id) => { const r = giveItem(player, id, 'epic'); UI.toast(`🎁 <b style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</b> · press C to equip`, 'good'); save(player); },
+    onBuy: (id) => { const r = giveItem(player, id, 'epic'); UI.toast(`🎁 <b style="color:${itemColor(r.inst)}">${UI.esc(itemName(r.inst))}</b> · ${r.where === 'equipped' ? 'equipped' : 'press C to equip'}`, 'good'); refresh(); save(player); },
   }),
 });
 
@@ -1246,6 +1246,7 @@ function starterCabin() {
   set(14, 4, 2, 'block_lantern');
   homestead.refreshMeshes();
   homestead.store();
+  player.home.starter = player.home.blocks.length;   // the cabin doesn't count toward building achievements
 }
 
 world.onClickWorld = (x, y) => homestead.building && inHomestead() ? homestead.click(x, y) : false;
@@ -1327,7 +1328,7 @@ function rewardKill(e) {
     UI.toast(player.quest.state === 'ready' ? `📜 <b>${UI.esc(q.name)}</b>: ready to turn in!` : `📜 ${UI.esc(questTrackerText(player).goal)}`, 'quest');
     Audio.sfx('quest');
   }
-  for (const it of loot.items) UI.toast(`🎁 <b style="color:${itemColor(it.inst)}">${UI.esc(itemName(it.inst))}</b> ${it.inst.r !== 'common' ? `<small>(${RARITIES[it.inst.r].label})</small> ` : ''}${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, it.inst.r === 'legendary' || it.inst.r === 'epic' ? 'good legendary' : 'good');
+  for (const it of loot.items) UI.toast(`🎁 <b style="color:${itemColor(it.inst)}">${UI.esc(itemName(it.inst))}</b> ${it.inst.r !== 'common' ? `<small>(${RARITIES[it.inst.r].label})</small> ` : ''}${it.where === 'sold' ? '(bag full: sold)' : it.where === 'equipped' ? '· equipped' : '· press C to compare'}`, it.inst.r === 'legendary' || it.inst.r === 'epic' ? 'good legendary' : 'good');
   if (loot.items.some(it => it.inst.r === 'legendary')) Audio.sfx('chest');
   for (const id of loot.pets) UI.toast(`🐾 New pet: <b>${PETS[id].name}</b>! Press C to summon it.`, 'good');
   if (loot.mats.length) UI.toast(loot.mats.map(m => `${ITEMS[m.id].icon} ${m.n > 1 ? m.n + '× ' : ''}<b>${ITEMS[m.id].name}</b>`).join(' · '), 'good');
@@ -1690,8 +1691,13 @@ world.onTick = (dt) => {
 
 // Handy for testing from the browser console.
 // (it kept its first name, DarQuest, so older test scripts still work)
+// Which build this is: shown on the title screen so a playtest can say what it played.
+export const BUILD = '2026-09-26 · playtest fixes 2';
+document.querySelector('#build-tag')?.replaceChildren(`build ${BUILD}`);
+
 window.darquest = window.solmage = {
-  world, combat, UI, rift, homestead, undercroft, hints, objectives,
+  build: BUILD,
+  world, combat, UI, rift, homestead, undercroft, hints, objectives, craft,
   get player() { return player; },
   newGame(name, school, difficulty = 'normal', slot = 2) { setSlot(slot); startGame(newPlayer(name, school, difficulty), true); },
 };

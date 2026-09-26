@@ -43,6 +43,7 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 // Scratch objects reused every frame so the hot loop doesn't allocate.
 const _projV = new THREE.Vector3(), _floaterV = new THREE.Vector3(), _shakeV = new THREE.Vector3(), _zeroV = new THREE.Vector3();
 const _labelOut = {}, _floaterOut = {};
+const _occFrom = new THREE.Vector3(), _occDir = new THREE.Vector3(), _occBox = new THREE.Box3(), _occSph = new THREE.Sphere();
 // Writes a label's style only when something changed: the DOM is the slow part of labels.
 function setLabel(l, display, transform, opacity) {
   if (l._d !== display) { l.el.style.display = display; l._d = display; }
@@ -935,6 +936,53 @@ export class World {
     return 1;
   }
 
+  // Solid scenery between the wizard's head and the camera: rocks, walls, buildings, Rift
+  // corridors, homestead blocks. Characters (anything with a measured height), effects and
+  // see-through things never count. Returns how much of the distance is clear (0.25 to 1).
+  camOcclusion(pos) {
+    const p = this.player.position;
+    const from = _occFrom.set(p.x, p.y + 1.6, p.z);
+    const dir = _occDir.copy(pos).sub(from);
+    const len = dir.length();
+    if (len < 0.5) return 1;
+    dir.divideScalar(len);
+    const kids = this.scene.children;
+    if (this._cbN !== kids.length) {
+      this._cbN = kids.length;
+      this._cb = kids.filter(o => !o.isLight && !o.isPoints && !o.isLine && !o.isSprite && o.userData.height === undefined && o !== this.sky && o !== this.player);
+    }
+    const cands = this._cbOut || (this._cbOut = []);
+    cands.length = 0;
+    for (const o of this._cb) {
+      if (!o.visible || o.userData.culled) continue;
+      let sp = o.userData.camSph;
+      if (!sp) {
+        const b = _occBox.setFromObject(o);
+        if (b.isEmpty()) sp = { r: 0 };
+        else { const s = b.getBoundingSphere(_occSph); sp = { x: s.center.x, y: s.center.y, z: s.center.z, r: s.radius }; }
+        o.userData.camSph = sp;
+      }
+      if (sp.r < 0.9) continue;
+      // distance from the sphere's centre to the head-camera segment
+      const t = Math.max(0, Math.min(len, (sp.x - from.x) * dir.x + (sp.y - from.y) * dir.y + (sp.z - from.z) * dir.z));
+      const dx = from.x + dir.x * t - sp.x, dy = from.y + dir.y * t - sp.y, dz = from.z + dir.z * t - sp.z;
+      if (dx * dx + dy * dy + dz * dz < (sp.r + 0.6) ** 2) cands.push(o);
+    }
+    if (!cands.length) return 1;
+    const rc = this.camRay || (this.camRay = new THREE.Raycaster());
+    rc.set(from, dir);
+    rc.far = len + 0.4;
+    for (const h of rc.intersectObjects(cands, true)) {
+      const m = h.object, mt = Array.isArray(m.material) ? m.material[0] : m.material;
+      if (m.userData.isHull || !mt || mt.transparent || mt.depthWrite === false) continue;
+      let o = m, person = false;
+      while (o && !person) { person = o.userData.height !== undefined; o = o.parent; }
+      if (person) continue;
+      return Math.max(0.25, (h.distance - 0.5) / len);
+    }
+    return 1;
+  }
+
   // The follow position pulled in toward the wizard by `fit`, keeping the same angle down
   // (the height shrinks with the distance), so a wall behind you never flips to a top-down view.
   fitCam(pos, fit) {
@@ -953,8 +1001,9 @@ export class World {
   followCam() {
     const yaw = this.viewYaw;
     const p = this.player.position;
+    const dist = this.camDist + (this.camExtra || 0);
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, p.y + Math.max(1.2, this.camHeight + 1.2 + this.camDist * 0.15 + this.camPitch), p.z - Math.cos(yaw) * this.camDist),
+      pos: V(p.x - Math.sin(yaw) * dist, p.y + Math.max(1.2, this.camHeight + 1.2 + dist * 0.15 + this.camPitch), p.z - Math.cos(yaw) * dist),
       // look a little ahead so enemies in front are not hidden behind the hat
       look: V(p.x + Math.sin(yaw) * 3.5, p.y + 1.4, p.z + Math.cos(yaw) * 3.5),
     };
@@ -1701,9 +1750,19 @@ export class World {
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
     } else {
+      // big foes: ease the camera out so the whole of them fits on screen
+      let big = 0;
+      for (const e of this.enemies) {
+        if (e.state !== 'aggro') continue;
+        const h = e.model.userData.height || 0;
+        if (h > 4.5 && Math.abs(e.model.position.x - this.player.position.x) + Math.abs(e.model.position.z - this.player.position.z) < 30) big = Math.max(big, Math.min(10, h * 0.9));
+      }
+      this.camExtra = (this.camExtra || 0) + (big - (this.camExtra || 0)) * Math.min(1, dt * 1.5);
       ({ pos, look } = this.followCam());
-      // pull in quickly when something big is behind you, ease back out slowly
-      const want = ZONES[zoneAt(this.player.position.x)].freeCam ? 1 : this.camReach(pos);
+      // pull in quickly when something solid is behind you, ease back out slowly
+      this.occT = (this.occT || 0) + 1;
+      if (this.occT % 2 === 0 || this.occFit === undefined) this.occFit = this.camOcclusion(pos);
+      const want = Math.min(ZONES[zoneAt(this.player.position.x)].freeCam ? 1 : this.camReach(pos), this.occFit);
       const fit = this.camFit ?? want;
       this.camFit = want < fit ? Math.max(want, fit - dt * 6) : Math.min(want, fit + dt * 0.9);
       pos = this.fitCam(pos, this.camFit);

@@ -241,10 +241,13 @@ export function sellItem(p, invIndex) {
   return v;
 }
 
-// Adds gear (a base id, rolled at `rarity`, or a ready-made item). A full backpack sells it
-// automatically. Returns { where: 'bag' | 'sold', inst }.
+// Adds gear (a base id, rolled at `rarity`, or a ready-made item). It goes straight on if that
+// slot is empty and you are high enough level; a full backpack sells it automatically.
+// Returns { where: 'equipped' | 'bag' | 'sold', inst }.
 export function giveItem(p, idOrInst, rarity = 'common') {
   const inst = typeof idOrInst === 'string' ? makeItem(idOrInst, rarity) : idOrInst;
+  const g = base(inst);
+  if (g && !p.equipped[g.slot] && p.level >= g.level) { p.equipped[g.slot] = inst; recalc(p); return { where: 'equipped', inst }; }
   if (p.inventory.length < RULES.inventoryMax) { p.inventory.push(inst); return { where: 'bag', inst }; }
   p.gold += itemValue(inst);
   return { where: 'sold', inst };

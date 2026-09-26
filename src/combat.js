@@ -145,7 +145,8 @@ export class Combat {
     const readyAt = Math.max(this.gcd, this.ready[spell.id] || 0);
     if (readyAt > t) {
       // pressed a moment early: cast it the instant it is ready
-      if (readyAt - t < 0.6) { this.queued = { slot, at: t }; return; }
+      // (the basic attack queues for its whole short cooldown, so mashing 1 just keeps attacking)
+      if (readyAt - t < (basic ? BASIC_COOLDOWN + 0.2 : 0.6)) { this.queued = { slot, at: t }; return; }
       // the basic attack never nags; other spells say so at most every few seconds
       if (basic || t < this.gcd || (this.nagAt[spell.id] || 0) > t) return;
       this.nagAt[spell.id] = t + 2.5;
@@ -445,6 +446,7 @@ export class Combat {
     let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * ferocity(from.def) * (1 + this.rm('taken'));
     // a new apprentice's cushion while they learn to dodge
     m *= p.level <= 3 ? 0.75 : p.level <= 5 ? 0.88 : 1;
+    if (from.summoned) m *= 0.65;
     if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
@@ -540,12 +542,15 @@ export class Combat {
       if (ph.fly) this.startFlight(e, ph.fly);
       if (ph.event) this.onPhaseEvent?.(e, ph.event);
       if (ph.summon) {
-        for (const id of ph.summon) {
+        for (const [n, id] of ph.summon.entries()) {
           const a = Math.random() * Math.PI * 2;
           const add = this.world.addEnemy(ENEMIES[id], e.model.position.x + Math.cos(a) * 5, e.model.position.z + Math.sin(a) * 5, 3);
           this.initEnemy(add);
           add.state = 'aggro';
-          add.nextAttack = this.now + 1.5;
+          // a boss's helpers arrive one after another and hit a little softer, so they add to
+          // the fight instead of ending it in one burst
+          add.summoned = true;
+          add.nextAttack = this.now + 2.5 + n * 2.5;
           this.world.aura(add.model, 0xff6a2b);
         }
       }
@@ -840,7 +845,7 @@ export class Combat {
     const t = this.now;
     if (this.queued) {
       const q = this.queued, s = this.slotSpell(q.slot);
-      if (!s || t - q.at > 0.7) this.queued = null;
+      if (!s || t - q.at > (q.slot === 0 ? BASIC_COOLDOWN + 0.3 : 0.7)) this.queued = null;
       else if (t >= this.gcd && (this.ready[s.id] || 0) <= t) { this.queued = null; this.castSlot(q.slot); }
     }
     const pp = w.player.position;

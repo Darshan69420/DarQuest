@@ -120,10 +120,11 @@ export function openCrafting(p, type, onCraft) {
           ${outChip(r)}
           <div class="r-info"><b>${esc(outName(r))}${r.out.n > 1 ? ` ×${r.out.n}` : ''}</b> <small>Lv ${r.level} · ${r.xp} XP${burn > 0 && !locked ? ` · ${Math.round(burn * 100)}% burn` : ''}</small>
             <div class="r-in">${Object.entries(r.inputs).map(([id, need]) => `<span class="${bagCount(p, id) >= need ? 'have' : 'miss'}">${chip(id)} ${bagCount(p, id)}/${need}</span>`).join('')}</div>
-            ${r.out.gear ? `<div class="r-stats">${statsText(GEAR[r.out.gear].stats)} · needs level ${GEAR[r.out.gear].level}</div>` : ''}</div>
+            ${r.out.gear ? `<div class="r-stats">${statsText(GEAR[r.out.gear].stats)} · needs level ${GEAR[r.out.gear].level}</div>` : ''}
+            ${potFull ? '<div class="r-stats">Your potion belt is full: extras are sold as you brew them</div>' : ''}</div>
           <div class="gear-btns">${locked ? `<span class="card-tag lock">Needs ${SKILLS[skill].name} ${r.level}</span>`
-            : `<button class="btn small primary" data-make="${r.id}" data-n="1" ${ok && !potFull ? '' : 'disabled'}>${st.verb}</button>
-               <button class="btn small" data-make="${r.id}" data-n="${n}" ${n > 1 && !potFull ? '' : 'disabled'}>All (${n})</button>`}</div>
+            : `<button class="btn small primary" data-make="${r.id}" data-n="1" ${ok ? '' : 'disabled'}>${st.verb}</button>
+               <button class="btn small" data-make="${r.id}" data-n="${n}" ${n > 1 ? '' : 'disabled'}>All (${n})</button>`}</div>
         </div>`;
       }).join('')}</div>`;
     body.querySelectorAll('[data-make]').forEach(b => b.addEventListener('click', () => {
@@ -208,7 +209,9 @@ export function updateActionBar(info) {
   el.querySelector('.ab-fill').style.width = `${info.k * 100}%`;
 }
 
+// The two side quests nearest done, then a count of the rest, so the card stays short.
 export function sideTrackerHTML(p) {
-  return SIDE_QUESTS.filter(q => isActive(p, q.id)).slice(0, 3)
-    .map(q => `<div class="side-track"><b>${esc(q.name)}</b> · ${esc(goalText(p, q))}</div>`).join('');
+  const active = SIDE_QUESTS.filter(q => isActive(p, q.id));
+  const shown = active.slice(0, 2).map(q => `<div class="side-track"><b>${esc(q.name)}</b> · ${esc(goalText(p, q))}</div>`).join('');
+  return shown + (active.length > 2 ? `<div class="side-track more">+${active.length - 2} more in your journal (J)</div>` : '');
 }

@@ -118,7 +118,11 @@ export class Homestead {
         edge.push(c.x + a[0], c.y + a[1], c.z + a[2], c.x + b[0], c.y + b[1], c.z + b[2]);
       }
     }
-    for (const id of BLOCK_IDS) { this.meshes[id].count = counts[id]; this.meshes[id].instanceMatrix.needsUpdate = true; this.meshes[id].computeBoundingSphere(); }
+    for (const id of BLOCK_IDS) {
+      const m = this.meshes[id];
+      m.count = counts[id]; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.computeBoundingBox?.();
+      m.userData.camSph = null; if (m.parent) m.parent.userData.camSph = null;   // the camera re-measures what it may bump into
+    }
     this.edges.geometry.dispose();
     this.edges.geometry = new THREE.BufferGeometry();
     this.edges.geometry.setAttribute('position', new THREE.Float32BufferAttribute(edge, 3));

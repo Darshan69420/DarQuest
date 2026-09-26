@@ -89,6 +89,7 @@ export const SPELLS = {
   // ---------- Astral (anyone can learn) ----------
   minor_mend:     { name: 'Minor Mend',      school: 'astral', pips: 1, type: 'heal', amount: 160, level: 1 },
   moon_ward:      { name: 'Moon Ward',       school: 'astral', pips: 0, type: 'shield', pct: 0.30, level: 3 },
+  astral_pulse:   { name: 'Astral Pulse',    school: 'astral', pips: 3, type: 'nova', min: 180, max: 240, radius: 7, level: 5 },
   star_edge:      { name: 'Star Edge',       school: 'astral', pips: 0, type: 'blade', pct: 0.25, level: 5 },
   sap_strength:   { name: 'Sap Strength',    school: 'astral', pips: 1, type: 'weakness', pct: 0.30, level: 7 },
   greater_mend:   { name: 'Greater Mend',    school: 'astral', pips: 3, type: 'heal', amount: 480, level: 10 },
@@ -126,6 +127,7 @@ export function describe(s) {
   const all = s.target === 'all' ? ' to all enemies' : '';
   const pct = Math.round((s.pct || 0) * 100);
   switch (s.type) {
+    case 'nova': return `${s.min}–${s.max} ${school} damage to enemies within ${s.radius} steps`;
     case 'damage': return `${s.min}–${s.max} ${school} damage${all}` + (s.dot ? `, then ${s.dot.total} over ${s.dot.rounds} rounds` : '');
     case 'drain':  return `${s.min}–${s.max} ${school} damage${all}. Heal ${Math.round(s.heal * 100)}% of it`;
     case 'dot':    return `${s.total} ${school} damage over ${s.rounds} rounds`;
@@ -313,6 +315,11 @@ export const NPCS = {
     hair: 0xc4a4ff, eyeColor: 0x86e3f3,
     lines: ['The rifts rearrange their trials for every wizard. Return between stages to strengthen your build.'],
   },
+  elowen: {
+    name: 'Elowen', title: 'Stag Keeper', x: -22, z: 13, robe: 0x37615b, hat: 0x213f43, trim: 0xa4e7e7,
+    hair: 0xd6bf87, eyeColor: 0x4a9ca2, service: 'stable',
+    lines: ['The Moonstags know these roads better than any map. Let them carry you between battles.'],
+  },
   brannoc: {
     name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x9aa0b0, trim: 0xc9a24a, hatStyle: 'helmet', hair: 0x2a1a14, skin: 0xc68a5e, eyeColor: 0x3a2a20,
     lines: ['Hollow Lane was a cheerful street once. Now the shadows have moved in.'],
@@ -442,6 +449,31 @@ export const RULES = {
   maxPotions: 5,
   hpPerLevel: 50,
   inventoryMax: 30,
+  maxScrolls: 12,
+};
+
+// Single-use magic works across schools and without mana. The spell itself
+// still uses the normal targeting and damage pipeline.
+export const SCROLLS = {
+  ember: { name: 'Emberburst Scroll', icon: '🔥', spell: 'fire_serpent', price: 60, color: 0xff6a2b },
+  frost: { name: 'Winter Ward Scroll', icon: '❄️', spell: 'glacial_ward', price: 45, color: 0x6fd3ff },
+  storm: { name: 'Stormcall Scroll', icon: '⚡', spell: 'lightning_bats', price: 75, color: 0xb46bff },
+  mend: { name: 'Restoration Scroll', icon: '🌿', spell: 'blossom_mend', price: 55, color: 0x5fdc6a },
+  nova: { name: 'Astral Pulse Scroll', icon: '🌙', spell: 'astral_pulse', price: 90, color: 0xe8e4ff },
+};
+
+// Small drop chances keep found scrolls special; the shop offers a reliable path.
+ENEMIES.gloomsprig.drops.push({ scroll: 'mend', chance: 0.08 });
+ENEMIES.cinder_rat.drops.push({ scroll: 'ember', chance: 0.08 });
+ENEMIES.frost_wisp.drops.push({ scroll: 'frost', chance: 0.09 });
+ENEMIES.storm_crow.drops.push({ scroll: 'storm', chance: 0.08 });
+ENEMIES.lava_imp.drops.push({ scroll: 'ember', chance: 0.1 });
+ENEMIES.ashen_shaman.drops.push({ scroll: 'mend', chance: 0.1 });
+ENEMIES.hollow_knight.drops.push({ scroll: 'nova', chance: 0.06 });
+
+export const MOUNTS = {
+  moonstag: { name: 'Moonstag', color: 0x9fdad8, trim: 0xd7f7ec, price: 160, level: 3, speed: 1.65 },
+  emberstag: { name: 'Emberstag', color: 0xa75a38, trim: 0xffbc71, price: 420, level: 8, speed: 1.85 },
 };
 
 // ---------------------------------------------------------------- difficulty

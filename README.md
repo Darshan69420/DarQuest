@@ -28,6 +28,8 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | Next target | `Tab` (or click an enemy) |
 | Spellbook (choose spells for keys 2–5) | `B` |
 | Character, gear & pets | `C` |
+| Spell scroll bag | `R` |
+| Mount / dismount | `F` |
 | Drink potion | `H` |
 | Sound on/off | `M` |
 | Help | `?` |
@@ -44,6 +46,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 - **Chapter 1, Hollow Lane:** 7 quests ending with a boss fight against Lord Hollowmere.
 - **Chapter 2, Emberfall Wilds:** reached through the Spiral Door portal. 7 more quests, 6 new enemies, and Pyrrhon, the Molten King, a boss with two phases, two Magma Guards, and a nasty reaction to Frost magic.
 - **Sound and music**, generated in code, and a **minimap** that points to your quest.
+- **Scrolls and mounts:** find or buy one-use spell scrolls that work for any school without mana. Learn Astral Pulse at level 5 for a close-range burst, or find its rarer scroll. Buy a Moonstag or Emberstag from Elowen at the academy, ride faster, and dismount when combat begins. Spells draw animated sigils when cast.
 - **Rift Contracts:** speak to Riftkeeper Vale in the academy courtyard for a repeatable three-stage hunt. Choose a temporary boon at each stage, face increasingly dangerous targets, and return for XP and gold. The run survives reloads; defeat or abandonment removes its boons. Your story progress remains.
 
 ## Code layout
@@ -54,7 +57,7 @@ css/style.css     all styling
 src/data.js       ⭐ game content: schools, spells, enemies, NPCs, quests (start here to tweak!)
 src/state.js      player stats, levelling, quests, save/load
 src/world.js      3D world (Three.js): map, movement, camera, enemies, spell effects
-src/models.js     toon-shaded models built from code (outlines, faces, merging)
+src/models.js     toon-shaded wizards, creatures and animated stags built from code
 src/combat.js     real-time combat: spells, dodging, enemy AI, pets, boss phases
 src/maps.js       the Emberfall Wilds zone
 src/minimap.js    corner minimap
@@ -69,12 +72,12 @@ docs/ROADMAP.md   game direction, next milestones and release checks
 
 ## Quality checks
 
-Run `npm run check` with Node 20 or newer. It tests Rift progress, save restoration and single payout, then validates game content references and 900 seeded stages. The game itself still has no build step or runtime npm dependencies.
+Run `npm run check` with Node 20 or newer. It tests Rift progress, scroll consumption, mount ownership, save restoration and single payout, then validates game content references and 900 seeded stages. The game itself still has no build step or runtime npm dependencies.
 
 ## Roadmap
 
 1. **First seeded dungeon:** assemble authored rooms in a short run with encounters, rest and a guardian. See [the full roadmap](docs/ROADMAP.md).
-2. **Crafting and scrolls:** one-use spell scrolls found as loot, and recipes that turn materials into gear.
+2. **Crafting and rare scrolls:** recipes that turn materials into gear, plus rare scrolls with new spell effects.
 3. **Companions:** hire an NPC wizard of another school to fight beside you (true 2v3 battles).
 4. **Arena (PvP-style):** duel AI "rival wizards" with their own decks for ranked rewards.
 5. **Real art:** replace the code-built models in `models.js` with glTF models and animations.

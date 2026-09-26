@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ENEMIES, SPAWNS, NPCS, QUESTS, SPELLS, PORTALS, ZONES, GEAR, PETS, zoneAt } from '../src/data.js';
+import { ENEMIES, SPAWNS, NPCS, QUESTS, SPELLS, PORTALS, ZONES, GEAR, PETS, SCROLLS, MOUNTS, zoneAt } from '../src/data.js';
 import { newPlayer } from '../src/state.js';
 import { startRift, stageTarget, RIFT_STAGES } from '../src/rifts.js';
 
@@ -9,7 +9,15 @@ for (const [id, enemy] of Object.entries(ENEMIES)) {
   for (const drop of enemy.drops || []) {
     if (drop.item) assert.ok(GEAR[drop.item], `${id} drops missing gear ${drop.item}`);
     if (drop.pet) assert.ok(PETS[drop.pet], `${id} drops missing pet ${drop.pet}`);
+    if (drop.scroll) assert.ok(SCROLLS[drop.scroll], `${id} drops missing scroll ${drop.scroll}`);
   }
+}
+for (const [id, scroll] of Object.entries(SCROLLS)) {
+  assert.ok(SPELLS[scroll.spell], `${id} casts missing spell ${scroll.spell}`);
+  assert.ok(scroll.price > 0, `${id} has no shop price`);
+}
+for (const [id, mount] of Object.entries(MOUNTS)) {
+  assert.ok(mount.level > 0 && mount.speed > 1 && mount.price > 0, `Invalid mount ${id}`);
 }
 for (const quest of QUESTS) {
   assert.ok(NPCS[quest.giver] && NPCS[quest.turnIn], `Quest ${quest.id} has missing NPC`);

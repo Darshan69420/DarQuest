@@ -1,6 +1,6 @@
 // Real-time combat: enemy AI, player spells on a hotbar, dodging, damage and rewards.
-import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
-import { basicSpell } from './state.js';
+import { SCHOOLS, SPELLS, SCROLLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { basicSpell, spendScroll } from './state.js';
 import { sfx } from './audio.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -27,6 +27,7 @@ export class Combat {
     this.gcd = 0;
     this.dodgeReady = 0;
     this.potionReady = 0;
+    this.scrollReady = 0;
     this.target = null;
     this.inCombat = false;
     this.petTimer = 4;
@@ -38,6 +39,7 @@ export class Combat {
     this.p = p;
     this.hero = mods();
     this.ready = {};
+    this.scrollReady = 0;
     for (const e of this.world.enemies) this.initEnemy(e);
   }
 
@@ -97,28 +99,42 @@ export class Combat {
 
   castSlot(slot) {
     const spell = this.slotSpell(slot);
-    if (!spell || this.p.hp <= 0) return;
+    return this.castSpell(spell, slot === 0);
+  }
+
+  castScroll(id) {
+    const scroll = SCROLLS[id];
+    if (!scroll || !this.p?.scrolls[id]) return false;
+    return this.castSpell(SPELLS[scroll.spell], false, id);
+  }
+
+  castSpell(spell, basic = false, scrollId = null) {
+    if (!spell || !this.p || this.p.hp <= 0) return false;
+    if (this.world.mounted) { this.onMessage?.('Dismount before casting'); return false; }
     const t = this.now;
-    const basic = slot === 0;
-    const cost = basic ? 0 : spellCost(spell);
-    if (t < this.gcd) return;
-    if ((this.ready[spell.id] || 0) > t) return this.onMessage?.(`${spell.name} isn't ready yet`);
-    if (this.p.mana < cost) return this.onMessage?.('Not enough mana!');
+    const cost = basic || scrollId ? 0 : spellCost(spell);
+    if (t < this.gcd || (scrollId && t < this.scrollReady)) return false;
+    if (!scrollId && (this.ready[spell.id] || 0) > t) { this.onMessage?.(`${spell.name} isn't ready yet`); return false; }
+    if (this.p.mana < cost) { this.onMessage?.('Not enough mana!'); return false; }
     let target = null;
     if (OFFENSIVE.has(spell.type)) {
       if (!this.target || this.target.state === 'dead' || flat(this.target.model.position, this.world.player.position) > PLAYER_RANGE + 6) this.setTarget(this.nearest());
       target = this.target;
-      if (!target) return this.onMessage?.('No enemy in range');
-      if (flat(target.model.position, this.world.player.position) > PLAYER_RANGE) return this.onMessage?.('Too far away!');
+      if (!target) { this.onMessage?.('No enemy in range'); return false; }
+      if (flat(target.model.position, this.world.player.position) > PLAYER_RANGE) { this.onMessage?.('Too far away!'); return false; }
       this.faceTarget(target);
     }
+    if (scrollId && !spendScroll(this.p, scrollId)) return false;
     const haste = (this.p.stats?.pip || 0) / 100;
-    this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste);
-    this.gcd = t + GLOBAL_COOLDOWN;
+    if (scrollId) this.scrollReady = t + 1.5;
+    else this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste);
+    this.gcd = t + (scrollId ? 0.6 : GLOBAL_COOLDOWN);
     this.p.mana -= cost;
-    this.world.castPose(this.world.player);
+    this.world.castPose(this.world.player, SCHOOLS[spell.school].color);
     sfx('cast', spell.school);
     this.playerSpell(spell, target, this.world.player);
+    if (scrollId) this.world.float(this.world.player, `📜 ${SCROLLS[scrollId].name}`, 'status');
+    return true;
   }
 
   faceTarget(e) {
@@ -188,6 +204,19 @@ export class Combat {
       return m;
     };
     switch (spell.type) {
+      case 'nova': {
+        const center = w.player.position;
+        w.shockwave(center, color, spell.radius);
+        w.burst(w.chest(w.player), color, 22, 5);
+        const mult = hitMult();
+        for (const e of this.alive()) {
+          if (flat(e.model.position, center) > spell.radius) continue;
+          const crit = Math.random() < critChance;
+          this.damageEnemy(e, rand(spell.min, spell.max) * mult * (crit ? 1.5 : 1), spell.school, color, crit);
+        }
+        sfx('bighit');
+        break;
+      }
       case 'damage':
       case 'drain': {
         const big = spell.pips >= 4;
@@ -404,7 +433,7 @@ export class Combat {
     const w = this.world;
     const color = SCHOOLS[spell.school].color;
     const pp = w.player.position;
-    this.world.castPose(e.model);
+    this.world.castPose(e.model, SCHOOLS[spell.school].color);
     if (OFFENSIVE.has(spell.type)) {
       if (this.p.hp <= 0) return;
       const melee = e.def.range <= 3;

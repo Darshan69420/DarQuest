@@ -1166,6 +1166,39 @@ export function makeEnemy(kind) {
 
 // ---------------------------------------------------------------- pets
 
+// Rideable stag: a simple original silhouette with a readable trot cycle.
+export function makeMount(color, trim) {
+  const root = new THREE.Group();
+  const body = group(root);
+  const coat = mat(color), dark = mat(darker(color, 0.65)), bright = glowMat(trim, 1.2);
+  add(body, sph(0.65, 16, 12), coat, 0, 1.15, 0, { s: [1, 0.68, 1.65] });
+  add(body, sph(0.42), coat, 0, 1.42, 0.55, { s: [0.85, 1.2, 0.85] });
+  add(body, sph(0.36), coat, 0, 1.78, 0.95, { s: [0.85, 0.83, 1.15] });
+  add(body, sph(0.25), dark, 0, 1.62, 1.28, { s: [0.78, 0.58, 1] });
+  for (const side of [-1, 1]) {
+    add(body, sph(0.07), basic(0x17102e), side * 0.21, 1.84, 1.19);
+    add(body, new THREE.ConeGeometry(0.13, 0.38, 8), coat, side * 0.29, 2.08, 0.79, { rz: side * 0.35 });
+    tube(body, [[side * 0.2, 2.02, 0.81], [side * 0.33, 2.45, 0.73], [side * 0.62, 2.68, 0.55]], 0.048, bright, 10);
+    tube(body, [[side * 0.32, 2.43, 0.73], [side * 0.48, 2.54, 1.05]], 0.035, bright, 7);
+  }
+  add(body, sph(0.36), mat(0x493a5b), 0, 1.53, -0.13, { s: [1.6, 0.22, 1.2] });
+  add(body, sph(0.12), bright, 0, 1.6, -0.2, { s: [1, 0.3, 1] });
+  const legs = [];
+  for (const x of [-0.38, 0.38]) for (const z of [-0.54, 0.57]) {
+    const leg = group(body, x, 0.91, z);
+    limb(leg, V3(0, 0, 0), V3(0, -0.78, 0.1), 0.14, 0.09, coat);
+    add(leg, sph(0.15), dark, 0, -0.78, 0.18, { s: [0.9, 0.45, 1.2] });
+    legs.push({ leg, phase: x * z > 0 ? 0 : Math.PI });
+  }
+  tube(body, [[0, 1.25, -0.77], [0, 1.25, -1.06], [0, 1.1, -1.24]], 0.1, dark, 10);
+  outline(root);
+  root.userData.anim = (t, moving) => {
+    body.position.y = moving ? Math.sin(t * 18) * 0.065 : Math.sin(t * 2) * 0.02;
+    for (const { leg, phase } of legs) leg.rotation.x = moving ? Math.sin(t * 10 + phase) * 0.42 : 0;
+  };
+  return root;
+}
+
 export function makePet(kind, color) {
   const g = new THREE.Group();
   const body = group(g);

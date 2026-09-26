@@ -1,5 +1,5 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
-import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
+import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES, SCROLLS, MOUNTS } from './data.js';
 import { RIFT_BOONS } from './rifts.js';
 
 const SAVE_KEY = 'darquest-save-v1';
@@ -30,6 +30,14 @@ function upgrade(p) {
   p.equipped ??= {};
   p.pets ??= [];
   p.activePet ??= null;
+  p.scrolls ??= {};
+  for (const [id, count] of Object.entries(p.scrolls)) {
+    if (!SCROLLS[id] || !Number.isInteger(count) || count < 1) delete p.scrolls[id];
+  }
+  p.mounts ??= [];
+  p.mounts = [...new Set(p.mounts.filter(id => MOUNTS[id]))];
+  p.activeMount = p.mounts.includes(p.activeMount) ? p.activeMount : (p.mounts[0] || null);
+  p.mounted = !!p.mounted && !!p.activeMount;
   p.difficulty = DIFFICULTIES[p.difficulty] ? p.difficulty : 'normal';
   p.rift ??= null;
   p.riftWins ??= 0;
@@ -91,6 +99,35 @@ export function hasSave() {
 
 export function clearSave() {
   try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+}
+
+export function scrollCount(p) { return Object.values(p.scrolls).reduce((sum, n) => sum + n, 0); }
+
+export function giveScroll(p, id) {
+  if (!SCROLLS[id] || scrollCount(p) >= RULES.maxScrolls) return false;
+  p.scrolls[id] = (p.scrolls[id] || 0) + 1;
+  return true;
+}
+
+export function spendScroll(p, id) {
+  if (!SCROLLS[id] || !p.scrolls[id]) return false;
+  if (--p.scrolls[id] === 0) delete p.scrolls[id];
+  return true;
+}
+
+export function buyMount(p, id) {
+  const mount = MOUNTS[id];
+  if (!mount || p.mounts.includes(id) || p.level < mount.level || p.gold < mount.price) return false;
+  p.gold -= mount.price;
+  p.mounts.push(id);
+  p.activeMount = id;
+  return true;
+}
+
+export function selectMount(p, id) {
+  if (!p.mounts.includes(id) || !MOUNTS[id]) return false;
+  p.activeMount = id;
+  return true;
 }
 
 // Returns the number of levels gained.
@@ -166,12 +203,13 @@ export function setActivePet(p, id) {
 // Rolls drops for a list of defeated enemy definitions.
 export function rollLoot(p, defs) {
   const mult = DIFFICULTIES[p.difficulty].drop;
-  const loot = { items: [], pets: [] };
+  const loot = { items: [], pets: [], scrolls: [] };
   for (const def of defs) {
     for (const d of def.drops || []) {
       if (Math.random() >= Math.min(1, d.chance * mult)) continue;
       if (d.item) loot.items.push({ id: d.item, where: giveItem(p, d.item) });
       if (d.pet && givePet(p, d.pet)) loot.pets.push(d.pet);
+      if (d.scroll && giveScroll(p, d.scroll)) loot.scrolls.push(d.scroll);
     }
   }
   return loot;

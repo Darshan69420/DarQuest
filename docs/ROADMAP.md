@@ -9,6 +9,7 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 ## Current playable foundation
 
 - Two hand-built zones, 14 quests, combat, six schools, equipment, pets, difficulty settings and browser saves.
+- One-use spell scrolls available through drops and a shop, plus Astral Pulse, a close-range area spell learnable by every school. Two rideable stags bought at the academy, with faster travel and automatic combat dismount. Magic cast sigils add a short readable anticipation cue.
 - Rift Contracts: talk to Vale at Starfall Academy. Complete three stages against enemies in a chosen unlocked zone; choose one of three offered boons before each stage. Targets deal 15% more damage per stage. Return for a payout after stage three, or lose the temporary boons on defeat. A run resumes after reload.
 - The Rift system is **not** a generated dungeon yet. It uses existing maps and enemies. That is the next substantial game feature.
 
@@ -16,7 +17,7 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 
 | Order | Feature | Playable acceptance criteria | Quality gate |
 | --- | --- | --- | --- |
-| 1 | Movement and camera | Strafing, sprinting and a clear interact prompt work with keyboard, mouse and touch. Camera avoids scenery and can be reset. | Play from new game to first fight on desktop and narrow mobile viewport; no stuck movement or unreadable HUD. |
+| 1 | Movement and camera | Strafing, sprinting and a clear interact prompt work with keyboard, mouse and touch. Mount animation and camera remain readable around narrow paths. | Play from new game to first fight on desktop and narrow mobile viewport; no stuck movement or unreadable HUD. |
 | 2 | First dungeon | A portal leads to a small, seeded dungeon with a sequence of rooms, encounters, a rest choice and a final guardian. Exits return to the world. | Same seed produces the same room sequence; every room has a walkable path; reloading safely restores or abandons the run. |
 | 3 | Run variety | Enemy groups, room events and two mutually exclusive rewards change the next decision. Builds have visible strengths and limits. | Simulate at least 1,000 seeds; no impossible enemy or room combination; verify reward caps and death cleanup. |
 | 4 | World agency | One new settlement, explorable side areas, NPC schedules or reactions, and at least one quest with a meaningful choice and consequence. | Save/load both outcomes; every branch reaches a conclusion; optional path is signposted in game. |
@@ -41,6 +42,14 @@ Run `npm run check` for contract state tests and content references. Before ship
 4. **Combat balance:** try each school at early and late levels; verify resistance, heals, haste and stage danger affect the actual numbers; tune reward rate against story quests.
 5. **Performance:** measure frame pacing during a boss fight with pet, labels and spell effects. Target 60 fps on an ordinary desktop and a stable 30 fps on a midrange phone with graphics settings if needed.
 6. **Release:** verify a static server and hosted URL load all modules; check browser console, save recovery, WebGL fallback messaging and original asset licenses.
+7. **Travel and magic:** buy and equip both stags; mount and dismount on both sides of a portal; engage an enemy while mounted; cast a self scroll without mana; attempt an attack scroll without a target; verify scroll caps and reloads.
+
+## Reference notes
+
+- [Hades development notes from Supergiant](https://www.supergiantgames.com/blog/hades-the-nighty-night-update-patch-notes/) discuss keeping combat effects readable during fast encounters. DarQuest uses brief ground sigils before casts so spell color is recognizable without covering the target.
+- [Skyrim's official launch details](https://elderscrolls.bethesda.net/en-US/news/4cHsGJ5fssgCaAUEwaMAWO/the-elder-scrolls-v-skyrim-vr-and-skyrim-for-nintendo-switch-launch-details) include horseback travel in the world. DarQuest mounts are original stags built from its toon shapes, used for travel between fights.
+- [Diablo IV's official site](https://diablo4.blizzard.com/) describes mounts as part of world traversal and persistent progression. DarQuest keeps mount ownership across reloads while dismounting for combat.
+- Hades' [boons and upgrades](https://www.supergiantgames.com/blog/gear-up-for-the-high-speed-update/) inform the temporary build choices in Rift Contracts. DarQuest's characters and art remain original.
 
 ## Guardrails for scope
 

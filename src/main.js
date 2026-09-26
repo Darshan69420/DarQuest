@@ -5,12 +5,12 @@ import { Minimap } from './minimap.js';
 import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
-  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, ENEMIES, zoneAt,
+  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, ENEMIES, SCROLLS, MOUNTS, zoneAt,
 } from './data.js';
 import {
   newPlayer, load, save, hasSave, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
-  recalc,
+  recalc, scrollCount,
 } from './state.js';
 import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
 
@@ -99,6 +99,7 @@ function refresh() {
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
   UI.updateRift(player.rift ? riftText(player) : '');
+  updateTravelButtons();
   for (const id of Object.keys(NPCS)) world.setNpcMarker(id, npcMarker(player, id));
   world.setNpcMarker('riftkeeper', player.rift?.status === 'choice' || player.rift?.status === 'claim' ? '?' : '');
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
@@ -184,6 +185,7 @@ function talk(id) {
   if (npc.service === 'tutor') extra.push({ label: '📚 Learn Spells', action: () => UI.openTutor(player, onChange) });
   if (npc.service === 'shop') extra.push({ label: '🧪 Potions & Pets', action: () => UI.openShop(player, onChange) });
   if (npc.service === 'gear') extra.push({ label: '🎩 Browse Gear', action: () => UI.openGearShop(player, onChange) });
+  if (npc.service === 'stable') extra.push({ label: '🦌 See Mounts', action: () => UI.openStable(player, onChange) });
 
   if (q) {
     const talkObjective = q.objective.type === 'talk' && q.objective.npc === id && player.quest.state === 'active';
@@ -301,12 +303,13 @@ function announceLevels(levels) {
 
 // Called whenever a menu changes the player. `kind` picks a sound and whether to rebuild the model.
 function onChange(kind) {
-  if (kind === 'gear' || kind === 'pet') world.spawnPlayer(player);
+  if (kind === 'gear' || kind === 'pet' || kind === 'mount') world.spawnPlayer(player);
   buildHotbar();
   if (kind === 'drink') Audio.sfx('drink');
   else if (kind === 'pet') Audio.sfx('pet');
   else if (kind === 'loot' || kind === 'sell') Audio.sfx('loot');
   else if (kind === 'gear') Audio.sfx('buff');
+  else if (kind === 'mount') Audio.sfx('pet');
   refresh();
   save(player);
 }
@@ -322,6 +325,11 @@ const combat = new Combat({
   onHurt: () => UI.flashHurt(),
   onMessage: (text, cls) => UI.combatMessage(text, cls),
   onCombatChange: (fighting, boss) => {
+    if (fighting && player.mounted) {
+      world.setMounted(player, false);
+      refresh(); save(player);
+      UI.toast('🦌 Your mount retreats as combat begins.');
+    }
     Audio.setMusic(fighting ? (boss ? 'boss' : 'battle') : ZONES[zoneAt(world.player.position.x)].music);
     if (fighting && boss) Audio.sfx('boss');
   },
@@ -360,7 +368,8 @@ function rewardKill(e) {
   }
   for (const it of loot.items) UI.toast(`🎁 <b>${UI.esc(GEAR[it.id].name)}</b> ${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, 'good');
   for (const id of loot.pets) UI.toast(`🐾 New pet: <b>${PETS[id].name}</b>! Press C to summon it.`, 'good');
-  if (loot.items.length || loot.pets.length) Audio.sfx('loot');
+  for (const id of loot.scrolls) UI.toast(`📜 Found <b>${UI.esc(SCROLLS[id].name)}</b>! Press R to use it.`, 'good');
+  if (loot.items.length || loot.pets.length || loot.scrolls.length) Audio.sfx('loot');
   if (loot.pets.length) world.setPet(player.activePet);
   if (def.boss) UI.toast(`🏆 <b>${UI.esc(def.name)}</b> is defeated! +${xp} XP · +${gold} gold`, 'good');
   announceLevels(levels);
@@ -372,6 +381,7 @@ async function playerDefeated() {
   world.mode = 'locked';
   Audio.sfx('defeat');
   const lostRift = endRift(player);
+  if (player.mounted) world.setMounted(player, false);
   recalc(player);
   save(player);
   const diff = DIFFICULTIES[player.difficulty];
@@ -420,6 +430,26 @@ function updateMuteButton() {
   $('#btn-mute').textContent = Audio.isMuted() ? '🔇' : '🔊';
 }
 
+function updateTravelButtons() {
+  $('#btn-scroll').textContent = `📜${scrollCount(player) || ''}`;
+  $('#btn-mount').textContent = player.mounted ? '↘️' : '🦌';
+  $('#btn-mount').title = player.mounted ? 'Dismount (F)' : player.activeMount ? `Ride ${MOUNTS[player.activeMount].name} (F)` : 'Buy a mount from Elowen (F)';
+}
+
+function toggleMount() {
+  if (!player.activeMount) return UI.toast('🦌 Visit Elowen in the academy courtyard to buy a mount.');
+  if (combat.inCombat && !player.mounted) return UI.combatMessage('Cannot mount during combat');
+  world.setMounted(player, !player.mounted);
+  refresh(); save(player);
+  UI.toast(player.mounted ? `🦌 Riding ${UI.esc(MOUNTS[player.activeMount].name)}` : '🦌 Dismounted');
+}
+
+function useScroll(id) {
+  if (!combat.castScroll(id)) return false;
+  refresh(); save(player);
+  return true;
+}
+
 function toggleMute() {
   Audio.initAudio();
   const m = Audio.toggleMute();
@@ -435,6 +465,8 @@ window.addEventListener('keydown', (e) => {
   if (world.mode !== 'explore' || UI.isDialogOpen()) return;
   if (e.code === 'KeyB') UI.openSpellbook(player, onChange);
   if (e.code === 'KeyC' || e.code === 'KeyI') UI.openCharacter(player, onChange);
+  if (e.code === 'KeyR') UI.openScrolls(player, useScroll);
+  if (e.code === 'KeyF') toggleMount();
   if (e.code === 'KeyH') drinkPotion();
   const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code);
   if (n >= 0) combat.castSlot(n);
@@ -454,6 +486,8 @@ const inExplore = () => world.mode === 'explore' && player;
 $('#btn-char').addEventListener('click', () => inExplore() && UI.openCharacter(player, onChange));
 $('#btn-book').addEventListener('click', () => inExplore() && UI.openSpellbook(player, onChange));
 $('#btn-potion').addEventListener('click', () => inExplore() && drinkPotion());
+$('#btn-scroll').addEventListener('click', () => inExplore() && UI.openScrolls(player, useScroll));
+$('#btn-mount').addEventListener('click', () => inExplore() && toggleMount());
 $('#btn-mute').addEventListener('click', toggleMute);
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-reset').addEventListener('click', () => {

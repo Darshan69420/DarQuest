@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
-  makePet, makePortal, mergeGeometries,
+  makePet, makePortal, makeMount, mergeGeometries,
 } from './models.js';
-import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
+import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, MOUNTS } from './data.js';
 import { buildEmberfall } from './maps.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -47,6 +47,8 @@ export class World {
     this.staticObjs = [];     // scenery merged into batches after the map is built
     this.animated = [];       // objects with userData.anim
     this.player = null;
+    this.mounted = false;
+    this.mountSpeed = 1;
     this.heading = Math.PI;   // facing -Z (toward the academy)
     this.camYawOffset = 0;
     this.camDist = 10;
@@ -332,13 +334,30 @@ export class World {
     const c = SCHOOLS[p.school].color;
     const hat = GEAR[p.equipped?.hat]?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
     const robe = GEAR[p.equipped?.robe]?.color ?? c;
-    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    const wizard = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    const mount = p.mounted && MOUNTS[p.activeMount];
+    this.mounted = !!mount;
+    this.mountSpeed = mount?.speed || 1;
+    if (mount) {
+      const rider = new THREE.Group();
+      const stag = makeMount(mount.color, mount.trim);
+      wizard.position.y = 1.18;
+      wizard.scale.setScalar(0.82);
+      rider.add(stag, wizard);
+      rider.userData.gem = wizard.userData.gem;
+      rider.userData.anim = (t, moving) => {
+        stag.userData.anim(t, moving);
+        wizard.userData.anim(t, false);
+      };
+      this.player = rider;
+    } else this.player = wizard;
     this.player.userData.height = measure(this.player);
     this.scene.add(this.player);
     this.setPet(p.activePet);
     if (keep) {
       this.player.position.copy(keep);
       this.player.rotation.y = this.heading;
+      if (this.pet) this.pet.position.set(keep.x + 1, 0, keep.z - 1);
       return;
     }
     const zone = ZONES[zoneAt(pos?.x ?? 0)];
@@ -347,6 +366,14 @@ export class World {
     this.heading = at.heading ?? Math.PI;
     if (this.pet) this.pet.position.set(at.x + 1, 0, at.z - 1);
     this.snapCamera();
+  }
+
+  setMounted(p, mounted) {
+    if (mounted && !MOUNTS[p.activeMount]) return false;
+    p.mounted = mounted;
+    this.spawnPlayer(p);
+    this.snapCamera();
+    return true;
   }
 
   // ------------------------------------------------------------ input
@@ -503,7 +530,7 @@ export class World {
       this.moveTarget = null;
       this.pendingTalk = null;
       this.heading += turn * 2.8 * dt;
-      speed = fwd > 0 ? PLAYER_SPEED : fwd < 0 ? -PLAYER_SPEED * 0.55 : 0;
+      speed = fwd > 0 ? PLAYER_SPEED * this.mountSpeed : fwd < 0 ? -PLAYER_SPEED * this.mountSpeed * 0.55 : 0;
       if (fwd) this.camYawOffset *= Math.exp(-3 * dt);
     } else if (this.moveTarget) {
       const p = this.player.position;
@@ -517,7 +544,7 @@ export class World {
         const want = Math.atan2(dx, dz);
         let diff = ((want - this.heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         this.heading += diff * Math.min(1, dt * 10);
-        speed = PLAYER_SPEED;
+        speed = PLAYER_SPEED * this.mountSpeed;
       }
     }
 
@@ -565,10 +592,11 @@ export class World {
   followCam() {
     const yaw = this.heading + this.camYawOffset;
     const p = this.player.position;
+    const lift = this.mounted ? 0.9 : 0;
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15, p.z - Math.cos(yaw) * this.camDist),
+      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15 + lift, p.z - Math.cos(yaw) * this.camDist),
       // look a little ahead so enemies in front are not hidden behind the hat
-      look: V(p.x + Math.sin(yaw) * 3.5, 1.4, p.z + Math.cos(yaw) * 3.5),
+      look: V(p.x + Math.sin(yaw) * 3.5, 1.4 + lift, p.z + Math.cos(yaw) * 3.5),
     };
   }
 
@@ -626,7 +654,7 @@ export class World {
 
   // A quick dash in the direction the player is moving (or facing).
   dash() {
-    if (!this.player || this.dashT > 0) return false;
+    if (!this.player || this.dashT > 0 || this.mounted) return false;
     const k = this.keys;
     const back = (k.KeyS || k.ArrowDown) && !(k.KeyW || k.ArrowUp);
     const dir = back ? this.heading + Math.PI : this.heading;
@@ -842,7 +870,39 @@ export class World {
     for (let i = 0; i < 10; i++) this.particle(p, 0x777777, { vel: V((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), life: 0.8, size: 0.14 });
   }
 
-  castPose(obj) {
+  spellSigil(obj, color) {
+    const glyph = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    for (const radius of [0.85, 1.2]) {
+      const ring = new THREE.Mesh(this.ringGeo, material);
+      ring.rotation.x = -Math.PI / 2;
+      ring.scale.setScalar(radius);
+      glyph.add(ring);
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      const rune = new THREE.Mesh(this.sphereGeo, material);
+      rune.position.set(Math.cos(a), 0.03, Math.sin(a));
+      rune.scale.set(0.08, 0.04, 0.16);
+      rune.rotation.y = -a;
+      glyph.add(rune);
+    }
+    glyph.position.set(obj.position.x, 0.13, obj.position.z);
+    this.scene.add(glyph);
+    let t = 0;
+    this.effects.push((dt) => {
+      t += dt;
+      glyph.position.x = obj.position.x;
+      glyph.position.z = obj.position.z;
+      glyph.rotation.y += dt * 2.8;
+      glyph.scale.setScalar(0.5 + Math.min(1, t * 3) * 0.7);
+      material.opacity = Math.max(0, 0.85 * (1 - t / 0.7));
+      if (t >= 0.7) { this.scene.remove(glyph); material.dispose(); return false; }
+    });
+  }
+
+  castPose(obj, color = 0xb46bff) {
+    this.spellSigil(obj, color);
     const gem = obj.userData.gem;
     const base = obj.scale.x;
     let t = 0;

@@ -44,6 +44,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 - **Chapter 1, Hollow Lane:** 7 quests ending with a boss fight against Lord Hollowmere.
 - **Chapter 2, Emberfall Wilds:** reached through the Spiral Door portal. 7 more quests, 6 new enemies, and Pyrrhon, the Molten King, a boss with two phases, two Magma Guards, and a nasty reaction to Frost magic.
 - **Sound and music**, generated in code, and a **minimap** that points to your quest.
+- **Rift Contracts:** speak to Riftkeeper Vale in the academy courtyard for a repeatable three-stage hunt. Choose a temporary boon at each stage, face increasingly dangerous targets, and return for XP and gold. The run survives reloads; defeat or abandonment removes its boons. Your story progress remains.
 
 ## Code layout
 
@@ -60,13 +61,19 @@ src/minimap.js    corner minimap
 src/audio.js      synthesized sound effects and music
 src/ui.js         dialogue, menus, cards
 src/main.js       ties everything together
+src/rifts.js      seeded Rift Contracts and temporary boons
 lib/              vendored Three.js (MIT licence)
 gallery.html      model gallery: preview every model (?group=foes1, ?model=knight)
+docs/ROADMAP.md   game direction, next milestones and release checks
 ```
+
+## Quality checks
+
+Run `npm run check` with Node 20 or newer. It tests Rift progress, save restoration and single payout, then validates game content references and 900 seeded stages. The game itself still has no build step or runtime npm dependencies.
 
 ## Roadmap
 
-1. **Chapter 3:** a new world (a frozen sky-city or a sunken ruin), plus dungeons: short instanced areas with a boss at the end.
+1. **First seeded dungeon:** assemble authored rooms in a short run with encounters, rest and a guardian. See [the full roadmap](docs/ROADMAP.md).
 2. **Crafting and scrolls:** one-use spell scrolls found as loot, and recipes that turn materials into gear.
 3. **Companions:** hire an NPC wizard of another school to fight beside you (true 2v3 battles).
 4. **Arena (PvP-style):** duel AI "rival wizards" with their own decks for ranked rewards.

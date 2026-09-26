@@ -308,6 +308,11 @@ export const NPCS = {
     name: 'Madame Fizz', title: 'Potions & Pets', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop', hair: 0xff7ab8, goggles: true, skin: 0xe8b894, eyeColor: 0xa0346a,
     lines: ['Bubble, bubble! A potion in your pack is worth two in the cauldron.', 'My pet eggs hatch into loyal little friends. They even cast spells for you!'],
   },
+  riftkeeper: {
+    name: 'Riftkeeper Vale', title: 'Rift Contracts', x: 22, z: 13, robe: 0x352b73, hat: 0x21164f, trim: 0x81e6e0,
+    hair: 0xc4a4ff, eyeColor: 0x86e3f3,
+    lines: ['The rifts rearrange their trials for every wizard. Return between stages to strengthen your build.'],
+  },
   brannoc: {
     name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x9aa0b0, trim: 0xc9a24a, hatStyle: 'helmet', hair: 0x2a1a14, skin: 0xc68a5e, eyeColor: 0x3a2a20,
     lines: ['Hollow Lane was a cheerful street once. Now the shadows have moved in.'],

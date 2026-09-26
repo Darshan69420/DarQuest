@@ -5,12 +5,14 @@ import { Minimap } from './minimap.js';
 import * as UI from './ui.js';
 import * as Audio from './audio.js';
 import {
-  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, zoneAt,
+  SCHOOLS, PLAYABLE_SCHOOLS, NPCS, QUESTS, DIFFICULTIES, FOUNTAINS, PORTALS, ZONES, GEAR, PETS, ENEMIES, zoneAt,
 } from './data.js';
 import {
   newPlayer, load, save, hasSave, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
+  recalc,
 } from './state.js';
+import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -96,7 +98,9 @@ function refresh() {
   if (!player) return;
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
+  UI.updateRift(player.rift ? riftText(player) : '');
   for (const id of Object.keys(NPCS)) world.setNpcMarker(id, npcMarker(player, id));
+  world.setNpcMarker('riftkeeper', player.rift?.status === 'choice' || player.rift?.status === 'claim' ? '?' : '');
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
 }
 
@@ -116,7 +120,7 @@ world.onZoneChange = (zone) => {
 
 // Where the quest tracker's star should point on the minimap.
 function questTargetPos() {
-  const t = questTarget(player);
+  const t = player.rift?.status === 'active' ? { enemy: player.rift.target } : questTarget(player);
   if (!t) return null;
   if (t.npc) {
     const n = world.npcs.find(x => x.id === t.npc);
@@ -172,6 +176,8 @@ function talk(id) {
     ]);
   }
 
+  if (id === 'riftkeeper') return showRiftkeeper();
+
   const npc = NPCS[id];
   const q = currentQuest(player);
   const extra = [];
@@ -196,6 +202,55 @@ function talk(id) {
   }
   const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
   UI.dialog(npc.name, npc.title, line, [...extra, { label: 'Goodbye' }]);
+}
+
+function showRiftkeeper() {
+  const run = player.rift;
+  if (!run) return UI.dialog('Riftkeeper Vale', 'Rift Contracts',
+    `Three stages, three boons, one life. The contract sends you across ${player.quest.index >= 7 ? 'Hollow Lane or Emberfall' : 'Hollow Lane'} to hunt changing foes. Rift targets hit 15% harder each stage. Temporary boons disappear after victory or defeat. Contracts cleared: ${player.riftWins}.`, [
+      { label: 'Begin contract', primary: true, action: () => {
+        startRift(player);
+        refresh(); save(player);
+        showRiftkeeper();
+      } }, { label: 'Later' },
+    ]);
+
+  if (run.status === 'choice') return UI.dialog('Riftkeeper Vale', `Stage ${run.stage + 1}/${RIFT_STAGES}`,
+    `Choose one boon for this run. Then hunt ${ENEMIES[run.target].name} in ${run.zone === 'academy' ? 'Hollow Lane' : 'Emberfall Wilds'}.`, [
+      ...boonChoices(run).map(id => ({ label: `${RIFT_BOONS[id].name}: ${RIFT_BOONS[id].description}`, action: () => {
+        const oldMax = player.maxHp;
+        if (!chooseBoon(player, id)) return;
+        recalc(player);
+        player.hp = Math.min(player.maxHp, player.hp + player.maxHp - oldMax);
+        UI.toast(`🌀 ${UI.esc(RIFT_BOONS[id].name)} gained. ${UI.esc(riftText(player))}`, 'good');
+        refresh(); save(player);
+      } })), { label: 'Decide later' },
+    ]);
+
+  if (run.status === 'claim') return UI.dialog('Riftkeeper Vale', 'Contract complete',
+    'You survived all three stages. Claim your prize and carry your tale back to Starfall.', [
+      { label: 'Claim reward', primary: true, action: () => {
+        const reward = claimRift(player);
+        if (!reward) return;
+        recalc(player);
+        player.gold += reward.gold;
+        const levels = gainXp(player, reward.xp);
+        announceLevels(levels);
+        UI.toast(`🏆 Rift cleared! +${reward.xp} XP · +${reward.gold} gold · ${reward.wins} completed`, 'good');
+        refresh(); save(player);
+      } }, { label: 'Later' },
+    ]);
+
+  return UI.dialog('Riftkeeper Vale', `Stage ${run.stage + 1}/${RIFT_STAGES}`,
+    `${riftText(player)}. Your boons: ${run.boons.map(id => RIFT_BOONS[id]?.name).join(', ')}. A defeat ends the contract.`, [
+      { label: 'Keep hunting', primary: true },
+      { label: 'Abandon contract', action: () => {
+        endRift(player);
+        recalc(player);
+        refresh(); save(player);
+        UI.toast('🌀 Contract abandoned. Temporary boons faded.');
+      } },
+    ]);
 }
 
 function travel(portal) {
@@ -291,11 +346,16 @@ function rewardKill(e) {
   player.gold += gold;
   world.float(e.model, `+${xp} XP`, 'xp');
   const quest = recordKill(player, def.id);
+  const contract = riftKill(player, def.id);
   const loot = rollLoot(player, [def]);
   const levels = gainXp(player, xp);
   if (quest) {
     const q = currentQuest(player);
     UI.toast(player.quest.state === 'ready' ? `📜 <b>${UI.esc(q.name)}</b>: ready to turn in!` : `📜 ${UI.esc(questTrackerText(player).goal)}`, 'quest');
+    Audio.sfx('quest');
+  }
+  if (contract) {
+    UI.toast(`🌀 ${UI.esc(riftText(player))}`, player.rift.status === 'active' ? 'quest' : 'good');
     Audio.sfx('quest');
   }
   for (const it of loot.items) UI.toast(`🎁 <b>${UI.esc(GEAR[it.id].name)}</b> ${it.where === 'sold' ? '(bag full: sold)' : '· press C to equip'}`, 'good');
@@ -311,10 +371,13 @@ function rewardKill(e) {
 async function playerDefeated() {
   world.mode = 'locked';
   Audio.sfx('defeat');
+  const lostRift = endRift(player);
+  recalc(player);
+  save(player);
   const diff = DIFFICULTIES[player.difficulty];
   await new Promise(r => setTimeout(r, 900));
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.</p>
+    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.${lostRift ? ' Your Rift Contract ended and its boons faded.' : ''}</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;

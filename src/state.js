@@ -1,5 +1,6 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
+import { RIFT_BOONS } from './rifts.js';
 
 const SAVE_KEY = 'darquest-save-v1';
 
@@ -30,6 +31,10 @@ function upgrade(p) {
   p.pets ??= [];
   p.activePet ??= null;
   p.difficulty = DIFFICULTIES[p.difficulty] ? p.difficulty : 'normal';
+  p.rift ??= null;
+  p.riftWins ??= 0;
+  if (p.rift && (!['active', 'choice', 'claim'].includes(p.rift.status) ||
+      !Array.isArray(p.rift.boons) || !ENEMIES[p.rift.target])) p.rift = null;
   p.stats ??= {};
   return p;
 }
@@ -54,6 +59,7 @@ export function recalc(p) {
   const add = (stats) => { for (const [k, v] of Object.entries(stats || {})) s[k] = (s[k] || 0) + v; };
   for (const id of Object.values(p.equipped)) if (id && GEAR[id]) add(GEAR[id].stats);
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
+  for (const id of p.rift?.boons || []) if (RIFT_BOONS[id]) add(RIFT_BOONS[id].stats);
   p.stats = s;
   p.maxHp = baseHpFor(p.school, p.level) + s.hp;
   p.maxMana = 100 + (p.level - 1) * 6;

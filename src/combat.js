@@ -303,6 +303,9 @@ export class Combat {
     if (p.hp <= 0) return;
     if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
     let m = 1 + this.diff.dmg;
+    // Rift targets hit harder on later stages; ordinary quest enemies keep
+    // their usual tuning, even while a contract is active.
+    if (p.rift?.status === 'active' && from.def.id === p.rift.target) m *= 1 + p.rift.stage * 0.15;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
     from.mods.blades = [];

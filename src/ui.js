@@ -52,6 +52,12 @@ export function updateQuest(info) {
   $('#quest-goal').textContent = info.goal;
 }
 
+export function updateRift(text) {
+  const el = $('#rift-status');
+  el.textContent = text ? `🌀 ${text}` : '';
+  el.classList.toggle('hidden', !text);
+}
+
 export function setPrompt(text) {
   const el = $('#prompt');
   el.textContent = text || '';
@@ -383,6 +389,7 @@ export function openHelp() {
     <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
+    <p>Visit Riftkeeper Vale in the courtyard for a three-stage Rift Contract. Hunt a different enemy each stage and return to choose one temporary boon. Survive all three stages to claim XP and gold. Defeat ends the run; story progress and ordinary loot remain.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
     <h3>Gear &amp; pets</h3>
     <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>

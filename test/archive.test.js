@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { newPlayer, save, load, recalc } from '../src/state.js';
 import { ENEMIES, PORTALS, ZONES, zoneAt } from '../src/data.js';
 import { Combat } from '../src/combat.js';
-import { ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveModifier, archiveRuneChoices, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive } from '../src/archive.js';
+import { ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveModifier, archiveRuneChoices, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, endArchive } from '../src/archive.js';
 
 test('all seeded encounters use real foes and reachable rooms', () => {
   for (let seed = 0; seed < 1200; seed++) {
@@ -24,6 +24,9 @@ test('all seeded encounters use real foes and reachable rooms', () => {
       }
       assert.ok(ZONES.archive.regions.some(r => Math.hypot(r.x - 1400, r.z - (ARCHIVE_ROOMS[room].z - 7)) < r.r));
       assert.ok(PORTALS.some(pt => pt.id === `archive_door_${room}` && zoneAt(pt.x) === 'archive'));
+      assert.ok(PORTALS.some(pt => pt.id === `portal_archive_out_${room}` &&
+        ZONES.archive.regions.some(r => Math.hypot(pt.x - r.x, pt.z - r.z) < r.r) &&
+        zoneAt(pt.to.x) === 'academy'), `Room ${room} needs a reachable return gate`);
       if (room < 3) assert.equal(advanceArchive(p), true);
     }
     assert.equal(claimArchive(p).wins, 1);
@@ -98,6 +101,28 @@ test('a chosen rune changes stats through reload and leaves after claiming', () 
     recalc(resumed);
     assert.deepEqual(resumed.stats, { hp: 0, dmg: 0, acc: 0, resist: 0, pip: 0, heal: 0 });
   } finally { globalThis.localStorage = prior; }
+});
+
+test('leaving or losing a run removes its Rune without taking persistent progress', () => {
+  const p = newPlayer('Runner', 'arcane');
+  p.gold = 321;
+  startArchive(p, 9);
+  for (let room = 0; room < 2; room++) {
+    archiveWave(9, room).forEach((_, i) => archiveKill(p, i));
+    advanceArchive(p);
+  }
+  const rune = archiveRuneChoices(p.archive)[0];
+  assert.equal(restArchive(p, 'rune', rune), true);
+  recalc(p);
+  assert.ok(Object.values(p.stats).some(v => v > 0));
+  assert.equal(endArchive(p), true);
+  recalc(p);
+  assert.equal(p.archive, null);
+  assert.equal(p.gold, 321);
+  assert.ok(Object.values(p.stats).every(v => v === 0));
+  assert.equal(endArchive(p), false);
+  assert.equal(startArchive(p, 9), true);
+  assert.equal(p.archive.room, 0);
 });
 
 test('fragile and resonance rules change actual combat numbers', () => {

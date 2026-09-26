@@ -13,7 +13,7 @@ import {
   recalc, scrollCount, giveScroll,
 } from './state.js';
 import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
-import { ARCHIVE_X, ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveWave, archiveModifier, archiveRuneChoices, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, archiveText } from './archive.js';
+import { ARCHIVE_X, ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveWave, archiveModifier, archiveRuneChoices, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, endArchive, archiveText } from './archive.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -195,10 +195,10 @@ function talk(id) {
           refresh(); save(player);
         } }, { label: 'Stay here' },
       ]);
-    if (id === 'portal_archive_out') return UI.dialog('Return Gate', 'Leave the Archive',
+    if (id.startsWith('portal_archive_out_')) return UI.dialog('Return Gate', 'Leave the Archive',
       'Leaving now abandons the expedition. You keep any ordinary loot you earned.', [
         { label: 'Leave expedition', action: () => {
-          player.archive = null;
+          endArchive(player);
           recalc(player);
           combat.setTarget(null);
           world.clearArchiveEnemies();
@@ -462,7 +462,7 @@ function rewardKill(e) {
   const gold = Math.round((def.gold[0] + Math.floor(Math.random() * (def.gold[1] - def.gold[0] + 1))) * diff.reward);
   player.gold += gold;
   world.float(e.model, `+${xp} XP`, 'xp');
-  const quest = recordKill(player, def.id);
+  const quest = e.dungeon ? false : recordKill(player, def.id);
   const contract = e.dungeon ? false : riftKill(player, def.id);
   if (e.dungeon && archiveKill(player, e.archiveIndex)) {
     UI.toast(`📚 ${UI.esc(archiveText(player))}`, player.archive.status === 'active' ? 'quest' : 'good');
@@ -495,7 +495,7 @@ async function playerDefeated() {
   Audio.sfx('defeat');
   const lostRift = endRift(player);
   const lostArchive = !!player.archive;
-  if (lostArchive) { player.archive = null; combat.setTarget(null); world.clearArchiveEnemies(); }
+  if (lostArchive) { endArchive(player); combat.setTarget(null); world.clearArchiveEnemies(); }
   if (player.mounted) world.setMounted(player, false);
   recalc(player);
   save(player);

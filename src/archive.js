@@ -74,6 +74,11 @@ export function claimArchive(p) {
   p.archive = null;
   return reward;
 }
+export function endArchive(p) {
+  if (!p.archive) return false;
+  p.archive = null;
+  return true;
+}
 export function archiveText(p) {
   const run = p.archive;
   if (!run) return '';

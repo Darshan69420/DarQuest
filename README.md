@@ -48,7 +48,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 - **Sound and music**, generated in code, and a **minimap** that points to your quest.
 - **Scrolls and mounts:** find or buy one-use spell scrolls that work for any school without mana. Learn Astral Pulse at level 5 for a close-range burst, or find its rarer scroll. Buy a Moonstag or Emberstag from Elowen at the academy, ride faster, and dismount when combat begins. Spells draw animated sigils when cast.
 - **Rift Contracts:** speak to Riftkeeper Vale in the academy courtyard for a repeatable three-stage hunt. Choose a temporary boon at each stage, face increasingly dangerous targets, and return for XP and gold. The run survives reloads; defeat or abandonment removes its boons. Your story progress remains.
-- **The Shattered Archive:** after Hollow Lane, enter the Archive Gate in the courtyard for four chambers with seeded enemy groups, visible encounter rules and the Unbound Curator. Choose to rest, take a scroll, or bind one of two offered Runes for the remaining run. Each cleared door opens the next room. Reload restores the exact remaining foes and any Rune; return through the entrance to abandon, or defeat the guardian for a claimable XP and gold reward.
+- **The Shattered Archive:** after Hollow Lane, enter the Archive Gate in the courtyard for four chambers with seeded enemy groups, visible encounter rules and the Unbound Curator. Choose to rest, take a scroll, or bind one of two offered Runes for the remaining run. Each cleared door opens the next room. Reload restores the exact remaining foes and any Rune; every chamber has a return gate to abandon, or defeat the guardian for a claimable XP and gold reward.
 
 ## Code layout
 

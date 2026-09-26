@@ -34,6 +34,8 @@ The technical boundary: `src/archive.js` owns saved progression and deterministi
 
 ## Quality checks
 
+Current verification and the browser session checklist are in [PLAYTEST.md](PLAYTEST.md). The [Archive route diagram](archive-route.svg) illustrates the room and return-gate layout; it is not a gameplay screenshot.
+
 Run `npm run check` for contract state tests and content references. Before shipping a milestone, also check:
 
 1. **New and old saves:** begin a new character; continue an older save; reload during each run stage; claim once; abandon; die; reset.

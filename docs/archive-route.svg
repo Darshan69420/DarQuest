@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" role="img" aria-labelledby="title desc">
+  <title id="title">The Shattered Archive route</title>
+  <desc id="desc">Four isolated rooms connect through gated doors: two fights, a rest choice and a boss. Each room has a return gate.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#10132d"/><stop offset="1" stop-color="#302450"/></linearGradient>
+    <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#363355"/><stop offset="1" stop-color="#23243e"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1000" height="500" fill="url(#bg)"/>
+  <g fill="none" stroke="#8474bc" opacity=".23"><path d="M0 90H1000M0 250H1000M0 410H1000M75 0V500M250 0V500M500 0V500M750 0V500M925 0V500"/></g>
+  <text x="500" y="53" text-anchor="middle" fill="#f2dca4" font-family="Georgia,serif" font-size="29" font-weight="bold">THE SHATTERED ARCHIVE</text>
+  <text x="500" y="79" text-anchor="middle" fill="#c3badd" font-family="sans-serif" font-size="13" letter-spacing="2">FOUR CHAMBERS  ·  ONE SAVED SEED  ·  ONE WAY FORWARD</text>
+  <g stroke="#caa6ff" stroke-width="3" fill="none" stroke-dasharray="6 6" opacity=".85">
+    <path d="M219 247H277M459 247H517M699 247H757"/>
+  </g>
+  <g fill="#dab4ff"><path d="m277 247-11-7v14zM517 247l-11-7v14zM757 247l-11-7v14z"/></g>
+  <g transform="translate(128 245)">
+    <circle r="94" fill="url(#floor)" stroke="#8a78cb" stroke-width="3"/>
+    <circle r="83" fill="none" stroke="#a996e4" stroke-width="2" opacity=".6"/>
+    <path d="M-30-30h60v52h-60zM-22-20h44M-22-8h44M-22 4h44" fill="none" stroke="#e2a5bc" stroke-width="5" stroke-linecap="round"/>
+    <text x="0" y="50" text-anchor="middle" fill="#fff1f5" font-family="sans-serif" font-size="17" font-weight="bold">01 · FIGHT</text>
+  </g>
+  <g transform="translate(368 245)">
+    <circle r="94" fill="url(#floor)" stroke="#8a78cb" stroke-width="3"/>
+    <circle r="83" fill="none" stroke="#a996e4" stroke-width="2" opacity=".6"/>
+    <path d="M-36-27h73v50h-73zM0-27v50M-29-15h20M10-15h20M-29 0h20M10 0h20" fill="none" stroke="#e2a5bc" stroke-width="5"/>
+    <text x="0" y="50" text-anchor="middle" fill="#fff1f5" font-family="sans-serif" font-size="17" font-weight="bold">02 · FIGHT</text>
+  </g>
+  <g transform="translate(608 245)">
+    <circle r="94" fill="url(#floor)" stroke="#75c9c7" stroke-width="3"/>
+    <circle r="83" fill="none" stroke="#9ce7e1" stroke-width="2" opacity=".6"/>
+    <path d="M-26-21q26 12 52 0v40q-26 12-52 0zM-15-2h30" fill="none" stroke="#b3e9d9" stroke-width="5"/>
+    <text x="0" y="50" text-anchor="middle" fill="#e1fff5" font-family="sans-serif" font-size="17" font-weight="bold">03 · CHOICE</text>
+  </g>
+  <g transform="translate(848 245)">
+    <circle r="94" fill="url(#floor)" stroke="#e197c7" stroke-width="3"/>
+    <circle r="83" fill="none" stroke="#f2addc" stroke-width="2" opacity=".6"/>
+    <path d="M-34 12v-34l15 12L0-28l19 18 15-12v34zM-34 19h68" fill="none" stroke="#f8b1d8" stroke-width="5" stroke-linejoin="round"/>
+    <text x="0" y="50" text-anchor="middle" fill="#ffe7f5" font-family="sans-serif" font-size="17" font-weight="bold">04 · CURATOR</text>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle" font-size="13" fill="#d7cde9">
+    <text x="128" y="376">Whispering Stacks</text><text x="368" y="376">Broken Index</text><text x="608" y="376">Quiet Alcove</text><text x="848" y="376">The Last Page</text>
+    <text x="128" y="399">Seeded encounter</text><text x="368" y="399">Seeded encounter</text><text x="608" y="399">Heal · scroll · Rune</text><text x="848" y="399">Guardian and payout</text>
+  </g>
+  <g fill="#a7a1c8" font-family="sans-serif" text-anchor="middle" font-size="12">
+    <text x="128" y="432">↙ Return gate</text><text x="368" y="432">↙ Return gate</text><text x="608" y="432">↙ Return gate</text><text x="848" y="432">↙ Return gate</text>
+  </g>
+  <text x="500" y="476" text-anchor="middle" fill="#9c93b9" font-family="sans-serif" font-size="12">Route diagram generated from room and portal data · Visual game capture pending browser access</text>
+</svg>

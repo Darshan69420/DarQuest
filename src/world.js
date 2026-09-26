@@ -8,7 +8,7 @@ import {
 import { NODE_TYPES, STATION_TYPES } from './skills.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, WAYSTONES } from './data.js';
 import { buildEmberfall, buildMeadow, buildDragonspire, buildWordWalls, buildHomestead, buildGlacier, buildStormspire, buildThornwood, buildHollowDeep } from './maps.js';
-import { settings, keyFor, QUALITY, onSettings } from './settings.js';
+import { settings, keyFor, QUALITY, onSettings, setSetting } from './settings.js';
 import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
@@ -43,6 +43,12 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 // Scratch objects reused every frame so the hot loop doesn't allocate.
 const _projV = new THREE.Vector3(), _floaterV = new THREE.Vector3(), _shakeV = new THREE.Vector3(), _zeroV = new THREE.Vector3();
 const _labelOut = {}, _floaterOut = {};
+// Writes a label's style only when something changed: the DOM is the slow part of labels.
+function setLabel(l, display, transform, opacity) {
+  if (l._d !== display) { l.el.style.display = display; l._d = display; }
+  if (transform !== undefined && l._t !== transform) { l.el.style.transform = transform; l._t = transform; }
+  if (opacity !== undefined && l._o !== opacity) { l.el.style.opacity = opacity; l._o = opacity; }
+}
 // Shortest signed angle from b to a.
 export const angDiff = (a, b) => ((a - b + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
@@ -535,6 +541,7 @@ export class World {
       uid: this.enemyUid, def, model, label, home: V(x, 0, z), wanderR, baseScale: model.scale.x,
       state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0, noRespawn: temporary,
     };
+    label.enemy = e;
     this.enemies.push(e);
     return e;
   }
@@ -1073,17 +1080,48 @@ export class World {
   updateLabels() {
     const tmp = V(), s = _labelOut;
     const showWorld = this.mode === 'explore';
+    const shown = this._shown || (this._shown = []);
+    shown.length = 0;
     for (const l of this.labels) {
-      if (!showWorld || !l.obj.visible || l.obj.userData.culled) { l.el.style.display = 'none'; continue; }
+      if (!showWorld || !l.obj.visible || l.obj.userData.culled) { setLabel(l, 'none'); continue; }
       l.obj.getWorldPosition(tmp);
       const dist = tmp.distanceTo(this.camera.position);
-      if (dist > 45) { l.el.style.display = 'none'; continue; }
+      if (dist > 45) { setLabel(l, 'none'); continue; }
       tmp.y += l.y;
       this.projectToScreen(tmp, s);
-      if (!s.visible) { l.el.style.display = 'none'; continue; }
-      l.el.style.display = '';
-      l.el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
-      l.el.style.opacity = dist > 35 ? String(1 - (dist - 35) / 10) : '1';
+      if (!s.visible) { setLabel(l, 'none'); continue; }
+      const e = l.enemy;
+      // who matters most: your target, then whoever is fighting you, then the rest by distance
+      const pri = e ? (e === this.targetEntity ? 0 : e.state === 'aggro' ? 1 : 2) : 1;
+      shown.push({ l, x: s.x, y: s.y, dist, pri });
+    }
+    shown.sort((a, b) => a.pri - b.pri || a.dist - b.dist);
+    // your own wizard: labels drawn over the hat fade away
+    let me = null;
+    if (this.player) {
+      tmp.copy(this.player.position); tmp.y += (this.player.userData.height || 2.4) * 0.7;
+      this.projectToScreen(tmp, s);
+      if (s.visible) me = { x0: s.x - 38, x1: s.x + 38, y0: s.y - 50, y1: s.y + 40 };
+    }
+    const placed = this._placed || (this._placed = []);
+    placed.length = 0;
+    let idle = 0;
+    for (const it of shown) {
+      const l = it.l;
+      // a crowd of idle foes: only the nearest few keep their names up
+      if (l.enemy && it.pri === 2 && ++idle > 6) { setLabel(l, 'none'); continue; }
+      if (!l.w) { setLabel(l, ''); l.w = l.el.offsetWidth || 110; l.h = l.el.offsetHeight || 30; }
+      // lift it just above whatever is in the way (twice at most); if it still collides, fade it
+      const overlap = (yy) => placed.find(r => Math.abs(r.x - it.x) < (r.w + l.w) / 2 - 4 && yy > r.y - r.h && yy - l.h < r.y);
+      let y = it.y, hit = overlap(y);
+      for (let tries = 0; hit && tries < 2; tries++) { y = hit.y - hit.h - 2; hit = overlap(y); }
+      const crowded = !!hit;
+      if (crowded) y = it.y;
+      placed.push({ x: it.x, y, w: l.w, h: l.h });
+      let op = it.dist > 35 ? 1 - (it.dist - 35) / 10 : 1;
+      if (crowded) op *= 0.35;
+      if (me && it.x + l.w / 2 > me.x0 && it.x - l.w / 2 < me.x1 && y > me.y0 && y - l.h < me.y1 && it.pri > 0) op *= 0.3;
+      setLabel(l, '', `translate(${Math.round(it.x)}px, ${Math.round(y)}px) translate(-50%, -100%)`, op > 0.97 ? '1' : op.toFixed(2));
     }
     this.floaters = this.floaters.filter(f => {
       f.t += this.dt;
@@ -1562,8 +1600,28 @@ export class World {
     this.hemi.color.lerp(a.hemi, k);
   }
 
+  // Keep it smooth: when the frame rate stays under 30 for about 8 seconds, draw fewer pixels
+  // (big on Retina screens), then drop a quality level. It never raises it again by itself.
+  autoQuality(real) {
+    if (settings.autoQuality === false || this.mode !== 'explore' || navigator.webdriver || document.hidden) { this.aqT = 0; this.aqN = 0; return; }
+    this.aqT = (this.aqT || 0) + real;
+    this.aqN = (this.aqN || 0) + 1;
+    if (this.aqT < 4) return;
+    const fps = this.aqN / this.aqT;
+    this.aqT = 0; this.aqN = 0;
+    if (fps >= 30) { this.aqSlow = 0; return; }
+    if (++this.aqSlow < 2) return;
+    this.aqSlow = 0;
+    const ratio = this.renderer.getPixelRatio();
+    if (ratio > 1.01) { this.renderer.setPixelRatio(Math.max(1, ratio - 0.25)); this.resize(); return; }
+    const next = { high: 'medium', medium: 'low' }[settings.quality];
+    if (next) { setSetting('quality', next); this.onAutoQuality?.(QUALITY[next].label); }
+  }
+
   frame() {
-    const real = Math.min(0.05, this.clock.getDelta());
+    const raw = this.clock.getDelta();
+    const real = Math.min(0.05, raw);
+    this.autoQuality(Math.min(raw, 0.5));
     this.update(real);
     if (this.composer) {
       // ease the grade toward the current land's look

@@ -367,7 +367,7 @@ export const ENEMIES = {
   lane_wraith: {
     name: 'Lane Wraith', school: 'umbral', level: 6, hp: 540, xp: 150, gold: [14, 24], model: 'shade', night: true,
     spells: ['shade_bite', 'shade_bite', 'wither'], resist: { umbral: 0.4 }, boost: { arcane: 0.2 },
-    speed: 2.6, aggro: 8,
+    speed: 2.6, aggro: 6,
     drops: [{ item: 'starweave_cloak', chance: 0.05 }, { mat: 'moonleaf', chance: 0.4, n: 2 }],
   },
   meadow_wisp: {
@@ -752,7 +752,6 @@ export const SPAWNS = [
   { enemy: 'cinder_rat', x: -4, z: 75, r: 4 },
   { enemy: 'cinder_rat', x: 3,  z: 80, r: 4 },
   { enemy: 'cinder_rat', x: -3, z: 86, r: 4 },
-  { enemy: 'cinder_rat', x: 5,  z: 90, r: 4 },
   { enemy: 'frost_wisp', x: -4, z: 88, r: 4 },
   { enemy: 'frost_wisp', x: 4,  z: 94, r: 4 },
   { enemy: 'frost_wisp', x: -2, z: 100, r: 4 },
@@ -1003,7 +1002,7 @@ export const QUESTS = [
   },
   {
     id: 'q4', name: 'A Chill in the Air', giver: 'brannoc', turnIn: 'brannoc',
-    objective: { type: 'use', kind: 'lamp', goal: 'Thaw the frozen lamps', label: 'thaw the lamp', verb: 'Thawing the lamp', spots: [[-6, 86], [6, 86], [-6, 102], [6, 98]], ambush: { enemy: 'frost_wisp', count: 1, on: [2, 4] } },
+    objective: { type: 'use', kind: 'lamp', goal: 'Thaw the frozen lamps', label: 'thaw the lamp', verb: 'Thawing the lamp', spots: [[-7.5, 84], [7.5, 89], [-7.5, 99], [7.5, 103]], ambush: { enemy: 'frost_wisp', count: 1, on: [2, 4] } },
     offer: 'Further down the lane, Frostbitten Wisps have frozen the lamp posts solid, and the dark is creeping in. Thaw all 4 frozen lamps. The wisps will not like it one bit.',
     done: 'The lamps are glowing again, from the gate to the crypt door. Walk the lane tonight and you can watch your own work shine.',
     reward: { xp: 200, gold: 50 },

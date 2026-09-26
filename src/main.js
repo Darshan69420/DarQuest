@@ -665,6 +665,11 @@ const gatherer = new Gatherer({
 // Later systems (dungeons, shouts, building...) can add their own interactables and NPC services.
 const extraServices = [];
 
+world.onAutoQuality = (label) => UI.toast(`🖥️ Graphics set to <b>${label}</b> to keep things smooth. Change it in Settings → Graphics.`, 'quest');
+
+// Foes near an objective you still have to reach stay down until you are done with it.
+combat.holdRespawn = (e) => !!objectives.targets()?.some(s => Math.hypot(s.x - e.home.x, s.z - e.home.z) < 15);
+
 // Quest objectives beyond fighting: using things, holding ground and finding places.
 const objectives = new Objectives(world, combat, {
   player: () => player,
@@ -1178,7 +1183,9 @@ function setNight(on) {
   if (on) {
     nightFoes = NIGHT_SPAWNS.map(sp => world.addEnemy(ENEMIES[sp.enemy], sp.x, sp.z, sp.r));
     for (const e of nightFoes) combat.initEnemy(e);
-    if (player && zoneAt(world.player.position.x) === 'academy') UI.toast('🌙 Night falls. Spirits drift through Hollow Lane and the meadow… (foes give +15% XP at night)', 'quest');
+    // the first time, the Night falls hint card says it (and more); after that, a toast
+    const hintComing = settings.hints !== false && !player?.hints?.night && !player?.hints?._old && player?.level >= 2;
+    if (player && !hintComing && zoneAt(world.player.position.x) === 'academy') UI.toast('🌙 Night falls. Spirits drift through Hollow Lane and the meadow… (foes give +15% XP at night)', 'quest');
   } else {
     for (const e of nightFoes) if (world.enemies.includes(e)) { world.defeat(e.model); setTimeout(() => { if (world.enemies.includes(e)) world.removeEnemy(e); }, 1000); e.state = 'dead'; }
     nightFoes = [];

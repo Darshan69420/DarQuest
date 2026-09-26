@@ -7,6 +7,7 @@ const touch = () => typeof matchMedia === 'function' && matchMedia('(pointer: co
 
 // when(c): should it appear now? done(c, t): has the player got it? (t = seconds on screen)
 // urgent hints push a calmer one aside; it comes back later.
+// combat: may show during a fight · near: only while you are close to the thing it is about
 export const HINTS = [
   {
     id: 'move', icon: '🧭', title: 'Getting around',
@@ -17,19 +18,19 @@ export const HINTS = [
     done: (c, t) => c.walked > 10 || t > 45,
   },
   {
-    id: 'dodge', icon: '⚠️', title: 'Danger on the ground!', urgent: true,
+    id: 'dodge', combat: true, icon: '⚠️', title: 'Danger on the ground!', urgent: true,
     text: () => `Red on the ground means a big attack is coming. Step out of it, or ${touch() ? 'tap 💨' : `press ${k('dodge')}`} to dodge-roll through it.`,
     when: (c) => c.danger,
     done: (c, t) => t > 8,
   },
   {
-    id: 'potion', icon: '🧪', title: 'Health is low', urgent: true,
+    id: 'potion', combat: true, icon: '🧪', title: 'Health is low', urgent: true,
     text: () => `${touch() ? 'Tap 🧪' : `Press ${k('potion')}`} to drink a potion. Fountains like the Wellspring heal you for free, and Madame Fizz sells more potions.`,
     when: (c) => c.inCombat && c.hp < 0.45 && c.p.potions > 0,
     done: (c, t) => c.hp > 0.7 || t > 10,
   },
   {
-    id: 'fight', icon: '✨', title: 'Casting spells',
+    id: 'fight', combat: true, icon: '✨', title: 'Casting spells',
     text: () => touch()
       ? 'Tap the first spell button to attack your target, and tap a foe to target it. The other buttons cast the spells on your bar, which use mana (the blue bar).'
       : `Press ${k('slot1')} to attack your target. <span class="nw">${k('slot2')}–${k('slot5')}</span> cast the spells on your bar, which use mana (the blue bar). ${k('target')} picks the next foe.`,
@@ -43,19 +44,19 @@ export const HINTS = [
     done: (c, t) => t > 11,
   },
   {
-    id: 'marker', icon: '❗', title: 'Someone needs you',
+    id: 'marker', near: true, icon: '❗', title: 'Someone needs you',
     text: () => `A <b>❗</b> over someone's head means they have a quest. A <b>❓</b> means you can hand one in. ${touch() ? 'Tap them' : `Walk up and press ${k('interact')}`} to talk.`,
     when: (c) => c.markerNear,
     done: (c, t) => t > 10 || c.talking,
   },
   {
-    id: 'objective', icon: '✦', title: 'Quest objects',
+    id: 'objective', near: true, icon: '✦', title: 'Quest objects',
     text: () => `Things marked <b>✦</b> are part of your quest. ${touch() ? 'Tap the prompt' : `Walk up and press ${k('interact')}`}, then stand still until the bar fills.`,
     when: (c) => c.useNear,
     done: (c, t) => t > 10,
   },
   {
-    id: 'defend', icon: '🛡️', title: 'Hold your ground',
+    id: 'defend', near: true, icon: '🛡️', title: 'Hold your ground',
     text: () => 'Step into the <b>golden ring</b> to begin, and stay inside until the timer runs out. Leave it for too long and the foes get past!',
     when: (c) => c.ringNear,
     done: (c, t) => t > 11,
@@ -73,13 +74,13 @@ export const HINTS = [
     done: (c, t) => t > 10,
   },
   {
-    id: 'gather', icon: '⛏️', title: 'Gathering',
+    id: 'gather', near: true, icon: '⛏️', title: 'Gathering',
     text: () => `${touch() ? 'Tap the prompt' : `Press ${k('interact')}`} to gather. Your wizard keeps working until the spot runs out. Gathering trains your Skills (${k('skills')}), and materials become food, potions and gear at crafting stations.`,
     when: (c) => c.nodeNear,
     done: (c, t) => t > 12,
   },
   {
-    id: 'portal', icon: '🌀', title: 'A Spiral Door',
+    id: 'portal', near: true, icon: '🌀', title: 'A Spiral Door',
     text: () => `Spiral Doors lead to other lands. ${touch() ? 'Tap the prompt' : `Press ${k('interact')}`} next to one to travel. Locked doors open as your story goes on.`,
     when: (c) => c.portalNear,
     done: (c, t) => t > 10,
@@ -131,6 +132,9 @@ export class Hints {
     if (this.cur) {
       if (!c.paused) this.t += dt;
       if (this.cur.done(c, this.t)) return this.close();
+      // a hint about a place goes when you walk away from it, and a calm one steps aside for a
+      // fight; neither counts as seen, so it comes back when it is useful again
+      if ((this.cur.near && !this.cur.when(c)) || (c.inCombat && !this.cur.combat)) return this.hide();
       if (c.paused || this.cur.urgent) return;
       const urgent = HINTS.find(h => h.urgent && !p.hints[h.id] && h.when(c));
       if (urgent) this.show(urgent);   // the calm one waits its turn
@@ -139,7 +143,7 @@ export class Hints {
     if (c.paused) return;
     this.gap -= dt;
     if (this.gap > 0 && !HINTS.some(h => h.urgent && !p.hints[h.id] && h.when(c))) return;
-    const next = HINTS.find(h => !p.hints[h.id] && h.when(c));
+    const next = HINTS.find(h => !p.hints[h.id] && (!c.inCombat || h.combat) && h.when(c));
     if (next) this.show(next);
   }
 

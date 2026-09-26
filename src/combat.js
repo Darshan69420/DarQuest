@@ -443,6 +443,8 @@ export class Combat {
     if (p.hp <= 0) return;
     if (w.time < w.invulnUntil) { this.dodged(); return; }
     let m = (1 + this.diff.dmg) * (from.def.dmgMult || 1) * (from.power?.dmg || 1) * ferocity(from.def) * (1 + this.rm('taken'));
+    // a new apprentice's cushion while they learn to dodge
+    m *= p.level <= 3 ? 0.75 : p.level <= 5 ? 0.88 : 1;
     if (school === 'blaze' && p.buffs?.dragonward > 0) m *= 0.6;
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
@@ -494,7 +496,8 @@ export class Combat {
     this.clearCast(e);
     if (e.fly) { e.fly = null; e.model.userData.setFlying?.(false); }
     e.mods = mods();
-    e.respawnAt = this.now + (e.def.boss ? 60 : 20);
+    // the early lane's small fry stay down long enough to walk back past them
+    e.respawnAt = this.now + (e.def.boss ? 60 : e.def.level <= 6 ? 60 : 20);
     if (!e.def.boss) this.world.hitStop(0.04);
     this.world.defeat(e.model, { color: SCHOOLS[e.def.school]?.color, boss: e.def.boss });
     this.updateBar(e);
@@ -508,12 +511,16 @@ export class Combat {
     if (e.state !== 'idle' && e.state !== 'return') return;
     e.state = 'aggro';
     e.nextAttack = Math.max(e.nextAttack, this.now + rand(0.3, 0.9));
-    // friends nearby join in
-    for (const o of this.world.enemies) {
-      if (o !== e && o.state === 'idle' && flat(o.model.position, e.model.position) < 7) {
-        o.state = 'aggro';
-        o.nextAttack = this.now + rand(0.5, 1.5);
-      }
+    // friends nearby join in: for early foes only the closest couple, so one pull stays one fight
+    const lvl = e.def.level || 1;
+    const reach = lvl <= 3 ? 4 : lvl <= 8 ? 5.5 : 7;
+    const friends = this.world.enemies
+      .filter(o => o !== e && o.state === 'idle' && flat(o.model.position, e.model.position) < reach)
+      .sort((a, b) => flat(a.model.position, e.model.position) - flat(b.model.position, e.model.position))
+      .slice(0, lvl <= 8 ? 2 : 99);
+    for (const o of friends) {
+      o.state = 'aggro';
+      o.nextAttack = this.now + rand(0.5, 1.5);
     }
   }
 
@@ -859,7 +866,11 @@ export class Combat {
     for (const e of w.enemies) {
       if (e.hp === undefined) this.initEnemy(e);
       if (e.state === 'dead') {
-        if (!e.noRespawn && t > e.respawnAt) { w.respawnEnemy(e); this.initEnemy(e); }
+        if (!e.noRespawn && t > e.respawnAt) {
+          // never pop back in under your nose, or next to the quest you are busy with
+          if (flat(e.home, pp) < 14 || this.holdRespawn?.(e)) e.respawnAt = t + 4;
+          else { w.respawnEnemy(e); this.initEnemy(e); }
+        }
         else if (e.noRespawn && !e.def.rift && t > e.respawnAt - 15) gone.push(e);
         continue;
       }
@@ -868,7 +879,9 @@ export class Combat {
       const speed = e.def.speed * this.diff.speed * (e.slowUntil > t ? 1 - e.slowAmt : 1);
       if (e.state === 'idle') {
         this.wander(e, dt);
-        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
+        // foes four or more levels below you leave you alone unless you start it
+        const outclassed = !e.def.boss && p.level - (e.power?.level ?? e.def.level ?? 1) >= 4;
+        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil && !outclassed) this.aggro(e);
       } else if (e.state === 'return') {
         const home = flat(e.model.position, e.home);
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.5 * dt);

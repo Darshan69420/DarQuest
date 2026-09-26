@@ -47,6 +47,7 @@ const DEFAULTS = {
   hints: true,            // tutorial hint cards the first time you meet something new
   beacon: true,           // a beam of light over wherever your quest leads
   postfx: true,           // bloom, vignette and colour grading (Medium and High quality)
+  autoQuality: true,      // steps graphics down by itself if the frame rate stays low
   worldScaling: false,    // foes everywhere grow with your level (always on in New Game+)
   uiScale: 1,             // size of menus, the HUD and text
   colorblind: false,      // danger zones in amber with bold edges instead of red

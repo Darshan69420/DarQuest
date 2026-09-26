@@ -905,24 +905,41 @@ export class World {
 
   get mounted() { return !!this.mountModel; }
 
-  // Pulls a camera position toward `from` until it is over open ground, so the
-  // camera never ends up inside a house, cliff or tree.
-  safeCam(from, to) {
-    let best = from.clone();
-    const p = V();
-    for (let i = 1; i <= 14; i++) {
-      p.lerpVectors(from, to, i / 14);
-      if (!this.walkable(p.x, p.z)) break;
-      best.copy(p);
+  // Open ground as far as the camera is concerned: walls, cliffs and buildings stop it, but
+  // people, lamp posts, trees and furniture (small colliders) never push it in.
+  camClear(x, z) {
+    const zone = ZONES[zoneAt(x)];
+    if (zone.walk) { if (!this[zone.walk]?.(x, z)) return false; }
+    else if (!zone.regions.some(r => r.type === 'circle'
+      ? (x - r.x) ** 2 + (z - r.z) ** 2 < r.r * r.r
+      : x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1)) return false;
+    for (const c of this.colliders) if (c.r >= 2 && (x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return false;
+    return true;
+  }
+
+  // How much of its full distance (0.3 to 1) the camera can back away from the wizard
+  // before something big is in the way.
+  camReach(to) {
+    const p = this.player.position;
+    for (let i = 1; i <= 16; i++) {
+      const k = i / 16;
+      if (!this.camClear(p.x + (to.x - p.x) * k, p.z + (to.z - p.z) * k)) return Math.max(0.3, (i - 1) / 16);
     }
-    best.y = to.y;
-    return best;
+    return 1;
+  }
+
+  // The follow position pulled in toward the wizard by `fit`, keeping the same angle down
+  // (the height shrinks with the distance), so a wall behind you never flips to a top-down view.
+  fitCam(pos, fit) {
+    const p = this.player.position, head = p.y + 1.4;
+    return V(p.x + (pos.x - p.x) * fit, head + (pos.y - head) * fit, p.z + (pos.z - p.z) * fit);
   }
 
   snapCamera() {
     if (!this.player) return;
     const { pos, look } = this.followCam();
-    this.camera.position.copy(this.safeCam(look, pos));
+    this.camFit = ZONES[zoneAt(this.player.position.x)].freeCam ? 1 : this.camReach(pos);
+    this.camera.position.copy(this.fitCam(pos, this.camFit));
     this.camera.lookAt(look);
   }
 
@@ -1627,7 +1644,11 @@ export class World {
       this.camera.lookAt(look);
     } else {
       ({ pos, look } = this.followCam());
-      if (!ZONES[zoneAt(this.player.position.x)].freeCam) pos = this.safeCam(look, pos);
+      // pull in quickly when something big is behind you, ease back out slowly
+      const want = ZONES[zoneAt(this.player.position.x)].freeCam ? 1 : this.camReach(pos);
+      const fit = this.camFit ?? want;
+      this.camFit = want < fit ? Math.max(want, fit - dt * 6) : Math.min(want, fit + dt * 0.9);
+      pos = this.fitCam(pos, this.camFit);
       this.camera.position.lerp(pos, 1 - Math.exp(-7 * dt));
       this.camera.lookAt(look);
     }

@@ -116,7 +116,10 @@ function showNewGame(i) {
   newSlot = i;
   $('#ng-slot').textContent = `Slot ${i + 1}`;
   $('.new-game').classList.remove('hidden');
-  $('.new-game').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // the form takes the slot list's place instead of opening underneath it
+  $('#title').classList.add('ng-open');
+  $('#title').scrollTop = 0;
+  $('#hero-name').focus({ preventScroll: true });
 }
 
 function buildTitle() {
@@ -170,7 +173,7 @@ function buildTitle() {
     setSlot(newSlot);
     startGame(newPlayer(name, chosen, difficulty), true);
   });
-  $('#ng-cancel').addEventListener('click', () => $('.new-game').classList.add('hidden'));
+  $('#ng-cancel').addEventListener('click', () => { $('.new-game').classList.add('hidden'); $('#title').classList.remove('ng-open'); });
   $('#title-settings').addEventListener('click', () => UI.openSettings());
   $('#title-wallet').addEventListener('click', () => openWallet());
   $('#title-import').addEventListener('click', async () => {
@@ -195,6 +198,8 @@ function buildTitle() {
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
+  $('.new-game')?.classList.add('hidden');
+  $('#title')?.classList.remove('ng-open');
   if (p.pos && ['rift', 'arena', 'undercroft'].includes(zoneAt(p.pos.x))) p.pos = null;
   if (p.rift?.run) {
     const kept = Math.floor((p.rift.run.shards || 0) / 2);
@@ -1340,6 +1345,8 @@ function rewardKill(e) {
 
 async function playerDefeated() {
   world.mode = 'locked';
+  player.hp = 0;
+  UI.updateHUD(player);   // the bar reads 0 on the Defeated screen, not the last value it drew
   objectives.reset();
   Audio.sfx('defeat');
   const diff = DIFFICULTIES[player.difficulty];
@@ -1529,6 +1536,7 @@ window.addEventListener('keydown', (e) => {
   if (!player || e.target instanceof HTMLInputElement) return;
   Audio.initAudio();
   if (e.code === 'Escape') {
+    if (UI.finishTyping()) return;   // first press shows the whole line, the second closes it
     if (UI.isDialogOpen()) { UI.closeModal(); UI.closeDialog(); }
     else if (world.mode === 'explore') openGameMenu();
     return;

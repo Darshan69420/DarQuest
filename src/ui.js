@@ -1,5 +1,5 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
-import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN, PLAYABLE_SCHOOLS, resistCut } from './data.js';
+import { SCHOOLS, SPELLS, describe, isBasic, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN, PLAYABLE_SCHOOLS, resistCut } from './data.js';
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, ARCH_XP } from './state.js';
 import { petProgress, petPower, PET_MAX } from './pets.js';
 import { settings, setSetting, resetSettings, ACTIONS, keyFor, keyLabel, bindKey, resetKeys, QUALITY } from './settings.js';
@@ -20,10 +20,11 @@ export function esc(s) {
 // A spell tile: mana cost in the corner, cooldown at the bottom.
 export function cardHTML(spell, { extra = '', cls = '', basic = false } = {}) {
   const school = SCHOOLS[spell.school];
+  basic ||= isBasic(spell);
   const cost = basic ? 0 : spellCost(spell);
   const cd = basic ? BASIC_COOLDOWN : spellCooldown(spell);
   return `<div class="card school-${spell.school} ${cls}" style="--sc:${school.css}" data-spell="${spell.id}">
-    <div class="card-pips" title="Mana cost">${cost}</div>
+    ${basic ? '<div class="card-pips free" title="No mana cost">Free</div>' : `<div class="card-pips" title="Mana cost">${cost}</div>`}
     <div class="card-icon">${school.icon}</div>
     <div class="card-name">${esc(spell.name)}</div>
     <div class="card-desc">${esc(describe(spell))}</div>
@@ -191,20 +192,33 @@ export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
 export function closeDialog() {
   $('#dialog').classList.add('hidden');
   dialogOpen = false;
+  typing = null;
+}
+
+// The line being typed out, if any. Esc or a click finishes it before anything closes.
+let typing = null;
+export function finishTyping() {
+  if (!typing || !dialogOpen) return false;
+  typing.finish();
+  return true;
 }
 
 function typewriter(el, text) {
   let i = 0;
   el.textContent = '';
+  const me = { finish: () => { i = text.length; el.textContent = text; typing = null; } };
+  typing = me;
   const tick = () => {
-    if (!el.isConnected) return;
+    if (!el.isConnected || typing !== me) return;
     i = Math.min(text.length, i + 2);
     el.textContent = text.slice(0, i);
     if (i < text.length) requestAnimationFrame(tick);
+    else typing = null;
   };
   tick();
-  el.addEventListener('click', () => { i = text.length; el.textContent = text; }, { once: true });
 }
+// a click anywhere on the dialog (not its buttons) shows the whole line at once
+document.addEventListener('click', (e) => { if (typing && e.target.closest?.('#dialog') && !e.target.closest('button')) finishTyping(); });
 
 // ------------------------------------------------------------ modals
 
@@ -213,7 +227,9 @@ export function openModal(title, bodyHTML, onMount, onClose) {
   const el = $('#modal');
   if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
   modalOnClose = onClose || null;
-  el.innerHTML = `<div class="modal-box">
+  // switching tabs re-opens the window: only pop it in the first time
+  const reopening = !el.classList.contains('hidden');
+  el.innerHTML = `<div class="modal-box${reopening ? ' still' : ''}">
     <div class="modal-head"><h2>${title}</h2><button class="btn close" aria-label="Close">✕</button></div>
     <div class="modal-body">${bodyHTML}</div></div>`;
   el.classList.remove('hidden');
@@ -638,7 +654,7 @@ export function openHelp() {
     <p>Each level gives a <b>talent point</b> (C → Talents). Every school has three branches of five talents, ending in a powerful capstone. Pets follow you around and cast spells to help whenever you are fighting.</p>
     <h3>Combat</h3>
     <p>Fights happen right in the world. Get close to an enemy and it will attack. Its friends nearby join in!</p>
-    <p><b>1</b> is your free basic attack. <b>2–5</b> are the spells on your spell bar: they cost mana (💧) and have cooldowns. Change them in your spellbook (<b>B</b>) and learn new ones from Mirabel.</p>
+    <p><b>1</b> is your free basic attack: no mana, and it recharges in about a second. <b>2–5</b> are the spells on your spell bar: they cost mana (💧) and have cooldowns. Change them in your spellbook (<b>B</b>) and learn new ones from Mirabel.</p>
     <p>Spells lock onto your target (red ring). <b>Tab</b> or clicking an enemy picks a target, otherwise you aim at the nearest one.</p>
     <p><b>Space</b> dodges. Enemies wind up big attacks (watch the orange cast bar and ⚠️), and a well-timed dodge makes you untouchable for a moment.</p>
     <p><b>Red on the ground means danger!</b> Circles, cones and lines fill up before they go off. Step out of them, or dodge through at the last moment. Some bosses have rings where the safest place is right next to them.</p>

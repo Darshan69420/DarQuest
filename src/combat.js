@@ -34,6 +34,8 @@ export class Combat {
     this.p = null;
     this.hero = mods();
     this.ready = {};        // spell id -> time it is ready again
+    this.nagAt = {};        // spell id -> when "not ready" may be said again
+    this.queued = null;     // { slot, at } a press that came a moment early
     this.gcd = 0;
     this.dodgeReady = 0;
     this.potionReady = 0;
@@ -140,8 +142,16 @@ export class Combat {
     if (t < this.etherealUntil) return this.onMessage?.('You are ethereal and cannot attack');
     const basic = slot === 0;
     const cost = basic ? 0 : Math.round(spellCost(spell) * (1 + this.rm('cost')));
-    if (t < this.gcd) return;
-    if ((this.ready[spell.id] || 0) > t) return this.onMessage?.(`${spell.name} isn't ready yet`);
+    const readyAt = Math.max(this.gcd, this.ready[spell.id] || 0);
+    if (readyAt > t) {
+      // pressed a moment early: cast it the instant it is ready
+      if (readyAt - t < 0.6) { this.queued = { slot, at: t }; return; }
+      // the basic attack never nags; other spells say so at most every few seconds
+      if (basic || t < this.gcd || (this.nagAt[spell.id] || 0) > t) return;
+      this.nagAt[spell.id] = t + 2.5;
+      return this.onMessage?.(`${spell.name} isn't ready yet`);
+    }
+    this.queued = null;
     if (this.p.mana < cost) return this.onMessage?.('Not enough mana!');
     let target = null;
     if (OFFENSIVE.has(spell.type)) {
@@ -821,6 +831,11 @@ export class Combat {
     const p = this.p, w = this.world;
     if (!p || !w.player) return;
     const t = this.now;
+    if (this.queued) {
+      const q = this.queued, s = this.slotSpell(q.slot);
+      if (!s || t - q.at > 0.7) this.queued = null;
+      else if (t >= this.gcd && (this.ready[s.id] || 0) <= t) { this.queued = null; this.castSlot(q.slot); }
+    }
     const pp = w.player.position;
     const alivePlayer = p.hp > 0;
 

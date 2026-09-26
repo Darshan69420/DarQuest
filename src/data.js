@@ -233,16 +233,24 @@ export const SPELLS = {
 
 for (const [id, s] of Object.entries(SPELLS)) s.id = id;
 
+// Damage and healing over time tick once a second, two ticks for each of a spell's rounds.
+const secs = (rounds) => `${rounds * 2} seconds`;
+
+// The school's first spell: the free basic attack on key 1.
+export function isBasic(s) {
+  return !!s && s.level === 1 && !s.enemy && !s.pet && Object.values(SPELLS).find(x => x.school === s.school && x.level === 1 && !x.enemy && !x.pet) === s;
+}
+
 export function describe(s) {
   const school = SCHOOLS[s.school].name;
   const all = s.target === 'all' ? ' to all enemies' : '';
   const pct = Math.round((s.pct || 0) * 100);
   switch (s.type) {
-    case 'damage': return `${s.min}–${s.max} ${school} damage${all}` + (s.dot ? `, then ${s.dot.total} over ${s.dot.rounds} rounds` : '');
+    case 'damage': return `${s.min}–${s.max} ${school} damage${all}` + (s.dot ? `, then ${s.dot.total} over ${secs(s.dot.rounds)}` : '');
     case 'drain':  return `${s.min}–${s.max} ${school} damage${all}. Heal ${Math.round(s.heal * 100)}% of it`;
-    case 'dot':    return `${s.total} ${school} damage over ${s.rounds} rounds`;
+    case 'dot':    return `${s.total} ${school} damage over ${secs(s.rounds)}`;
     case 'heal':   return `Heal ${s.amount} health`;
-    case 'hot':    return `Heal ${s.total} over ${s.rounds} rounds`;
+    case 'hot':    return `Heal ${s.total} over ${secs(s.rounds)}`;
     case 'blade':  return `+${pct}% to your next damage spell`;
     case 'shield': return `−${pct}% to the next hit you take`;
     case 'trap':   return `Enemy takes +${pct}% from the next hit`;

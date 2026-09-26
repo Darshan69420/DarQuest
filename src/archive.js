@@ -21,6 +21,15 @@ export const ARCHIVE_RUNES = {
   swift: { name: 'Swift Rune', description: '+15% spell haste until you leave.', stats: { pip: 15 } },
   heart: { name: 'Heart Rune', description: '+120 maximum health until you leave.', stats: { hp: 120 } },
 };
+export const ARCHIVE_EVENTS = [
+  { name: 'The Torn Ledger', bonusGold: 80, line: 'Its loose pages describe the Curator\'s debts.' },
+  { name: 'The Gilded Index', bonusGold: 110, line: 'Gold ink runs through its forbidden index.' },
+  { name: 'The Starless Folio', bonusGold: 140, line: 'Its margins promise a treasure no scholar claimed.' },
+];
+export function archiveEvent(run) {
+  if (!run || !Number.isSafeInteger(run.seed)) return null;
+  return ARCHIVE_EVENTS[((run.seed ^ 0x51f15e) >>> 0) % ARCHIVE_EVENTS.length];
+}
 export function archiveModifier(run, room = run?.room) {
   if (!run || !Number.isSafeInteger(run.seed) || !Number.isInteger(room) || room < 0 || room >= ARCHIVE_ROOMS.length) return null;
   const ids = Object.keys(ARCHIVE_MODIFIERS);
@@ -39,7 +48,7 @@ export function archiveWave(seed, room) {
 }
 export function startArchive(p, seed = Math.floor(Math.random() * 1000000000)) {
   if (p.archive || !Number.isSafeInteger(seed) || seed < 0) return false;
-  p.archive = { seed, room: 0, kills: 0, defeated: [], status: 'active' };
+  p.archive = { seed, room: 0, kills: 0, defeated: [], status: 'active', eventChoice: null };
   return true;
 }
 export function archiveKill(p, index) {
@@ -47,7 +56,15 @@ export function archiveKill(p, index) {
   if (!run || run.status !== 'active' || !archiveWave(run.seed, run.room)[index] || run.defeated.includes(index)) return false;
   run.defeated.push(index);
   run.kills = run.defeated.length;
-  if (run.kills === archiveWave(run.seed, run.room).length) run.status = run.room === 3 ? 'claim' : 'cleared';
+  if (run.kills === archiveWave(run.seed, run.room).length) run.status = run.room === 3 ? 'claim' : run.room === 1 ? 'event' : 'cleared';
+  return true;
+}
+export function chooseArchiveEvent(p, choice) {
+  const run = p.archive;
+  if (!run || run.room !== 1 || run.status !== 'event' ||
+      !['seal', 'plunder'].includes(choice) || run.eventChoice) return false;
+  run.eventChoice = choice;
+  run.status = 'cleared';
   return true;
 }
 export function advanceArchive(p) {
@@ -70,7 +87,8 @@ export function restArchive(p, choice, rune = null) {
 }
 export function claimArchive(p) {
   if (p.archive?.room !== 3 || p.archive.status !== 'claim') return null;
-  const reward = { xp: 420, gold: 175, wins: ++p.archiveWins };
+  const bonusGold = p.archive.eventChoice === 'plunder' ? archiveEvent(p.archive).bonusGold : 0;
+  const reward = { xp: 420, gold: 175 + bonusGold, bonusGold, wins: ++p.archiveWins };
   p.archive = null;
   return reward;
 }
@@ -83,6 +101,9 @@ export function archiveText(p) {
   const run = p.archive;
   if (!run) return '';
   const room = ARCHIVE_ROOMS[run.room];
-  if (run.status === 'active') return `${room.name} · ${run.kills}/${archiveWave(run.seed, run.room).length} foes · ${ARCHIVE_MODIFIERS[archiveModifier(run)].name}${run.rune ? ` · ${ARCHIVE_RUNES[run.rune].name}` : ''}`;
-  return `${room.name} · ${run.status === 'claim' ? 'claim your prize' : run.status === 'rest' ? 'choose a respite' : 'door open'}${run.rune ? ` · ${ARCHIVE_RUNES[run.rune].name}` : ''}`;
+  const decision = run.eventChoice === 'seal' ? ' · Curator weakened' :
+    run.eventChoice === 'plunder' ? ` · Risk +${archiveEvent(run).bonusGold} gold` : '';
+  const rune = run.rune ? ` · ${ARCHIVE_RUNES[run.rune].name}` : '';
+  if (run.status === 'active') return `${room.name} · ${run.kills}/${archiveWave(run.seed, run.room).length} foes · ${ARCHIVE_MODIFIERS[archiveModifier(run)].name}${decision}${rune}`;
+  return `${room.name} · ${run.status === 'claim' ? 'claim your prize' : run.status === 'rest' ? 'choose a respite' : run.status === 'event' ? 'decide the Folio\'s fate' : 'door open'}${decision}${rune}`;
 }

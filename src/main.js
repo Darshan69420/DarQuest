@@ -13,7 +13,7 @@ import {
   recalc, scrollCount, giveScroll,
 } from './state.js';
 import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
-import { ARCHIVE_X, ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveWave, archiveModifier, archiveRuneChoices, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, endArchive, archiveText } from './archive.js';
+import { ARCHIVE_X, ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveWave, archiveModifier, archiveRuneChoices, archiveEvent, chooseArchiveEvent, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, endArchive, archiveText } from './archive.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -108,7 +108,7 @@ function refresh() {
   world.setNpcMarker('riftkeeper', player.rift?.status === 'choice' || player.rift?.status === 'claim' ? '?' : '');
   for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock ||
     (pt.id.startsWith('archive_door_') && (player.archive?.room !== Number(pt.id.slice(-1)) ||
-      !['cleared', 'claim'].includes(player.archive.status))));
+      player.archive.status === 'active')));
 }
 
 function showZoneName(zone) {
@@ -328,6 +328,25 @@ function showArchiveDoor(room, portal) {
   if (!run || run.room !== room) return UI.dialog('Sealed Chapter', 'The Archive', 'These pages belong to another chamber.');
   if (run.status === 'active') return UI.dialog('Sealed Chapter', 'The Archive',
     `The seal holds until you defeat the remaining ${archiveWave(run.seed, room).length - run.kills} foe(s).`);
+  if (run.status === 'event') {
+    const folio = archiveEvent(run);
+    return UI.dialog(folio.name, 'The Second Chamber',
+      `${folio.line} Seal the Folio to weaken the Curator by 20%, or take its secret for ${folio.bonusGold} extra gold upon victory while the Curator deals 25% more damage. Your decision lasts for this expedition.`, [
+        { label: 'Seal the Folio · weaker guardian', primary: true, action: () => {
+          if (!chooseArchiveEvent(player, 'seal')) return;
+          world.aura(world.player, 0x9ce7e1);
+          UI.toast('📖 Folio sealed. The Curator is weakened.', 'good');
+          refresh(); save(player);
+        } },
+        { label: `Take the secret · +${folio.bonusGold} gold on victory`, action: () => {
+          if (!chooseArchiveEvent(player, 'plunder')) return;
+          world.aura(world.player, 0xe2a5bc);
+          UI.toast('📖 Secret taken. The Curator hits harder.', 'quest');
+          refresh(); save(player);
+        } },
+        { label: 'Decide later' },
+      ]);
+  }
   if (run.status === 'rest') return UI.dialog('Quiet Alcove', 'Choose your respite',
     'Choose once. Rest for health and mana, take a scroll, or bind one of two runes until you leave the Archive.', [
       { label: 'Rest and recover', primary: true, action: () => {

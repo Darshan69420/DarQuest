@@ -49,7 +49,8 @@ export class Combat {
 
   initEnemy(e) {
     const modifier = e.dungeon ? archiveModifier(this.p?.archive) : null;
-    e.maxHp = Math.round(e.def.hp * this.diff.hp * (modifier === 'fragile' ? 0.8 : 1));
+    const sealed = e.dungeon && e.def.id === 'archive_curator' && this.p?.archive?.eventChoice === 'seal';
+    e.maxHp = Math.round(e.def.hp * this.diff.hp * (modifier === 'fragile' ? 0.8 : 1) * (sealed ? 0.8 : 1));
     e.hp = e.maxHp;
     e.mods = mods();
     e.cd = {};
@@ -342,6 +343,7 @@ export class Combat {
       const modifier = archiveModifier(p.archive);
       if (modifier === 'fragile') m *= 1.2;
       if (modifier === 'resonance') m *= 1.15;
+      if (from.def.id === 'archive_curator' && p.archive?.eventChoice === 'plunder') m *= 1.25;
     }
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;

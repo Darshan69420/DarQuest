@@ -591,7 +591,7 @@ export const PORTALS = [
   { id: 'portal_archive_in', name: 'Archive Gate', x: 26, z: -10, to: { x: 1400, z: -6, heading: 0 }, dest: 'Shattered Archive', unlock: 7 },
   ...[0, 1, 2, 3].map(room => ({ id: `portal_archive_out_${room}`, name: 'Return Gate', x: 1400, z: room * 36 - 8,
     to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 })),
-  ...[0, 1, 2].map(room => ({ id: `archive_door_${room}`, name: 'Sealed Chapter', x: 1400, z: room * 36 + 8, to: { x: 1400, z: (room + 1) * 36 - 7, heading: 0 }, dest: 'the next chamber', unlock: 0 })),
+  ...[0, 1, 2].map(room => ({ id: `archive_door_${room}`, name: room === 1 ? 'Folio Gate' : room === 2 ? 'Respite Gate' : 'Sealed Chapter', x: 1400, z: room * 36 + 8, to: { x: 1400, z: (room + 1) * 36 - 7, heading: 0 }, dest: 'the next chamber', unlock: 0 })),
   { id: 'archive_door_3', name: 'Final Chapter', x: 1400, z: 116, to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 },
 ];
 

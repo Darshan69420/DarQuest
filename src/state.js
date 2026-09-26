@@ -44,13 +44,18 @@ function upgrade(p) {
   p.riftWins ??= 0;
   p.archiveWins ??= 0;
   p.archive ??= null;
+  if (p.archive) p.archive.eventChoice ??= null;
   if (p.archive && (!Number.isSafeInteger(p.archive.seed) || p.archive.seed < 0 ||
       !Number.isInteger(p.archive.room) || p.archive.room < 0 || p.archive.room > 3 ||
-      !['active', 'cleared', 'rest', 'claim'].includes(p.archive.status) ||
+      !['active', 'cleared', 'event', 'rest', 'claim'].includes(p.archive.status) ||
       !Array.isArray(p.archive.defeated) || !p.archive.defeated.every(i => Number.isInteger(i) && i >= 0 && i < 3) ||
       new Set(p.archive.defeated).size !== p.archive.defeated.length ||
       p.archive.defeated.some(i => i >= archiveWave(p.archive.seed, p.archive.room).length) ||
       p.archive.kills !== p.archive.defeated.length ||
+      (p.archive.eventChoice != null && (!['seal', 'plunder'].includes(p.archive.eventChoice) || p.archive.room < 1 ||
+        (p.archive.room === 1 && p.archive.status !== 'cleared'))) ||
+      (p.archive.status === 'event' && (p.archive.room !== 1 || p.archive.eventChoice != null ||
+        p.archive.kills !== archiveWave(p.archive.seed, 1).length)) ||
       (p.archive.rune != null && (p.archive.room < 2 || !archiveRuneChoices(p.archive).includes(p.archive.rune))) ||
       (p.archive.status === 'rest' && p.archive.rune != null) ||
       (p.archive.room === 2 && !['rest', 'cleared'].includes(p.archive.status)) ||

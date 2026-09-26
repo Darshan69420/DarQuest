@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { newPlayer, save, load, recalc } from '../src/state.js';
 import { ENEMIES, PORTALS, ZONES, zoneAt } from '../src/data.js';
 import { Combat } from '../src/combat.js';
-import { ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, archiveModifier, archiveRuneChoices, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, endArchive } from '../src/archive.js';
+import { ARCHIVE_ROOMS, ARCHIVE_MODIFIERS, ARCHIVE_RUNES, ARCHIVE_EVENTS, archiveModifier, archiveRuneChoices, archiveEvent, archiveWave, startArchive, archiveKill, chooseArchiveEvent, advanceArchive, restArchive, claimArchive, endArchive } from '../src/archive.js';
 
 test('all seeded encounters use real foes and reachable rooms', () => {
   for (let seed = 0; seed < 1200; seed++) {
@@ -21,6 +21,12 @@ test('all seeded encounters use real foes and reachable rooms', () => {
           assert.equal(archiveKill(p, i), true);
           assert.equal(archiveKill(p, i), false);
         }
+      }
+      if (room === 1) {
+        assert.equal(p.archive.status, 'event');
+        assert.equal(advanceArchive(p), false);
+        assert.equal(chooseArchiveEvent(p, seed % 2 ? 'seal' : 'plunder'), true);
+        assert.equal(chooseArchiveEvent(p, 'seal'), false);
       }
       assert.ok(ZONES.archive.regions.some(r => Math.hypot(r.x - 1400, r.z - (ARCHIVE_ROOMS[room].z - 7)) < r.r));
       assert.ok(PORTALS.some(pt => pt.id === `archive_door_${room}` && zoneAt(pt.x) === 'archive'));
@@ -45,6 +51,8 @@ test('seeded room rules and rune offers vary while remaining stable', () => {
     seen.add(first);
     assert.ok(ARCHIVE_MODIFIERS[first] && ARCHIVE_MODIFIERS[next]);
     assert.equal(archiveModifier(p.archive), first);
+    assert.ok(ARCHIVE_EVENTS.includes(archiveEvent(p.archive)));
+    assert.equal(archiveEvent(p.archive), archiveEvent(p.archive));
     assert.equal(archiveRuneChoices(p.archive).length, 2);
     assert.equal(new Set(archiveRuneChoices(p.archive)).size, 2);
     assert.ok(archiveRuneChoices(p.archive).every(id => ARCHIVE_RUNES[id]));
@@ -67,6 +75,7 @@ test('reload keeps exact defeated foe indices and rest can only be taken once', 
     assert.equal(archiveKill(resumed, 0), true);
     assert.equal(advanceArchive(resumed), true);
     for (let i = 0; i < archiveWave(41, 1).length; i++) archiveKill(resumed, i);
+    assert.equal(chooseArchiveEvent(resumed, 'seal'), true);
     advanceArchive(resumed);
     resumed.hp = 1;
     assert.equal(restArchive(resumed, 'heal'), true);
@@ -84,6 +93,7 @@ test('a chosen rune changes stats through reload and leaves after claiming', () 
     startArchive(p, 88);
     for (let room = 0; room < 2; room++) {
       for (let i = 0; i < archiveWave(88, room).length; i++) archiveKill(p, i);
+      if (room === 1) chooseArchiveEvent(p, 'seal');
       advanceArchive(p);
     }
     const rune = archiveRuneChoices(p.archive)[0];
@@ -109,6 +119,7 @@ test('leaving or losing a run removes its Rune without taking persistent progres
   startArchive(p, 9);
   for (let room = 0; room < 2; room++) {
     archiveWave(9, room).forEach((_, i) => archiveKill(p, i));
+    if (room === 1) chooseArchiveEvent(p, 'plunder');
     advanceArchive(p);
   }
   const rune = archiveRuneChoices(p.archive)[0];
@@ -123,6 +134,80 @@ test('leaving or losing a run removes its Rune without taking persistent progres
   assert.equal(endArchive(p), false);
   assert.equal(startArchive(p, 9), true);
   assert.equal(p.archive.room, 0);
+});
+
+test('the Folio decision survives reload, changes guardian combat and pays once on victory', () => {
+  const storage = new Map();
+  const prior = globalThis.localStorage;
+  globalThis.localStorage = { setItem: (k, v) => storage.set(k, v), getItem: k => storage.get(k) ?? null };
+  try {
+    const seed = Array.from({ length: 100 }, (_, i) => i).find(i => archiveModifier({ seed: i, room: 3 }) === 'frenzy');
+    const world = { time: 10, player: { position: { x: 1400, z: 108 } }, enemies: [],
+      float() {}, hitReact() {}, burst() {}, chest() { return {}; }, shake() {} };
+    const combat = new Combat({ world });
+    const boss = () => ({ dungeon: true, def: ENEMIES.archive_curator,
+      model: { position: { x: 1400, z: 109 }, visible: true }, state: 'idle' });
+    const reachFolio = (p) => {
+      startArchive(p, seed);
+      for (let room = 0; room < 2; room++) {
+        archiveWave(seed, room).forEach((_, i) => archiveKill(p, i));
+        if (room === 0) advanceArchive(p);
+      }
+      assert.equal(p.archive.status, 'event');
+      assert.equal(chooseArchiveEvent(p, 'invalid'), false);
+    };
+
+    const sealed = newPlayer('Sealer', 'blaze');
+    reachFolio(sealed);
+    chooseArchiveEvent(sealed, 'seal');
+    advanceArchive(sealed); restArchive(sealed, 'heal'); advanceArchive(sealed);
+    combat.p = sealed;
+    const weaker = boss();
+    combat.initEnemy(weaker);
+    assert.equal(weaker.maxHp, Math.round(ENEMIES.archive_curator.hp * 0.8));
+
+    const plunderer = newPlayer('Reader', 'frost');
+    reachFolio(plunderer);
+    const bonus = archiveEvent(plunderer.archive).bonusGold;
+    assert.equal(chooseArchiveEvent(plunderer, 'plunder'), true);
+    save(plunderer);
+    const resumed = load();
+    assert.equal(resumed.archive.eventChoice, 'plunder');
+    assert.equal(chooseArchiveEvent(resumed, 'seal'), false);
+    advanceArchive(resumed); restArchive(resumed, 'heal'); advanceArchive(resumed);
+    resumed.hp = resumed.maxHp = 10000;
+    combat.p = resumed;
+    const stronger = boss();
+    combat.initEnemy(stronger);
+    assert.equal(stronger.maxHp, ENEMIES.archive_curator.hp);
+    combat.hitHero(100, 'arcane', 0xffffff, stronger);
+    assert.equal(resumed.hp, 9875);
+    archiveKill(resumed, 0);
+    assert.equal(claimArchive(resumed).gold, 175 + bonus);
+    assert.equal(claimArchive(resumed), null);
+  } finally { globalThis.localStorage = prior; }
+});
+
+test('older Archive saves can finish while malformed event choices are discarded', () => {
+  const storage = new Map();
+  const prior = globalThis.localStorage;
+  globalThis.localStorage = { setItem: (k, v) => storage.set(k, v), getItem: k => storage.get(k) ?? null };
+  try {
+    const p = newPlayer('Veteran', 'arcane');
+    startArchive(p, 23);
+    archiveWave(23, 0).forEach((_, i) => archiveKill(p, i));
+    advanceArchive(p);
+    archiveWave(23, 1).forEach((_, i) => archiveKill(p, i));
+    delete p.archive.eventChoice;
+    p.archive.status = 'cleared'; // a save from before the Folio event was added
+    save(p);
+    const old = load();
+    assert.equal(old.archive.eventChoice, null);
+    assert.equal(advanceArchive(old), true);
+    old.archive.eventChoice = 'impossible';
+    save(old);
+    assert.equal(load().archive, null);
+  } finally { globalThis.localStorage = prior; }
 });
 
 test('fragile and resonance rules change actual combat numbers', () => {

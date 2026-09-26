@@ -1,6 +1,7 @@
 // Four isolated chambers with visible thresholds; portals carry the player between them.
 import * as THREE from 'three';
 import { ARCHIVE_X, ARCHIVE_ROOMS } from './archive.js';
+import { makeBookStand } from './models.js';
 
 export function buildArchive(world) {
   const scene = world.scene;
@@ -45,4 +46,6 @@ export function buildArchive(world) {
     lamp.position.set(ARCHIVE_X, 6, room.z);
     scene.add(lamp);
   });
+  // The second chamber's Folio is beside its door, within sight but outside the portal approach.
+  world.add(makeBookStand(), ARCHIVE_X + 6, ARCHIVE_ROOMS[1].z + 4, -0.4, 1.1);
 }

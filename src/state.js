@@ -1,6 +1,7 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
 import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES, SCROLLS, MOUNTS } from './data.js';
 import { RIFT_BOONS } from './rifts.js';
+import { archiveWave } from './archive.js';
 
 const SAVE_KEY = 'darquest-save-v1';
 
@@ -41,6 +42,20 @@ function upgrade(p) {
   p.difficulty = DIFFICULTIES[p.difficulty] ? p.difficulty : 'normal';
   p.rift ??= null;
   p.riftWins ??= 0;
+  p.archiveWins ??= 0;
+  p.archive ??= null;
+  if (p.archive && (!Number.isSafeInteger(p.archive.seed) || p.archive.seed < 0 ||
+      !Number.isInteger(p.archive.room) || p.archive.room < 0 || p.archive.room > 3 ||
+      !['active', 'cleared', 'rest', 'claim'].includes(p.archive.status) ||
+      !Array.isArray(p.archive.defeated) || !p.archive.defeated.every(i => Number.isInteger(i) && i >= 0 && i < 3) ||
+      new Set(p.archive.defeated).size !== p.archive.defeated.length ||
+      p.archive.defeated.some(i => i >= archiveWave(p.archive.seed, p.archive.room).length) ||
+      p.archive.kills !== p.archive.defeated.length ||
+      (p.archive.room === 2 && !['rest', 'cleared'].includes(p.archive.status)) ||
+      (p.archive.status === 'rest' && p.archive.room !== 2) ||
+      (p.archive.status === 'claim' && p.archive.room !== 3) ||
+      (['cleared', 'claim'].includes(p.archive.status) && p.archive.room !== 2 &&
+        p.archive.kills !== archiveWave(p.archive.seed, p.archive.room).length))) p.archive = null;
   if (p.rift && (!['active', 'choice', 'claim'].includes(p.rift.status) ||
       !Array.isArray(p.rift.boons) || !ENEMIES[p.rift.target])) p.rift = null;
   p.stats ??= {};

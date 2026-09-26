@@ -10,9 +10,10 @@ import {
 import {
   newPlayer, load, save, hasSave, clearSave, currentQuest, npcMarker, recordKill,
   questTrackerText, questTarget, applyReward, gainXp, rollLoot,
-  recalc, scrollCount,
+  recalc, scrollCount, giveScroll,
 } from './state.js';
 import { RIFT_STAGES, RIFT_BOONS, startRift, chooseBoon, boonChoices, riftKill, claimRift, endRift, riftText } from './rifts.js';
+import { ARCHIVE_X, ARCHIVE_ROOMS, archiveWave, startArchive, archiveKill, advanceArchive, restArchive, claimArchive, archiveText } from './archive.js';
 
 const $ = (sel) => document.querySelector(sel);
 const world = new World($('#game'), $('#labels'));
@@ -74,10 +75,12 @@ function buildTitle() {
 function startGame(p, isNew) {
   Audio.initAudio();
   player = p;
+  if (zoneAt(p.pos?.x ?? 0) === 'archive' && !p.archive) p.pos = { x: 0, z: -14 };
   $('#title').classList.add('hidden');
   world.spawnPlayer(p, isNew ? null : p.pos);
   world.mode = 'explore';
   combat.setPlayer(p);
+  if (p.archive && zoneAt(world.player.position.x) === 'archive') syncArchiveEncounter();
   buildHotbar();
   UI.showHUD(true);
   UI.showCombatHUD(true);
@@ -99,10 +102,13 @@ function refresh() {
   UI.updateHUD(player);
   UI.updateQuest(questTrackerText(player));
   UI.updateRift(player.rift ? riftText(player) : '');
+  UI.updateArchive(player.archive ? archiveText(player) : '');
   updateTravelButtons();
   for (const id of Object.keys(NPCS)) world.setNpcMarker(id, npcMarker(player, id));
   world.setNpcMarker('riftkeeper', player.rift?.status === 'choice' || player.rift?.status === 'claim' ? '?' : '');
-  for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock);
+  for (const pt of PORTALS) world.setPortalLocked(pt.id, player.quest.index < pt.unlock ||
+    (pt.id.startsWith('archive_door_') && (player.archive?.room !== Number(pt.id.slice(-1)) ||
+      !['cleared', 'claim'].includes(player.archive.status))));
 }
 
 function showZoneName(zone) {
@@ -121,6 +127,14 @@ world.onZoneChange = (zone) => {
 
 // Where the quest tracker's star should point on the minimap.
 function questTargetPos() {
+  if (zoneAt(world.player.position.x) === 'archive' && player.archive) {
+    if (player.archive.status === 'active') {
+      const foe = world.enemies.find(e => e.dungeon && e.state !== 'dead');
+      return foe ? { x: foe.model.position.x, z: foe.model.position.z } : null;
+    }
+    const door = PORTALS.find(pt => pt.id === `archive_door_${player.archive.room}`);
+    return door ? { x: door.x, z: door.z } : null;
+  }
   const t = player.rift?.status === 'active' ? { enemy: player.rift.target } : questTarget(player);
   if (!t) return null;
   if (t.npc) {
@@ -171,6 +185,27 @@ function talk(id) {
     if (player.quest.index < portal.unlock) {
       return UI.dialog('Spiral Door', 'Ancient Portal', 'The portal hums, but its light is sealed. Perhaps Headmaster Orvyn knows how to open it once you have proven yourself.');
     }
+    if (id === 'portal_archive_in') return UI.dialog('Archive Gate', 'The Shattered Archive',
+      player.archive ? `Continue run ${player.archive.seed} at ${ARCHIVE_ROOMS[player.archive.room].name}?` :
+        `Enter a four-chamber expedition: two changing encounters, a respite, and the Unbound Curator. Cleared rooms and your seed are saved. Defeat ends the expedition. Cleared expeditions: ${player.archiveWins}.`, [
+        { label: player.archive ? 'Resume expedition' : 'Begin expedition', primary: true, action: () => {
+          if (!player.archive) startArchive(player);
+          const room = ARCHIVE_ROOMS[player.archive.room];
+          travel({ to: { x: ARCHIVE_X, z: room.z - 7, heading: 0 } }, syncArchiveEncounter);
+          refresh(); save(player);
+        } }, { label: 'Stay here' },
+      ]);
+    if (id === 'portal_archive_out') return UI.dialog('Return Gate', 'Leave the Archive',
+      'Leaving now abandons the expedition. You keep any ordinary loot you earned.', [
+        { label: 'Leave expedition', action: () => {
+          player.archive = null;
+          combat.setTarget(null);
+          world.clearArchiveEnemies();
+          travel(portal);
+          refresh(); save(player);
+        } }, { label: 'Stay here', primary: true },
+      ]);
+    if (id.startsWith('archive_door_')) return showArchiveDoor(Number(id.slice(-1)), portal);
     return UI.dialog('Spiral Door', 'Ancient Portal', `The portal swirls with light. Travel to ${portal.dest}?`, [
       { label: `Travel to ${portal.dest}`, primary: true, action: () => travel(portal) },
       { label: 'Stay here' },
@@ -255,17 +290,77 @@ function showRiftkeeper() {
     ]);
 }
 
-function travel(portal) {
+function travel(portal, onArrival) {
   world.mode = 'locked';
   Audio.sfx('warp');
   $('#fade').classList.add('on');
   setTimeout(() => {
     world.teleport(portal.to);
+    onArrival?.();
     player.pos = { x: portal.to.x, z: portal.to.z };
     save(player);
     $('#fade').classList.remove('on');
     world.mode = 'explore';
   }, 650);
+}
+
+function syncArchiveEncounter() {
+  world.clearArchiveEnemies();
+  combat.setTarget(null);
+  const run = player.archive;
+  if (!run || run.status !== 'active') return;
+  const wave = archiveWave(run.seed, run.room);
+  // A saved kill count is a checkpoint: defeated foes never reappear after reload.
+  for (let i = 0; i < wave.length; i++) {
+    if (run.defeated.includes(i)) continue;
+    const e = world.addEnemy({ enemy: wave[i], x: ARCHIVE_X + (i - (wave.length - 1) / 2) * 4,
+      z: ARCHIVE_ROOMS[run.room].z + 2, r: 1.4 }, `archive-${run.room}-${i}`, true);
+    e.archiveIndex = i;
+    combat.initEnemy(e);
+  }
+}
+
+function showArchiveDoor(room, portal) {
+  const run = player.archive;
+  if (!run || run.room !== room) return UI.dialog('Sealed Chapter', 'The Archive', 'These pages belong to another chamber.');
+  if (run.status === 'active') return UI.dialog('Sealed Chapter', 'The Archive',
+    `The seal holds until you defeat the remaining ${archiveWave(run.seed, room).length - run.kills} foe(s).`);
+  if (run.status === 'rest') return UI.dialog('Quiet Alcove', 'Choose your respite',
+    'Restore half your health and all mana, or take a Restoration Scroll for the road.', [
+      { label: 'Rest and recover', primary: true, action: () => {
+        restArchive(player, 'heal');
+        world.aura(world.player, 0x7fe3ff);
+        refresh(); save(player);
+      } },
+      { label: 'Take a scroll', action: () => {
+        if (scrollCount(player) >= 12) return UI.toast('Your scroll bag is full. Choose rest instead.');
+        if (restArchive(player, 'scroll')) giveScroll(player, 'mend');
+        refresh(); save(player);
+      } }, { label: 'Decide later' },
+    ]);
+  if (run.status === 'claim') return UI.dialog('Final Chapter', 'Expedition complete',
+    'The Curator falls silent. Claim your reward and return to Starfall Academy.', [
+      { label: 'Claim and return', primary: true, action: () => {
+        const reward = claimArchive(player);
+        if (!reward) return;
+        player.gold += reward.gold;
+        announceLevels(gainXp(player, reward.xp));
+        combat.setTarget(null);
+        world.clearArchiveEnemies();
+        UI.toast(`📚 Archive cleared! +${reward.xp} XP · +${reward.gold} gold · ${reward.wins} expeditions`, 'good');
+        travel(portal);
+        refresh(); save(player);
+      } }, { label: 'Explore more' },
+    ]);
+  return UI.dialog('Sealed Chapter', 'The Archive', 'The next chamber awaits.', [
+    { label: 'Enter next chamber', primary: true, action: () => {
+      if (!advanceArchive(player)) return;
+      combat.setTarget(null);
+      world.clearArchiveEnemies();
+      travel(portal, syncArchiveEncounter);
+      refresh(); save(player);
+    } }, { label: 'Stay here' },
+  ]);
 }
 
 function acceptQuest(q) {
@@ -354,7 +449,11 @@ function rewardKill(e) {
   player.gold += gold;
   world.float(e.model, `+${xp} XP`, 'xp');
   const quest = recordKill(player, def.id);
-  const contract = riftKill(player, def.id);
+  const contract = e.dungeon ? false : riftKill(player, def.id);
+  if (e.dungeon && archiveKill(player, e.archiveIndex)) {
+    UI.toast(`📚 ${UI.esc(archiveText(player))}`, player.archive.status === 'active' ? 'quest' : 'good');
+    Audio.sfx('quest');
+  }
   const loot = rollLoot(player, [def]);
   const levels = gainXp(player, xp);
   if (quest) {
@@ -381,17 +480,21 @@ async function playerDefeated() {
   world.mode = 'locked';
   Audio.sfx('defeat');
   const lostRift = endRift(player);
+  const lostArchive = !!player.archive;
+  if (lostArchive) { player.archive = null; combat.setTarget(null); world.clearArchiveEnemies(); }
   if (player.mounted) world.setMounted(player, false);
   recalc(player);
   save(player);
   const diff = DIFFICULTIES[player.difficulty];
   await new Promise(r => setTimeout(r, 900));
   await UI.resultScreen(`<h2 class="lose">Defeated</h2>
-    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.${lostRift ? ' Your Rift Contract ended and its boons faded.' : ''}</p>
+    <p>You wake up back at ${zoneAt(world.player.position.x) === 'emberfall' ? 'the Emberfall camp' : 'Starfall Academy'} with half your health.${lostRift ? ' Your Rift Contract ended and its boons faded.' : ''}${lostArchive ? ' Your Archive expedition ended.' : ''}</p>
     <p class="tip">Tip: dodge (Space) when you see an enemy wind up, heal at a fountain, learn spells from Mirabel, equip better gear (C), and bring potions. ${diff.hp > 1 ? `You are playing on ${diff.name}, so expect every fight to be tough!` : ''}</p>`);
   player.hp = Math.round(player.maxHp * 0.5);
   player.mana = player.maxMana;
-  world.respawnPlayer();
+  if (lostArchive) world.teleport({ x: 0, z: -14, heading: Math.PI });
+  else world.respawnPlayer();
+  player.pos = { x: world.player.position.x, z: world.player.position.z };
   world.mode = 'explore';
   refresh();
   save(player);
@@ -414,7 +517,7 @@ world.onTick = (dt) => {
     if (near) {
       const f = FOUNTAINS.find(x => x.id === near.id);
       const pt = PORTALS.find(x => x.id === near.id);
-      text = f ? `Press E to use the ${f.name}` : pt ? 'Press E to use the Spiral Door' : `Press E to talk to ${NPCS[near.id].name}`;
+      text = f ? `Press E to use the ${f.name}` : pt ? `Press E to use the ${pt.name || 'Spiral Door'}` : `Press E to talk to ${NPCS[near.id].name}`;
     }
     UI.setPrompt(text);
   }

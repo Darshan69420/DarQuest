@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { ENEMIES, SPAWNS, NPCS, QUESTS, SPELLS, PORTALS, ZONES, GEAR, PETS, SCROLLS, MOUNTS, zoneAt } from '../src/data.js';
 import { newPlayer } from '../src/state.js';
 import { startRift, stageTarget, RIFT_STAGES } from '../src/rifts.js';
+import { archiveWave } from '../src/archive.js';
 
 for (const spawn of SPAWNS) assert.ok(ENEMIES[spawn.enemy], `Missing enemy at spawn: ${spawn.enemy}`);
 for (const [id, enemy] of Object.entries(ENEMIES)) {
@@ -29,6 +30,9 @@ for (const portal of PORTALS) {
   assert.ok(ZONES[zoneAt(portal.x)], `Missing source zone for ${portal.id}`);
   assert.ok(ZONES[zoneAt(portal.to.x)], `Missing destination zone for ${portal.id}`);
 }
+for (let seed = 0; seed < 300; seed++) for (const room of [0, 1, 3]) {
+  for (const id of archiveWave(seed, room)) assert.ok(ENEMIES[id], `Archive seed ${seed} references missing ${id}`);
+}
 for (const [level, questIndex] of [[1, 0], [8, 7], [16, 14]]) {
   for (let seed = 0; seed < 100; seed++) {
     const player = newPlayer('Check', 'blaze');
@@ -42,4 +46,4 @@ for (const [level, questIndex] of [[1, 0], [8, 7], [16, 14]]) {
     }
   }
 }
-console.log('Content references and 900 seeded Rift stages checked.');
+console.log('Content references, 900 seeded Rift stages and 900 Archive rooms checked.');

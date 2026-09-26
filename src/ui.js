@@ -58,6 +58,12 @@ export function updateRift(text) {
   el.classList.toggle('hidden', !text);
 }
 
+export function updateArchive(text) {
+  const el = $('#archive-status');
+  el.textContent = text ? `📚 ${text}` : '';
+  el.classList.toggle('hidden', !text);
+}
+
 export function setPrompt(text) {
   const el = $('#prompt');
   el.textContent = text || '';

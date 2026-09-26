@@ -11,14 +11,14 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 - Two hand-built zones, 14 quests, combat, six schools, equipment, pets, difficulty settings and browser saves.
 - One-use spell scrolls available through drops and a shop, plus Astral Pulse, a close-range area spell learnable by every school. Two rideable stags bought at the academy, with faster travel and automatic combat dismount. Magic cast sigils add a short readable anticipation cue.
 - Rift Contracts: talk to Vale at Starfall Academy. Complete three stages against enemies in a chosen unlocked zone; choose one of three offered boons before each stage. Targets deal 15% more damage per stage. Return for a payout after stage three, or lose the temporary boons on defeat. A run resumes after reload.
-- The Rift system is **not** a generated dungeon yet. It uses existing maps and enemies. That is the next substantial game feature.
+- The Shattered Archive: an academy gate opens after Hollow Lane. Four authored, isolated chambers contain two seeded fights, a rest or scroll choice, and a guardian. The run saves its seed, room and individual defeated foes, so reloading does not duplicate kills. Defeat or leaving ends the run; the final payout can only be claimed once.
 
 ## Next milestones and acceptance criteria
 
 | Order | Feature | Playable acceptance criteria | Quality gate |
 | --- | --- | --- | --- |
 | 1 | Movement and camera | Strafing, sprinting and a clear interact prompt work with keyboard, mouse and touch. Mount animation and camera remain readable around narrow paths. | Play from new game to first fight on desktop and narrow mobile viewport; no stuck movement or unreadable HUD. |
-| 2 | First dungeon | A portal leads to a small, seeded dungeon with a sequence of rooms, encounters, a rest choice and a final guardian. Exits return to the world. | Same seed produces the same room sequence; every room has a walkable path; reloading safely restores or abandons the run. |
+| 2 | First dungeon prototype (implemented) | A portal leads to a small, seeded dungeon with a sequence of rooms, encounters, a rest choice and a final guardian. Exits return to the world. | Seed, remaining foes and one-time payout covered by tests. Full browser playthrough and device QA still needed. |
 | 3 | Run variety | Enemy groups, room events and two mutually exclusive rewards change the next decision. Builds have visible strengths and limits. | Simulate at least 1,000 seeds; no impossible enemy or room combination; verify reward caps and death cleanup. |
 | 4 | World agency | One new settlement, explorable side areas, NPC schedules or reactions, and at least one quest with a meaningful choice and consequence. | Save/load both outcomes; every branch reaches a conclusion; optional path is signposted in game. |
 | 5 | Character depth | Small skill trees for the six schools, equipment comparisons, crafting materials and a respec path. | Each build can clear a standard run; tooltips match the damage calculations; old saves migrate. |
@@ -28,9 +28,9 @@ Milestones are ordered to keep each release playable. Complete the dungeon proto
 
 ## Dungeon design for milestone 2
 
-Start with **The Shattered Archive**, an academy portal that appears after Hollow Lane. A seed chooses a short route: entrance, two combat rooms, one event or rest room, a guardian, exit. Each room uses authored geometry pieces assembled in a valid graph. A run modifier changes encounter rules, not just enemy health. Rewards are offered between rooms and removed on death. The final guardian pays persistent XP, gold and one modest item chance. Limit a run to around 15–25 minutes.
+The **Shattered Archive** prototype uses a fixed four-room route with a seed selecting enemy groups. Each room has its own geometry and a gated portal. The third room offers recovery or a scroll. The guardian has a second phase; the final door grants persistent XP and gold once. Next, add room events and temporary combat modifiers, then tune the run length through hands-on play.
 
-The technical boundary: `src/rifts.js` owns the run data and deterministic choices; a new dungeon map module owns room geometry and collision; combat only reads a narrow run modifier interface. Store the seed and room index, never every generated mesh. Keep save migration centralized in `src/state.js`.
+The technical boundary: `src/archive.js` owns saved progression and deterministic enemy selection; `src/archive-map.js` owns geometry; `src/world.js` manages temporary foes; save migration stays in `src/state.js`. Store the seed, room and defeated enemy indices, never generated meshes.
 
 ## Quality checks
 

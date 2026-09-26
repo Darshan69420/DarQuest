@@ -7,6 +7,7 @@ import {
 } from './models.js';
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, MOUNTS } from './data.js';
 import { buildEmberfall } from './maps.js';
+import { buildArchive } from './archive-map.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const COURTYARD_R = 31;
@@ -271,6 +272,7 @@ export class World {
 
     // Chapter 2 zone + the portals that connect the zones
     const ember = buildEmberfall(this);
+    buildArchive(this);
     this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
@@ -295,7 +297,7 @@ export class World {
       this.addLabel(this.fountainModels[f.id], `<div class="name">${f.name}</div><div class="sub">Restores health</div>`, 'npc', 4.5);
     }
     for (const pt of PORTALS) {
-      const l = this.addLabel(this.portalModels[pt.id], `<div class="name">🌀 Spiral Door</div><div class="sub">to ${pt.dest}</div>`, 'npc portal', 6.4);
+      const l = this.addLabel(this.portalModels[pt.id], `<div class="name">🌀 ${pt.name || 'Spiral Door'}</div><div class="sub">to ${pt.dest}</div>`, 'npc portal', 6.4);
       pt.label = l;
     }
   }
@@ -306,7 +308,10 @@ export class World {
   }
 
   spawnEnemies() {
-    SPAWNS.forEach((sp, idx) => {
+    SPAWNS.forEach((sp, idx) => this.addEnemy(sp, idx));
+  }
+
+  addEnemy(sp, uid, dungeon = false) {
       const def = ENEMIES[sp.enemy];
       const model = makeEnemy(def.model);
       model.userData.height = measure(model);
@@ -319,11 +324,23 @@ export class World {
       const label = this.addLabel(model,
         `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div><div class="ehp"><div class="fill"></div></div><div class="ecast"><div class="fill"></div></div>`,
         'enemy', model.userData.height + 0.5);
-      this.enemies.push({
-        uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
+      const e = {
+        uid, def, model, label, dungeon, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
         state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0,
-      });
-    });
+      };
+      this.enemies.push(e);
+      return e;
+  }
+
+  clearArchiveEnemies() {
+    for (const e of this.enemies.filter(e => e.dungeon)) {
+      this.scene.remove(e.model);
+      e.label.el.remove();
+      const index = this.labels.indexOf(e.label);
+      if (index >= 0) this.labels.splice(index, 1);
+      if (this.targetEntity === e) this.targetEntity = null;
+    }
+    this.enemies = this.enemies.filter(e => !e.dungeon);
   }
 
   // Rebuilds the player model (e.g. after changing gear) and keeps its place.

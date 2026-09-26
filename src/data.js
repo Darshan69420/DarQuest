@@ -196,6 +196,14 @@ export const ENEMIES = {
     drops: [{ item: 'hollowmere_locket', chance: 1 }, { item: 'hollow_blade', chance: 0.6 }, { item: 'knightsilk_robe', chance: 0.4 }, { pet: 'bat_familiar', chance: 0.25 }],
   },
 
+  archive_curator: {
+    name: 'The Unbound Curator', school: 'arcane', level: 11, hp: 1850, xp: 650, gold: [90, 130], model: 'boss', boss: true,
+    spells: ['sphinx_sands', 'hex_trap', 'starfall', 'rock_slam', 'stone_skin'],
+    resist: { arcane: 0.35 }, boost: { umbral: 0.15 }, speed: 1.5, range: 6, aggro: 11, powerPipChance: 0.5,
+    phases: [{ at: 0.5, say: 'Every ending is another beginning!', blade: 0.3, pips: 2 }],
+    drops: [{ item: 'obsidian_rod', chance: 0.2 }],
+  },
+
   // ---------------- Chapter 2: Emberfall Wilds ----------------
   lava_imp: {
     name: 'Lava Imp', school: 'blaze', level: 8, hp: 560, xp: 130, gold: [14, 24], model: 'imp',
@@ -566,13 +574,24 @@ export const ZONES = {
     atmosphere: { fog: 0x6a2a18, top: 0x240a10, mid: 0x8c3a2a, bottom: 0xffa050, hemi: 0xffb080 },
     music: 'ember',
   },
+  archive: {
+    name: 'The Shattered Archive',
+    regions: [0, 36, 72, 108].map(z => ({ type: 'circle', x: 1400, z, r: 12 })),
+    spawn: { x: 1400, z: -6, heading: 0 },
+    atmosphere: { fog: 0x242044, top: 0x0c102c, mid: 0x35315c, bottom: 0x8e71a3, hemi: 0xb5aeec },
+    music: 'academy',
+  },
 };
-export function zoneAt(x) { return x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x > 1100 ? 'archive' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Portals between zones. `unlock` = quest index needed to use it.
 export const PORTALS = [
   { id: 'portal_academy', x: -26, z: 10, to: { x: X, z: -3, heading: 0 }, dest: 'Emberfall Wilds', unlock: 7 },
   { id: 'portal_ember', x: X, z: -17, to: { x: -13, z: 10, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0 },
+  { id: 'portal_archive_in', name: 'Archive Gate', x: 26, z: -10, to: { x: 1400, z: -6, heading: 0 }, dest: 'Shattered Archive', unlock: 7 },
+  { id: 'portal_archive_out', name: 'Return Gate', x: 1400, z: -8, to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 },
+  ...[0, 1, 2].map(room => ({ id: `archive_door_${room}`, name: 'Sealed Chapter', x: 1400, z: room * 36 + 8, to: { x: 1400, z: (room + 1) * 36 - 7, heading: 0 }, dest: 'the next chamber', unlock: 0 })),
+  { id: 'archive_door_3', name: 'Final Chapter', x: 1400, z: 116, to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 },
 ];
 
 // Healing fountains.

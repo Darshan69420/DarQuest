@@ -365,7 +365,7 @@ export class Combat {
     e.state = 'dead';
     e.cast = null;
     e.mods = mods();
-    e.respawnAt = this.now + (e.def.boss ? 60 : 20);
+    e.respawnAt = e.dungeon ? Infinity : this.now + (e.def.boss ? 60 : 20);
     this.world.defeat(e.model);
     this.updateBar(e);
     if (this.target === e) this.setTarget(this.alive().find(x => x.state === 'aggro') || null);
@@ -535,7 +535,7 @@ export class Combat {
         if (e.def.boss) boss = true;
         const leash = e.def.boss ? 40 : 26;
         if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; e.cast = null; continue; }
-        const range = e.def.speed <= 0 ? Math.max(e.def.range, 26) : e.def.range;
+        const range = e.def.speed <= 0 ? Math.max(e.def.range || 0, 26) : (e.def.range || 4.5);
         if (e.cast) {
           e.cast.t += dt;
           w.faceEnemy(e, pp);

@@ -48,6 +48,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 - **Sound and music**, generated in code, and a **minimap** that points to your quest.
 - **Scrolls and mounts:** find or buy one-use spell scrolls that work for any school without mana. Learn Astral Pulse at level 5 for a close-range burst, or find its rarer scroll. Buy a Moonstag or Emberstag from Elowen at the academy, ride faster, and dismount when combat begins. Spells draw animated sigils when cast.
 - **Rift Contracts:** speak to Riftkeeper Vale in the academy courtyard for a repeatable three-stage hunt. Choose a temporary boon at each stage, face increasingly dangerous targets, and return for XP and gold. The run survives reloads; defeat or abandonment removes its boons. Your story progress remains.
+- **The Shattered Archive:** after Hollow Lane, enter the Archive Gate in the courtyard for four chambers with seeded enemy groups, a one-time rest or scroll choice, and the Unbound Curator. Each cleared door opens the next room. Reload restores the exact remaining foes; return through the entrance to abandon, or defeat the guardian for a claimable XP and gold reward.
 
 ## Code layout
 
@@ -65,6 +66,8 @@ src/audio.js      synthesized sound effects and music
 src/ui.js         dialogue, menus, cards
 src/main.js       ties everything together
 src/rifts.js      seeded Rift Contracts and temporary boons
+src/archive.js    seeded Archive encounters and room progression
+src/archive-map.js four original 3D chambers
 lib/              vendored Three.js (MIT licence)
 gallery.html      model gallery: preview every model (?group=foes1, ?model=knight)
 docs/ROADMAP.md   game direction, next milestones and release checks
@@ -72,7 +75,7 @@ docs/ROADMAP.md   game direction, next milestones and release checks
 
 ## Quality checks
 
-Run `npm run check` with Node 20 or newer. It tests Rift progress, scroll consumption, mount ownership, save restoration and single payout, then validates game content references and 900 seeded stages. The game itself still has no build step or runtime npm dependencies.
+Run `npm run check` with Node 20 or newer. It tests Rift and Archive progress, scroll consumption, mount ownership, save restoration and single payouts, then validates game content references, 900 seeded Rift stages and 900 seeded Archive rooms. The game itself still has no build step or runtime npm dependencies.
 
 ## Roadmap
 

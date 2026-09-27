@@ -1,6 +1,13 @@
 Original prompt: I want u to keep working and make the game better
 Latest request: Go all out and make it 10/10
 
+## Sol Quest 0.4 pass
+
+- Implemented the pasted playtest brief across saves, navigation/camera, combat safety, settings, dialogue and run rewards; renamed visible game branding Sol Quest.
+- Used develop-web-game for rendered browser validation and stop-slop guidance for restrained copy; kept the existing plain-module architecture.
+- 35 tests and seed/content checks pass. Browser acceptance checks passed for isolated saves/deletion, dialogue Escape behavior and rebound movement with no page errors. Desktop/mobile screenshots inspected.
+- See docs/RELEASE-0.4.md for per-item evidence and open gates. Combat health-cost targets, full Chapter 1, physical phone/GPU measurements and complete defeat/boss browser scenarios remain unverified. Crypto is branding only pending an explicit economy design.
+
 ## Current focus
 
 - Complete the roadmap's movement-and-camera milestone with camera-relative strafing, sprinting, clearer interaction guidance, fullscreen support, and deterministic browser-test hooks.

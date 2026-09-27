@@ -3,6 +3,7 @@ import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, 
 import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, giveScroll, scrollCount, buyMount, selectMount } from './state.js';
 
 const $ = (sel) => document.querySelector(sel);
+const sigil = school => ({ blaze: '△', frost: '❄', tempest: 'ϟ', verdant: '❧', umbral: '☽', arcane: '◇', astral: '✧' }[school] || '✧');
 
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,8 +17,8 @@ export function cardHTML(spell, { extra = '', cls = '', basic = false } = {}) {
   const cost = basic ? 0 : spellCost(spell);
   const cd = basic ? BASIC_COOLDOWN : spellCooldown(spell);
   return `<div class="card school-${spell.school} ${cls}" style="--sc:${school.css}" data-spell="${spell.id}">
-    <div class="card-pips" title="Mana cost">${cost}</div>
-    <div class="card-icon">${school.icon}</div>
+    <div class="card-pips" title="Mana cost">${basic ? 'Free' : cost}</div>
+    <div class="card-icon">${sigil(spell.school)}</div>
     <div class="card-name">${esc(spell.name)}</div>
     <div class="card-desc">${esc(describe(spell))}</div>
     <div class="card-acc">${basic ? 'Basic · ' : ''}${cd.toFixed(1)}s</div>
@@ -32,7 +33,7 @@ export function showHUD(show) { $('#hud').classList.toggle('hidden', !show); }
 export function updateHUD(p) {
   const school = SCHOOLS[p.school];
   $('#hud-name').textContent = p.name;
-  $('#hud-school').innerHTML = `${school.icon} ${school.name} · Level ${p.level}`;
+  $('#hud-school').textContent = `${school.name} · Level ${p.level}`;
   $('#hud-school').style.color = school.css;
   $('#hud-hp-fill').style.width = `${(p.hp / p.maxHp) * 100}%`;
   $('#hud-hp-text').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
@@ -84,7 +85,18 @@ export function toast(text, cls = '') {
 // ------------------------------------------------------------ dialogue
 
 let dialogOpen = false;
+let activeLine = null;
 export function isDialogOpen() { return dialogOpen || !$('#modal').classList.contains('hidden'); }
+export function isTalking() { return dialogOpen; }
+export function completeDialogLine() { return activeLine?.finish() || false; }
+export function advanceDialog() {
+  if (!dialogOpen) return false;
+  if (!completeDialogLine()) closeDialog();
+  return true;
+}
+$('#dialog').addEventListener('click', e => {
+  if (completeDialogLine()) { e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
 
 // buttons: [{label, action?, primary?}] — the dialog closes after any button.
 export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
@@ -106,19 +118,24 @@ export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
 export function closeDialog() {
   $('#dialog').classList.add('hidden');
   dialogOpen = false;
+  activeLine = null;
 }
 
 function typewriter(el, text) {
   let i = 0;
+  const line = { finish() {
+    if (i >= text.length) return false;
+    i = text.length; el.textContent = text; return true;
+  } };
+  activeLine = line;
   el.textContent = '';
   const tick = () => {
-    if (!el.isConnected) return;
+    if (!el.isConnected || activeLine !== line) return;
     i = Math.min(text.length, i + 2);
     el.textContent = text.slice(0, i);
     if (i < text.length) requestAnimationFrame(tick);
   };
   tick();
-  el.addEventListener('click', () => { i = text.length; el.textContent = text; }, { once: true });
 }
 
 // ------------------------------------------------------------ modals
@@ -214,8 +231,8 @@ export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
     const s = SPELLS[id];
     const school = s ? SCHOOLS[s.school] : null;
     return `<button class="hb ${s ? '' : 'empty'}" data-i="${i}" style="--sc:${school ? school.css : '#555'}" title="${s ? esc(s.name) + ' · ' + esc(describe(s)) : 'Empty slot (press B)'}">
-      <span class="hb-icon">${school ? school.icon : '·'}</span><span class="hb-key">${i + 1}</span>
-      ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
+      <span class="hb-icon">${s ? sigil(s.school) : '·'}</span><span class="hb-key">${i + 1}</span>
+      ${s ? `<span class="hb-cost">${i === 0 ? 'Free' : spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
   }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion (H)"><span class="hb-icon">🧪</span><span class="hb-key">H</span><span class="hb-count"></span><span class="hb-cd"></span></button>
     <button class="hb util" data-act="dodge" title="Dodge (Space)"><span class="hb-icon">💨</span><span class="hb-key">␣</span><span class="hb-cd"></span></button>
     <button class="hb util" data-act="target" title="Next target (Tab)"><span class="hb-icon">🎯</span><span class="hb-key">Tab</span></button>`;

@@ -48,7 +48,7 @@ export function archiveWave(seed, room) {
 }
 export function startArchive(p, seed = Math.floor(Math.random() * 1000000000)) {
   if (p.archive || !Number.isSafeInteger(seed) || seed < 0) return false;
-  p.archive = { seed, room: 0, kills: 0, defeated: [], status: 'active', eventChoice: null };
+  p.archive = { seed, room: 0, kills: 0, defeated: [], status: 'active', eventChoice: null, rewardLevel: p.level };
   return true;
 }
 export function archiveKill(p, index) {
@@ -87,13 +87,34 @@ export function restArchive(p, choice, rune = null) {
 }
 export function claimArchive(p) {
   if (p.archive?.room !== 3 || p.archive.status !== 'claim') return null;
-  const bonusGold = p.archive.eventChoice === 'plunder' ? archiveEvent(p.archive).bonusGold : 0;
-  const reward = { xp: 420, gold: 175 + bonusGold, bonusGold, wins: ++p.archiveWins };
+  const run = p.archive;
+  const bonusGold = run.eventChoice === 'plunder' ? archiveEvent(run).bonusGold : 0;
+  const depth = ARCHIVE_ROOMS.length;
+  const multiplier = 1 + 0.15 * (depth - 1);
+  const levelBonus = Math.max(0, (run.rewardLevel || p.level) - 5);
+  const reward = {
+    xp: Math.round((420 + 30 * levelBonus) * multiplier),
+    gold: Math.round((175 + 6 * levelBonus) * multiplier) + bonusGold,
+    bonusGold, wins: (p.archiveWins || 0) + 1,
+  };
+  reward.summary = p.lastRunSummary = {
+    kind: 'Shattered Archive', outcome: 'completed', depth, totalDepth: ARCHIVE_ROOMS.length,
+    seed: run.seed, rune: run.rune || null, event: run.eventChoice || null,
+    xp: reward.xp, gold: reward.gold,
+  };
+  p.archiveWins = reward.wins;
   p.archive = null;
   return reward;
 }
-export function endArchive(p) {
+export function endArchive(p, outcome = 'abandoned') {
   if (!p.archive) return false;
+  const run = p.archive;
+  const clearedCurrent = ['cleared', 'event', 'claim'].includes(run.status);
+  p.lastRunSummary = {
+    kind: 'Shattered Archive', outcome, depth: run.room + (clearedCurrent ? 1 : 0),
+    totalDepth: ARCHIVE_ROOMS.length, seed: run.seed, rune: run.rune || null,
+    event: run.eventChoice || null, xp: 0, gold: 0,
+  };
   p.archive = null;
   return true;
 }

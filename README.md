@@ -1,4 +1,8 @@
-# DarQuest
+# Sol Quest
+
+Formerly DarQuest. Build 0.4 — The First Light adds three character slots, a quieter parchment-and-brass interface, configurable controls and graphics, improved navigation, and readable boss warnings. Existing DarQuest saves are preserved. See [release checks](docs/RELEASE-0.4.md).
+
+This is an offline-first fantasy game. No wallet, token, transactions, or financial rewards are implemented.
 
 A 3D action RPG that runs in your web browser. You're a new apprentice at **Starfall Academy**. Pick a school of magic, learn spells, and blast your way through Hollow Lane and the Emberfall Wilds in real-time fights.
 

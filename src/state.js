@@ -3,7 +3,28 @@ import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES
 import { RIFT_BOONS } from './rifts.js';
 import { archiveWave, ARCHIVE_RUNES, archiveRuneChoices } from './archive.js';
 
-const SAVE_KEY = 'darquest-save-v1';
+const LEGACY_KEY = 'darquest-save-v1';
+const MIGRATION_KEY = 'darquest-slots-migrated-v1';
+let activeSlot = 1;
+const slotKey = slot => {
+  if (![1, 2, 3].includes(slot)) throw new RangeError('Save slot must be 1, 2 or 3.');
+  return `darquest-save-slot${slot}`;
+};
+
+// Copy the original verbatim and retain it as a recovery backup. The marker
+// prevents an intentionally deleted slot from being resurrected on reload.
+export function migrateSaves() {
+  try {
+    if (localStorage.getItem(MIGRATION_KEY)) return true;
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), legacy);
+    localStorage.setItem(MIGRATION_KEY, '1');
+    return true;
+  } catch { return false; }
+}
+
+export function setActiveSlot(slot) { slotKey(slot); activeSlot = slot; }
+export function getActiveSlot() { return activeSlot; }
 
 export function baseHpFor(school, level) {
   return SCHOOLS[school].baseHp + (level - 1) * RULES.hpPerLevel;
@@ -99,16 +120,24 @@ export function recalc(p) {
   return s;
 }
 
-export function save(p) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(p)); } catch { /* storage unavailable */ }
+export function save(p, slot = activeSlot) {
+  const key = slotKey(slot);
+  if (!migrateSaves()) return false;
+  try {
+    localStorage.setItem(key, JSON.stringify(p));
+    return true;
+  } catch { return false; }
 }
 
-export function load() {
+export function load(slot = activeSlot) {
+  const key = slotKey(slot);
+  migrateSaves();
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const p = JSON.parse(raw);
-    if (!p || !SCHOOLS[p.school]) return null;
+    if (!p || !SCHOOLS[p.school] || typeof p.name !== 'string' ||
+        !Number.isInteger(p.level) || p.level < 1) return null;
     upgrade(p);
     recalc(p);
     p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
@@ -116,12 +145,20 @@ export function load() {
   } catch { return null; }
 }
 
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+export function hasSave(slot = activeSlot) {
+  const key = slotKey(slot);
+  migrateSaves();
+  try { return !!localStorage.getItem(key); } catch { return false; }
 }
 
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+export function clearSave(slot = activeSlot) {
+  const key = slotKey(slot);
+  if (!migrateSaves()) return false;
+  try { localStorage.removeItem(key); return true; } catch { return false; }
+}
+
+export function listSaves() {
+  return [1, 2, 3].map(slot => ({ slot, occupied: hasSave(slot), player: load(slot) }));
 }
 
 export function scrollCount(p) { return Object.values(p.scrolls).reduce((sum, n) => sum + n, 0); }

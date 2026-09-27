@@ -41,7 +41,7 @@ export function startRift(p, seed = Date.now()) {
   if (p.rift) return false;
   const run = {
     seed: seed >>> 0, zone: p.quest.index >= 7 && (seed & 1) ? 'emberfall' : 'academy',
-    stage: 0, target: '', kills: 0, status: 'choice', boons: [],
+    stage: 0, target: '', kills: 0, status: 'choice', boons: [], rewardLevel: p.level,
   };
   run.target = stageTarget(run, p.level);
   p.rift = run;
@@ -73,14 +73,31 @@ export function riftKill(p, enemyId) {
 
 export function claimRift(p) {
   if (p.rift?.status !== 'claim') return null;
-  const reward = { xp: 120 + 60 * p.level, gold: 30 + 12 * p.level, wins: (p.riftWins || 0) + 1 };
+  const run = p.rift;
+  const level = run.rewardLevel || p.level;
+  const depth = RIFT_STAGES;
+  // Each completed stage after the first adds 15% to the contract payout.
+  const multiplier = 1 + 0.15 * (depth - 1);
+  const reward = {
+    xp: Math.round((120 + 60 * level) * multiplier),
+    gold: Math.round((30 + 12 * level) * multiplier),
+    wins: (p.riftWins || 0) + 1,
+  };
+  reward.summary = p.lastRunSummary = {
+    kind: 'Rift Contract', outcome: 'completed', depth, totalDepth: RIFT_STAGES,
+    seed: run.seed, boons: [...run.boons], xp: reward.xp, gold: reward.gold,
+  };
   p.rift = null;
   p.riftWins = reward.wins;
   return reward;
 }
 
-export function endRift(p) {
+export function endRift(p, outcome = 'abandoned') {
   const hadRun = !!p.rift;
+  if (p.rift) p.lastRunSummary = {
+    kind: 'Rift Contract', outcome, depth: p.rift.status === 'claim' ? RIFT_STAGES : p.rift.stage,
+    totalDepth: RIFT_STAGES, seed: p.rift.seed, boons: [...p.rift.boons], xp: 0, gold: 0,
+  };
   p.rift = null;
   return hadRun;
 }

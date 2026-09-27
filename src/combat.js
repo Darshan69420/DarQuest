@@ -57,6 +57,8 @@ export class Combat {
     e.cast = null;
     e.phasesDone = new Set();
     e.nextAttack = 0;
+    e.patternIndex = 0;
+    e.introduced = false;
     e.state = e.state === 'dead' ? 'dead' : 'idle';
     this.updateBar(e);
   }
@@ -291,7 +293,7 @@ export class Combat {
         if (r.school === spell.school && target.state !== 'dead' && this.now > (target.reactReady || 0)) {
           target.reactReady = this.now + 6;
           setTimeout(() => {
-            if (target.state === 'dead' || this.p.hp <= 0) return;
+            if (target.state !== 'aggro' || this.p.hp <= 0) return;
             this.onMessage?.(`${target.def.name}: "${r.say}"`, 'boss');
             sfx('boss');
             this.enemySpell(target, SPELLS[r.cast]);
@@ -307,7 +309,7 @@ export class Combat {
   }
 
   damageEnemy(e, amount, school, color, crit = false) {
-    if (e.state === 'dead') return 0;
+    if (e.state === 'dead' || e.state === 'return') return 0;
     let m = 1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0);
     if (e.dungeon && archiveModifier(this.p?.archive) === 'resonance') m *= 1.2;
     for (const t of e.mods.traps) m *= 1 + t;
@@ -336,8 +338,8 @@ export class Combat {
   hitHero(amount, school, color, from) {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
-    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
     let m = 1 + this.diff.dmg;
+    m *= from.dungeon ? 1 : (from.def.damageScale ?? 1);
     // Rift targets hit harder on later stages; ordinary quest enemies keep
     // their usual tuning, even while a contract is active.
     if (!from.dungeon && p.rift?.status === 'active' && from.def.id === p.rift.target) m *= 1 + p.rift.stage * 0.15;
@@ -351,6 +353,8 @@ export class Combat {
     for (const x of from.mods.weak) m *= 1 - x;
     from.mods.blades = [];
     from.mods.weak = [];
+    // An attempted hit spends offensive buffs even when it is dodged.
+    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
     for (const s of this.hero.shields) m *= 1 - s;
     for (const tr of this.hero.traps) m *= 1 + tr;
     this.hero.shields = [];
@@ -387,15 +391,20 @@ export class Combat {
   // ------------------------------------------------------------ enemy AI
 
   aggro(e) {
-    if (e.state !== 'idle' && e.state !== 'return') return;
+    if (e.state !== 'idle') return;
     e.state = 'aggro';
     e.nextAttack = Math.max(e.nextAttack, this.now + rand(0.3, 0.9));
-    // friends nearby join in
-    for (const o of this.world.enemies) {
-      if (o !== e && o.state === 'idle' && flat(o.model.position, e.model.position) < 7) {
+    if (e.def.patterns && !e.introduced) {
+      e.introduced = true;
+      e.nextAttack = this.now + 2.5;
+      this.onMessage?.(`${e.def.name}: ${e.def.intro}`, 'boss');
+    }
+    // Joining friends never recruit another wave of friends.
+    const friends = this.world.enemies.filter(o => o !== e && o.state === 'idle' && o.model.visible && !o.def.boss && this.p.level - o.def.level < 4 && flat(o.model.position, e.model.position) < 7)
+      .sort((a, b) => flat(a.model.position, e.model.position) - flat(b.model.position, e.model.position));
+    for (const o of friends.slice(0, e.def.level <= 10 ? 2 : friends.length)) {
         o.state = 'aggro';
         o.nextAttack = this.now + rand(0.5, 1.5);
-      }
     }
   }
 
@@ -407,7 +416,7 @@ export class Combat {
       sfx('boss');
       this.world.shake(0.4);
       this.world.aura(e.model, SCHOOLS[e.def.school].color);
-      if (ph.blade) e.mods.blades.push(ph.blade);
+      if (ph.blade) e.mods.blades = [...e.mods.blades, ph.blade].slice(-3);
       if (ph.shield) e.mods.shields.push(ph.shield);
       if (ph.heal) { e.hp = Math.min(e.maxHp, e.hp + ph.heal); this.world.float(e.model, `+${ph.heal}`, 'heal'); }
       if (ph.pips) e.nextAttack = this.now + 0.5;
@@ -431,6 +440,7 @@ export class Combat {
 
   // Winds up an attack so the player can see it coming (and dodge).
   startAttack(e) {
+    if (e.def.patterns) return this.startPattern(e);
     const spell = this.chooseSpell(e);
     const speed = this.diff.speed * (e.dungeon && archiveModifier(this.p?.archive) === 'frenzy' ? 1.25 : 1);
     e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15);
@@ -439,6 +449,30 @@ export class Combat {
     const windup = (e.def.range > 3 ? 0.35 + spell.pips * 0.2 : 0.45) / Math.sqrt(speed);
     e.cast = { spell, t: 0, dur: windup };
     if (spell.pips >= 3) this.world.float(e.model, '⚠️', 'status');
+  }
+
+  startPattern(e) {
+    const pattern = e.def.patterns[e.patternIndex++ % e.def.patterns.length];
+    const origin = pattern.anchor === 'self' ? e.model.position : this.world.player.position;
+    const center = { x: origin.x, z: origin.z };
+    e.cast = { pattern, center, t: 0, dur: pattern.windup };
+    e.nextAttack = this.now + pattern.windup + pattern.recovery;
+    this.world.float(e.model, pattern.name, 'status');
+    this.onMessage?.(`${pattern.name} — ${pattern.hint}`, 'boss');
+    this.world.dangerZone?.(center, pattern.radius, pattern.windup, SCHOOLS[e.def.school].color);
+  }
+
+  resolvePattern(e, cast) {
+    const color = SCHOOLS[e.def.school].color;
+    this.world.shockwave(cast.center, color, cast.pattern.radius);
+    this.world.castPose(e.model, color);
+    if (flat(this.world.player.position, cast.center) <= cast.pattern.radius) {
+      this.hitHero(cast.pattern.damage, e.def.school, color, e);
+    } else {
+      e.mods.blades = [];
+      e.mods.weak = [];
+      this.world.float(e.model, 'Miss', 'fizzle');
+    }
   }
 
   enemySpell(e, spell) {
@@ -455,7 +489,7 @@ export class Combat {
         return;
       }
       const flight = spell.pips >= 4 ? w.meteor(w.player, color, 0.7 + spell.pips * 0.1) : w.projectile(e.model, w.player, color, 0.22 + spell.pips * 0.05, 15);
-      flight.then(() => { if (e.state !== 'dead') this.applyEnemyHit(e, spell, color); });
+      flight.then(() => { if (e.state === 'aggro') this.applyEnemyHit(e, spell, color); });
       return;
     }
     // support spells: heal the most hurt friend nearby, buff itself
@@ -468,7 +502,7 @@ export class Combat {
       w.float(hurt.model, `+${amount}`, 'heal');
       this.updateBar(hurt);
     } else if (spell.type === 'blade') {
-      e.mods.blades.push(spell.pct);
+      e.mods.blades = [...e.mods.blades, spell.pct].slice(-3);
       w.aura(e.model, color);
       w.float(e.model, '⚔️', 'status');
     } else if (spell.type === 'shield') {
@@ -486,14 +520,16 @@ export class Combat {
         const before = this.p.hp;
         this.hitHero(rand(spell.min, spell.max), spell.school, color, e);
         const dealt = before - this.p.hp;
-        if (spell.dot && dealt > 0) this.addOverTime(this.hero.dots, spell.dot.total * (1 + this.diff.dmg), spell.dot.rounds, spell.school);
+        if (spell.dot && dealt > 0) this.addOverTime(this.hero.dots, spell.dot.total * (1 + this.diff.dmg) * (e.dungeon ? 1 : (e.def.damageScale ?? 1)), spell.dot.rounds, spell.school);
         if (spell.type === 'drain' && dealt > 0) { e.hp = Math.min(e.maxHp, e.hp + dealt * spell.heal); this.updateBar(e); }
         sfx(spell.pips >= 4 ? 'bighit' : 'hit');
         break;
       }
       case 'dot':
+        e.mods.blades = [];
+        e.mods.weak = [];
         if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
-        this.addOverTime(this.hero.dots, spell.total * (1 + this.diff.dmg), spell.rounds, spell.school);
+        this.addOverTime(this.hero.dots, spell.total * (1 + this.diff.dmg) * (e.dungeon ? 1 : (e.def.damageScale ?? 1)), spell.rounds, spell.school);
         w.float(w.player, `${SCHOOLS[spell.school].icon} burning`, 'status');
         break;
       case 'trap':
@@ -521,7 +557,7 @@ export class Combat {
     if (this.tickTimer >= TICK) {
       this.tickTimer -= TICK;
       this.tickHero();
-      for (const e of w.enemies) if (e.state !== 'dead') this.tickEnemy(e);
+      for (const e of w.enemies) if (e.mods && e.state !== 'dead' && e.state !== 'return' && flat(e.model.position, pp) <= 60) this.tickEnemy(e);
     }
 
     let fighting = false, boss = false;
@@ -533,29 +569,39 @@ export class Combat {
       }
       const d = flat(e.model.position, pp);
       const speed = e.def.speed * this.diff.speed;
+      if (d > 60) {
+        if (e.state !== 'idle') {
+          e.model.position.x = e.home.x;
+          e.model.position.z = e.home.z;
+          this.initEnemy(e);
+        }
+        e.moving = false;
+        continue;
+      }
       if (e.state === 'idle') {
         this.wander(e, dt);
-        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
+        if (alivePlayer && p.level - e.def.level < 4 && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
       } else if (e.state === 'return') {
         const home = flat(e.model.position, e.home);
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.5 * dt);
         this.updateBar(e);
-        if (home < 0.6 || speed <= 0) { e.state = 'idle'; e.hp = e.maxHp; e.mods = mods(); this.updateBar(e); }
+        if (home < 0.6 || speed <= 0) { e.state = 'idle'; this.initEnemy(e); }
         else w.moveEnemy(e, e.home, Math.max(speed, 2) * 2, dt);
       } else if (e.state === 'aggro') {
+        const leash = e.def.boss ? 35 : 25;
+        if (!alivePlayer || flat(e.model.position, e.home) > leash || flat(pp, e.home) > leash) { e.state = 'return'; e.cast = null; e.mods = mods(); continue; }
         fighting = true;
         if (e.def.boss) boss = true;
-        const leash = e.def.boss ? 40 : 26;
-        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; e.cast = null; continue; }
         const range = e.def.speed <= 0 ? Math.max(e.def.range || 0, 26) : (e.def.range || 4.5);
         if (e.cast) {
           e.cast.t += dt;
           w.faceEnemy(e, pp);
           e.moving = false;
           if (e.cast.t >= e.cast.dur) {
-            const s = e.cast.spell;
+            const cast = e.cast;
             e.cast = null;
-            this.enemySpell(e, s);
+            if (cast.pattern) this.resolvePattern(e, cast);
+            else this.enemySpell(e, cast.spell);
           }
         } else if (d > range * 0.95) {
           w.moveEnemy(e, pp, speed * 1.8, dt, range * 0.8);

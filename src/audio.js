@@ -5,6 +5,14 @@ let muted = false;
 let musicMode = null;
 let musicTimer = null;
 let beat = 0;
+let volumes = { master: 1, music: 1, effects: 1 };
+export function setVolumes(next) {
+  for (const key of Object.keys(volumes)) volumes[key] = Math.max(0, Math.min(1, Number(next[key]) || 0));
+  if (!ctx) return;
+  master.gain.setTargetAtTime(muted ? 0 : 0.55 * volumes.master, ctx.currentTime, 0.05);
+  musicBus.gain.setTargetAtTime(0.22 * volumes.music, ctx.currentTime, 0.05);
+  sfxBus.gain.setTargetAtTime(0.9 * volumes.effects, ctx.currentTime, 0.05);
+}
 
 try { muted = localStorage.getItem('darquest-muted') === '1'; } catch { /* ignore */ }
 
@@ -15,13 +23,13 @@ export function initAudio() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.55;
+  master.gain.value = muted ? 0 : 0.55 * volumes.master;
   master.connect(ctx.destination);
   sfxBus = ctx.createGain();
-  sfxBus.gain.value = 0.9;
+  sfxBus.gain.value = 0.9 * volumes.effects;
   sfxBus.connect(master);
   musicBus = ctx.createGain();
-  musicBus.gain.value = 0.22;
+  musicBus.gain.value = 0.22 * volumes.music;
   // a little echo makes the music feel magical
   const delay = ctx.createDelay();
   delay.delayTime.value = 0.33;
@@ -40,7 +48,7 @@ export function isMuted() { return muted; }
 export function toggleMute() {
   muted = !muted;
   try { localStorage.setItem('darquest-muted', muted ? '1' : '0'); } catch { /* ignore */ }
-  if (master) master.gain.setTargetAtTime(muted ? 0 : 0.55, ctx.currentTime, 0.05);
+  if (master) master.gain.setTargetAtTime(muted ? 0 : 0.55 * volumes.master, ctx.currentTime, 0.05);
   return muted;
 }
 

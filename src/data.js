@@ -190,6 +190,12 @@ export const ENEMIES = {
   },
   lord_hollowmere: {
     name: 'Lord Hollowmere', school: 'umbral', level: 8, hp: 1500, xp: 600, gold: [120, 160], model: 'boss', boss: true,
+    intro: 'The crypt door closes. Watch the ground; the dead announce their blows.',
+    patterns: [
+      { name: 'Grave Mark', hint: 'Leave the marked ground', anchor: 'player', radius: 3.4, windup: 1.5, recovery: 1.4, damage: 155 },
+      { name: 'Crypt Toll', hint: 'Back away from Hollowmere', anchor: 'self', radius: 8, windup: 1.8, recovery: 1.6, damage: 185 },
+      { name: 'Last Rites', hint: 'Keep moving; a wider mark follows', anchor: 'player', radius: 5, windup: 2, recovery: 2, damage: 210 },
+    ],
     spells: ['hollow_strike', 'hollow_strike', 'ghoul_claw', 'wither', 'banshee_wail', 'dread_hex', 'grave_mend'],
     resist: { umbral: 0.35 }, boost: {}, speed: 0, aggro: 6, powerPipChance: 0.5,
     phases: [{ at: 0.5, say: 'The Hollow cannot be defeated!', blade: 0.35, pips: 2 }],
@@ -243,13 +249,19 @@ export const ENEMIES = {
   },
   pyrrhon: {
     name: 'Pyrrhon, the Molten King', school: 'blaze', level: 13, hp: 3600, xp: 1500, gold: [300, 400], model: 'pyrrhon', boss: true,
+    intro: 'Ash falls from the crown. Step clear when the stone begins to glow.',
+    patterns: [
+      { name: 'Cinderfall', hint: 'Leave the falling ember mark', anchor: 'player', radius: 4, windup: 1.4, recovery: 1.2, damage: 220 },
+      { name: 'Furnace Breath', hint: 'Get clear of the throne', anchor: 'self', radius: 10, windup: 2, recovery: 1.5, damage: 280 },
+      { name: 'Caldera', hint: 'Run beyond the wide burning ring', anchor: 'player', radius: 6, windup: 2.2, recovery: 2.2, damage: 310 },
+    ],
     spells: ['fire_serpent', 'phoenix_rush', 'eruption', 'molten_wave', 'kindle', 'searing_blade', 'magma_mend'],
     resist: { blaze: 0.5 }, boost: { frost: 0.2 }, speed: 0, aggro: 7, powerPipChance: 0.6,
     phases: [
-      { at: 0.66, say: 'You think fire can be put out? I AM the fire!', shield: 0.5, cast: 'molten_wave' },
+      { at: 0.66, say: 'The stone remembers every fire.', shield: 0.5 },
       { at: 0.33, say: 'Then we burn TOGETHER!', blade: 0.5, pips: 3, heal: 800 },
     ],
-    reactions: [{ school: 'frost', say: 'Ice?! You DARE bring ice before the Molten King?', cast: 'kindle' }],
+    reactions: [{ school: 'frost', say: 'A cold wind. Then let the furnace answer.', cast: 'searing_blade' }],
     drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { pet: 'ember_drake', chance: 1 }],
   },
 };
@@ -263,6 +275,10 @@ for (const e of Object.values(ENEMIES)) {
 }
 ENEMIES.magma_guard.speed = 2.2;
 ENEMIES.magma_serpent.speed = 0;
+// Chapter-one quests are three fights, with a readable gap for a dodge.
+Object.assign(ENEMIES.frost_wisp, { attackRate: 3.2, damageScale: 0.55 });
+Object.assign(ENEMIES.hollow_knight, { attackRate: 3.4, damageScale: 0.5 });
+Object.assign(ENEMIES.storm_crow, { attackRate: 3.6, damageScale: 0.5 });
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
@@ -371,7 +387,7 @@ export const QUESTS = [
     objective: { type: 'defeat', enemy: 'frost_wisp', count: 3 },
     offer: 'Further down the lane, Frostbitten Wisps are freezing the lamp posts. Shatter 3 of them.',
     done: 'The lamps are glowing again. You\'re a natural, apprentice.',
-    reward: { xp: 200, gold: 50 },
+    reward: { xp: 200, gold: 50, potions: 1 },
   },
   {
     id: 'q5', name: 'The Hollow Guard', giver: 'brannoc', turnIn: 'brannoc',

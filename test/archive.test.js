@@ -183,7 +183,7 @@ test('the Folio decision survives reload, changes guardian combat and pays once 
     combat.hitHero(100, 'arcane', 0xffffff, stronger);
     assert.equal(resumed.hp, 9875);
     archiveKill(resumed, 0);
-    assert.equal(claimArchive(resumed).gold, 175 + bonus);
+    assert.equal(claimArchive(resumed).gold, Math.round(175 * 1.45) + bonus);
     assert.equal(claimArchive(resumed), null);
   } finally { globalThis.localStorage = prior; }
 });

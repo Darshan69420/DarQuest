@@ -20,7 +20,8 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 
 | Action | Keys |
 | --- | --- |
-| Walk / turn | `W` `A` `S` `D` or the arrow keys, or tap/click the ground |
+| Move | Camera-relative `W` `A` `S` `D`, classic arrow keys, or tap/click the ground |
+| Sprint / gallop | Hold `Shift` while moving |
 | Look around | Drag with the mouse or your finger; scroll to zoom |
 | Talk / interact | `E` (or tap a character) |
 | Basic attack / spells | `1` / `2`–`5` (or click the hotbar) |
@@ -30,6 +31,7 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | Character, gear & pets | `C` |
 | Spell scroll bag | `R` |
 | Mount / dismount | `F` |
+| Fullscreen | `V` |
 | Drink potion | `H` |
 | Sound on/off | `M` |
 | Help | `?` |

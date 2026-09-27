@@ -439,7 +439,7 @@ export function openGearShop(p, onChange) {
 export function openHelp() {
   openModal('❓ How to Play', `<div class="help">
     <h3>Exploring</h3>
-    <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
+    <p><b>W A S D</b> moves relative to the camera; hold <b>Shift</b> to sprint or gallop. Arrow keys use classic walk-and-turn controls. You can also <b>tap or click the ground</b> to walk there, and drag to look around. Press <b>V</b> for fullscreen.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>R</b> spell scrolls · <b>F</b> mount · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>Scrolls are one-use spells that cost no mana. Madame Fizz sells them, and some foes drop them. Elowen in the courtyard sells rideable stags; casting and dodging require you to dismount.</p>

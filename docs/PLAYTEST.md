@@ -1,5 +1,11 @@
 # DarQuest playtest log
 
+## 2026-09-26: movement and camera controls
+
+**Result:** desktop browser smoke test passed at 1280×720. A new Blaze character entered the academy courtyard; camera-relative walk, Shift sprint and lateral strafe inputs moved the hero, and the final frame rendered without console errors. The HUD, minimap, quest marker, hotbar and new fullscreen control remained visible.
+
+The game now exposes concise `render_game_to_text()` state and deterministic `advanceTime(ms)` stepping for repeatable browser checks. Physical touch-device verification remains open; tap-to-move is preserved, but a dedicated virtual joystick is a later enhancement.
+
 ## 2026-09-26: Shattered Archive route
 
 **Result:** scripted progression and static HTTP checks pass. A rendered browser playthrough remains open. The cloud browser rejected local HTTP with `ERR_BLOCKED_BY_CLIENT` before the game loaded, so there are no genuine gameplay screenshots yet. The [route diagram](archive-route.svg) shows the current chamber sequence from source data and is labeled as a diagram.

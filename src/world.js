@@ -13,6 +13,7 @@ const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const COURTYARD_R = 31;
 const LANE = { halfWidth: 8.5, zMin: 24, zMax: 146 };
 const PLAYER_SPEED = 6.5;
+const SPRINT_MULTIPLIER = 1.55;
 
 // Height of a model's bounding box, used to place labels and spell effects.
 function measure(obj) {
@@ -61,6 +62,8 @@ export class World {
     this.dashT = 0;
     this.dashDir = null;
     this.targetEntity = null;
+    this.isMoving = false;
+    this.isSprinting = false;
 
     this.onTargetTap = null;  // (enemyEntity) => void
     this.onInteract = null;   // (npcId) => void
@@ -540,15 +543,28 @@ export class World {
   movePlayer(dt) {
     const k = this.keys;
     const fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
-    const turn = (k.KeyA || k.ArrowLeft ? 1 : 0) - (k.KeyD || k.ArrowRight ? 1 : 0);
+    const strafe = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
+    const turn = (k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0);
     let speed = 0;
+    let moveX = 0;
+    let moveZ = 0;
 
-    if (fwd || turn) {
+    if (fwd || strafe || turn) {
       this.moveTarget = null;
       this.pendingTalk = null;
       this.heading += turn * 2.8 * dt;
-      speed = fwd > 0 ? PLAYER_SPEED * this.mountSpeed : fwd < 0 ? -PLAYER_SPEED * this.mountSpeed * 0.55 : 0;
-      if (fwd) this.camYawOffset *= Math.exp(-3 * dt);
+      if (fwd || strafe) {
+        const cameraYaw = this.heading + this.camYawOffset;
+        const length = Math.hypot(strafe, fwd);
+        moveX = (Math.sin(cameraYaw) * fwd + Math.cos(cameraYaw) * strafe) / length;
+        moveZ = (Math.cos(cameraYaw) * fwd - Math.sin(cameraYaw) * strafe) / length;
+        const oldHeading = this.heading;
+        this.heading = Math.atan2(moveX, moveZ);
+        this.camYawOffset += oldHeading - this.heading;
+        const sprinting = !!(k.ShiftLeft || k.ShiftRight);
+        speed = PLAYER_SPEED * this.mountSpeed * (sprinting ? SPRINT_MULTIPLIER : 1);
+        this.isSprinting = sprinting;
+      }
     } else if (this.moveTarget) {
       const p = this.player.position;
       const dx = this.moveTarget.x - p.x, dz = this.moveTarget.z - p.z;
@@ -562,6 +578,8 @@ export class World {
         let diff = ((want - this.heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         this.heading += diff * Math.min(1, dt * 10);
         speed = PLAYER_SPEED * this.mountSpeed;
+        moveX = Math.sin(this.heading);
+        moveZ = Math.cos(this.heading);
       }
     }
 
@@ -574,13 +592,15 @@ export class World {
     const moving = speed !== 0;
     if (moving) {
       const p = this.player.position;
-      const nx = p.x + Math.sin(this.heading) * speed * dt;
-      const nz = p.z + Math.cos(this.heading) * speed * dt;
+      const nx = p.x + moveX * speed * dt;
+      const nz = p.z + moveZ * speed * dt;
       if (this.walkable(nx, nz)) p.set(nx, 0, nz);
       else if (this.walkable(nx, p.z)) p.x = nx;
       else if (this.walkable(p.x, nz)) p.z = nz;
       else this.moveTarget = null;
     }
+    this.isMoving = moving;
+    if (!moving) this.isSprinting = false;
     this.player.rotation.y = this.heading;
     this.player.userData.anim(this.time, moving);
   }
@@ -976,8 +996,8 @@ export class World {
     this.hemi.color.lerp(new THREE.Color(a.hemi), k);
   }
 
-  frame() {
-    const dt = Math.min(0.05, this.clock.getDelta());
+  frame(forcedDt = null) {
+    const dt = forcedDt == null ? Math.min(0.05, this.clock.getDelta()) : Math.min(0.05, forcedDt);
     this.dt = dt;
     this.time += dt;
 
@@ -1033,5 +1053,10 @@ export class World {
     this.onTick?.(dt);
     this.updateLabels();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  advanceTime(ms) {
+    const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+    for (let i = 0; i < steps; i++) this.frame(1 / 60);
   }
 }

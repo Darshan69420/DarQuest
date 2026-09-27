@@ -92,7 +92,7 @@ function startGame(p, isNew) {
   if (isNew) {
     const d = DIFFICULTIES[p.difficulty];
     setTimeout(() => UI.dialog('Headmaster Orvyn', 'Headmaster',
-      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Walk with W A S D or the arrow keys, or tap the ground. Fight with keys 1 to 5 and dodge with Space. When you see a "!" above someone's head, talk to them with E. Come and find me in front of the Academy!`,
+      `Welcome, ${p.name}! ${d.hp > 1 ? `You chose ${d.name} difficulty. Brave! ` : ''}Move with W A S D, hold Shift to sprint, or tap the ground. Fight with keys 1 to 5 and dodge with Space. When you see a "!" above someone's head, talk to them with E. Come and find me in front of the Academy!`,
       [{ label: 'Let\'s go!', primary: true }, { label: 'How to play', action: UI.openHelp }]), 700);
   }
 }
@@ -593,11 +593,17 @@ function toggleMute() {
   UI.toast(m ? 'Sound off' : 'Sound on');
 }
 
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  else document.documentElement.requestFullscreen?.();
+}
+
 window.addEventListener('keydown', (e) => {
   if (!player || e.target instanceof HTMLInputElement) return;
   Audio.initAudio();
   if (e.code === 'Escape') { UI.closeModal(); UI.closeDialog(); return; }
   if (e.code === 'KeyM') return toggleMute();
+  if (e.code === 'KeyV') return toggleFullscreen();
   if (world.mode !== 'explore' || UI.isDialogOpen()) return;
   if (e.code === 'KeyB') UI.openSpellbook(player, onChange);
   if (e.code === 'KeyC' || e.code === 'KeyI') UI.openCharacter(player, onChange);
@@ -625,6 +631,7 @@ $('#btn-potion').addEventListener('click', () => inExplore() && drinkPotion());
 $('#btn-scroll').addEventListener('click', () => inExplore() && UI.openScrolls(player, useScroll));
 $('#btn-mount').addEventListener('click', () => inExplore() && toggleMount());
 $('#btn-mute').addEventListener('click', toggleMute);
+$('#btn-fullscreen').addEventListener('click', toggleFullscreen);
 $('#btn-help').addEventListener('click', () => UI.openHelp());
 $('#btn-reset').addEventListener('click', () => {
   if (confirm('Start over? This deletes your saved wizard.')) { clearSave(); location.reload(); }
@@ -638,6 +645,31 @@ setInterval(() => {
 }, 100);
 
 // Handy for testing from the browser console.
+window.render_game_to_text = () => JSON.stringify(player ? {
+  coordinateSystem: 'ground plane: +x east/right, +z south/down; positions are world units',
+  mode: world.mode,
+  fullscreen: !!document.fullscreenElement,
+  zone: zoneAt(world.player.position.x),
+  player: {
+    x: +world.player.position.x.toFixed(2), z: +world.player.position.z.toFixed(2),
+    heading: +world.heading.toFixed(2), moving: world.isMoving, sprinting: world.isSprinting,
+    mounted: player.mounted, hp: Math.ceil(player.hp), maxHp: player.maxHp,
+    mana: Math.ceil(player.mana), maxMana: player.maxMana,
+  },
+  target: combat.target && combat.target.state !== 'dead' ? {
+    name: combat.target.def.name, hp: Math.ceil(combat.target.hp), maxHp: combat.target.maxHp,
+    x: +combat.target.model.position.x.toFixed(2), z: +combat.target.model.position.z.toFixed(2),
+  } : null,
+  nearbyInteractable: world.nearestInteractable()?.id || null,
+  visibleEnemies: world.enemies.filter(e => e.state !== 'dead' && e.model.visible).slice(0, 12).map(e => ({
+    name: e.def.name, state: e.state,
+    x: +e.model.position.x.toFixed(1), z: +e.model.position.z.toFixed(1), hp: Math.ceil(e.hp),
+  })),
+  quest: questTrackerText(player),
+  rift: player.rift ? riftText(player) : null,
+  archive: player.archive ? archiveText(player) : null,
+} : { mode: 'title' });
+window.advanceTime = ms => world.advanceTime(ms);
 window.darquest = { world, combat, get player() { return player; } };
 
 buildTitle();

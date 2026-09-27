@@ -47,7 +47,11 @@
       <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
       <button class="btn round" id="btn-reset" title="Start over">↺</button>
     </div>
-    <div id="prompt" class="hidden"></div>
+    <button id="prompt" class="hidden" type="button"></button>
+    <div id="touch-controls" aria-label="Touch movement controls">
+      <div id="touch-stick" role="button" aria-label="Move" tabindex="-1"><div id="touch-stick-knob"></div></div>
+      <button id="touch-sprint" type="button" aria-label="Hold to sprint">Sprint</button>
+    </div>
   </div>
 
   <div id="hurt"></div>

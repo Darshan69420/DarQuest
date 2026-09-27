@@ -17,7 +17,7 @@ Keep two different rhythms: persistent **adventure** progress (level, story, gea
 
 | Order | Feature | Playable acceptance criteria | Quality gate |
 | --- | --- | --- | --- |
-| 1 | Movement and camera | Strafing, sprinting and a clear interact prompt work with keyboard, mouse and touch. Mount animation and camera remain readable around narrow paths. | Play from new game to first fight on desktop and narrow mobile viewport; no stuck movement or unreadable HUD. |
+| 1 | Movement and camera (in progress) | Camera-relative strafing, sprinting, thumb-stick movement and a tappable interact prompt are implemented. The camera stays outside scenery near the Academy wall. | Desktop and narrow browser checks pass. A first fight, mounted turns, Archive corridors and a physical phone still need playtesting. |
 | 2 | First dungeon prototype (implemented) | A portal leads to a small, seeded dungeon with a sequence of rooms, encounters, a rest choice and a final guardian. Exits return to the world. | Seed, remaining foes and one-time payout covered by tests. Full browser playthrough and device QA still needed. |
 | 3 | Run variety (in progress) | Enemy groups, encounter rules, a Folio event and two seeded Rune offers change the next fight. More consequential route choices remain. | 1,200 seeded routes checked; verify combat rules, reward cleanup and both choices in a browser playthrough. |
 | 4 | World agency | One new settlement, explorable side areas, NPC schedules or reactions, and at least one quest with a meaningful choice and consequence. | Save/load both outcomes; every branch reaches a conclusion; optional path is signposted in game. |

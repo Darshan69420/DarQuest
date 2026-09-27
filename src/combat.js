@@ -142,7 +142,9 @@ export class Combat {
 
   faceTarget(e) {
     const pp = this.world.player.position, m = e.model.position;
+    const oldHeading = this.world.heading;
     this.world.heading = Math.atan2(m.x - pp.x, m.z - pp.z);
+    this.world.camYawOffset += oldHeading - this.world.heading;
     this.world.moveTarget = null;
   }
 

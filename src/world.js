@@ -8,6 +8,7 @@ import {
 import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, MOUNTS } from './data.js';
 import { buildEmberfall } from './maps.js';
 import { buildArchive } from './archive-map.js';
+import { movementIntent } from './movement.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const COURTYARD_R = 31;
@@ -26,8 +27,9 @@ export class World {
   constructor(canvas, labelRoot) {
     this.canvas = canvas;
     this.labelRoot = labelRoot;
+    this.isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isCoarsePointer ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -64,6 +66,9 @@ export class World {
     this.targetEntity = null;
     this.isMoving = false;
     this.isSprinting = false;
+    this.touchMove = { x: 0, y: 0 };
+    this.touchSprint = false;
+    this.strideTime = 0;
 
     this.onTargetTap = null;  // (enemyEntity) => void
     this.onInteract = null;   // (npcId) => void
@@ -137,7 +142,7 @@ export class World {
     scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(0xffd9b0, 2.2);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(this.isCoarsePointer ? 1024 : 2048, this.isCoarsePointer ? 1024 : 2048);
     const sc = sun.shadow.camera;
     sc.left = -35; sc.right = 35; sc.top = 35; sc.bottom = -35; sc.near = 1; sc.far = 150;
     sun.shadow.bias = -0.0005;
@@ -398,6 +403,15 @@ export class World {
 
   // ------------------------------------------------------------ input
 
+  clearInput() {
+    this.keys = {};
+    this.touchMove = { x: 0, y: 0 };
+    this.touchSprint = false;
+    document.querySelector('#touch-stick')?.style.setProperty('--stick-x', '0px');
+    document.querySelector('#touch-stick')?.style.setProperty('--stick-y', '0px');
+    document.querySelector('#touch-sprint')?.classList.remove('active');
+  }
+
   bindInput() {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
@@ -408,7 +422,7 @@ export class World {
       }
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
-    window.addEventListener('blur', () => { this.keys = {}; });
+    window.addEventListener('blur', () => this.clearInput());
 
     let down = null;
     this.canvas.addEventListener('pointerdown', (e) => {
@@ -429,6 +443,49 @@ export class World {
     this.canvas.addEventListener('wheel', (e) => {
       this.camDist = THREE.MathUtils.clamp(this.camDist + Math.sign(e.deltaY) * 0.8, 4, 16);
     }, { passive: true });
+
+    const stick = document.querySelector('#touch-stick');
+    const sprint = document.querySelector('#touch-sprint');
+    let stickPointer = null;
+    const updateStick = e => {
+      const box = stick.getBoundingClientRect();
+      const radius = box.width * 0.36;
+      const dx = e.clientX - (box.left + box.width / 2);
+      const dy = e.clientY - (box.top + box.height / 2);
+      const length = Math.hypot(dx, dy);
+      const scale = length > radius ? radius / length : 1;
+      const x = dx * scale / radius, y = dy * scale / radius;
+      this.touchMove = Math.hypot(x, y) < 0.12 ? { x: 0, y: 0 } : { x, y: -y };
+      stick.style.setProperty('--stick-x', `${dx * scale}px`);
+      stick.style.setProperty('--stick-y', `${dy * scale}px`);
+    };
+    stick.addEventListener('pointerdown', e => {
+      if (this.mode !== 'explore') return;
+      stickPointer = e.pointerId;
+      stick.setPointerCapture(e.pointerId);
+      updateStick(e);
+      e.preventDefault();
+    });
+    stick.addEventListener('pointermove', e => { if (e.pointerId === stickPointer) updateStick(e); });
+    const releaseStick = e => {
+      if (e.pointerId !== stickPointer) return;
+      stickPointer = null;
+      this.touchMove = { x: 0, y: 0 };
+      stick.style.setProperty('--stick-x', '0px');
+      stick.style.setProperty('--stick-y', '0px');
+    };
+    stick.addEventListener('pointerup', releaseStick);
+    stick.addEventListener('pointercancel', releaseStick);
+    sprint.addEventListener('pointerdown', e => {
+      if (this.mode !== 'explore') return;
+      sprint.setPointerCapture(e.pointerId);
+      this.touchSprint = true;
+      sprint.classList.add('active');
+      e.preventDefault();
+    });
+    const releaseSprint = () => { this.touchSprint = false; sprint.classList.remove('active'); };
+    sprint.addEventListener('pointerup', releaseSprint);
+    sprint.addEventListener('pointercancel', releaseSprint);
   }
 
   tapMove(cx, cy) {
@@ -542,27 +599,24 @@ export class World {
 
   movePlayer(dt) {
     const k = this.keys;
-    const fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
-    const strafe = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
     const turn = (k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0);
     let speed = 0;
     let moveX = 0;
     let moveZ = 0;
 
-    if (fwd || strafe || turn) {
+    if (turn || k.KeyW || k.KeyS || k.KeyA || k.KeyD || k.ArrowUp || k.ArrowDown || this.touchMove.x || this.touchMove.y) {
       this.moveTarget = null;
       this.pendingTalk = null;
       this.heading += turn * 2.8 * dt;
-      if (fwd || strafe) {
-        const cameraYaw = this.heading + this.camYawOffset;
-        const length = Math.hypot(strafe, fwd);
-        moveX = (Math.sin(cameraYaw) * fwd + Math.cos(cameraYaw) * strafe) / length;
-        moveZ = (Math.cos(cameraYaw) * fwd - Math.sin(cameraYaw) * strafe) / length;
+      const intent = movementIntent(k, this.touchMove, this.heading, this.camYawOffset);
+      if (intent.strength) {
+        moveX = intent.x;
+        moveZ = intent.z;
         const oldHeading = this.heading;
         this.heading = Math.atan2(moveX, moveZ);
-        this.camYawOffset += oldHeading - this.heading;
-        const sprinting = !!(k.ShiftLeft || k.ShiftRight);
-        speed = PLAYER_SPEED * this.mountSpeed * (sprinting ? SPRINT_MULTIPLIER : 1);
+        if (!intent.classicArrows) this.camYawOffset += oldHeading - this.heading;
+        const sprinting = !!(k.ShiftLeft || k.ShiftRight || this.touchSprint);
+        speed = PLAYER_SPEED * this.mountSpeed * intent.strength * (sprinting ? SPRINT_MULTIPLIER : 1);
         this.isSprinting = sprinting;
       }
     } else if (this.moveTarget) {
@@ -602,16 +656,20 @@ export class World {
     this.isMoving = moving;
     if (!moving) this.isSprinting = false;
     this.player.rotation.y = this.heading;
-    this.player.userData.anim(this.time, moving);
+    this.strideTime += dt * (this.isSprinting ? 1.45 : 1);
+    this.player.userData.anim(this.strideTime, moving);
   }
 
   // Pulls a camera position toward `from` until it is over open ground, so the
   // camera never ends up inside a house, cliff or tree.
   safeCam(from, to) {
-    let best = from.clone();
+    // The look-ahead point may be inside a wall even while the player is in a
+    // valid spot. Start the collision check at the player instead of there.
+    const origin = this.player ? V(this.player.position.x, to.y, this.player.position.z) : from.clone();
+    let best = origin.clone();
     const p = V();
     for (let i = 1; i <= 14; i++) {
-      p.lerpVectors(from, to, i / 14);
+      p.lerpVectors(origin, to, i / 14);
       if (!this.walkable(p.x, p.z)) break;
       best.copy(p);
     }
@@ -692,10 +750,8 @@ export class World {
   // A quick dash in the direction the player is moving (or facing).
   dash() {
     if (!this.player || this.dashT > 0 || this.mounted) return false;
-    const k = this.keys;
-    const back = (k.KeyS || k.ArrowDown) && !(k.KeyW || k.ArrowUp);
-    const dir = back ? this.heading + Math.PI : this.heading;
-    this.dashDir = V(Math.sin(dir), 0, Math.cos(dir));
+    const intent = movementIntent(this.keys, this.touchMove, this.heading, this.camYawOffset);
+    this.dashDir = intent.strength ? V(intent.x, 0, intent.z) : V(Math.sin(this.heading), 0, Math.cos(this.heading));
     this.dashT = 0.22;
     this.invulnUntil = Math.max(this.invulnUntil, this.time + 0.4);
     for (let i = 0; i < 10; i++) this.particle(this.player.position.clone().add(V(0, 0.6, 0)), 0xe8e4ff, { vel: V((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2), life: 0.5, size: 0.12 });

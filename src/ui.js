@@ -88,6 +88,7 @@ export function isDialogOpen() { return dialogOpen || !$('#modal').classList.con
 
 // buttons: [{label, action?, primary?}] — the dialog closes after any button.
 export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
+  setPrompt('');
   const el = $('#dialog');
   el.innerHTML = `<div class="dlg-speaker">${esc(speaker)}<span>${esc(title || '')}</span></div>
     <div class="dlg-text"></div>
@@ -123,6 +124,7 @@ function typewriter(el, text) {
 // ------------------------------------------------------------ modals
 
 export function openModal(title, bodyHTML, onMount) {
+  setPrompt('');
   const el = $('#modal');
   el.innerHTML = `<div class="modal-box">
     <div class="modal-head"><h2>${title}</h2><button class="btn close" aria-label="Close">✕</button></div>
@@ -439,7 +441,7 @@ export function openGearShop(p, onChange) {
 export function openHelp() {
   openModal('❓ How to Play', `<div class="help">
     <h3>Exploring</h3>
-    <p><b>W A S D</b> moves relative to the camera; hold <b>Shift</b> to sprint or gallop. Arrow keys use classic walk-and-turn controls. You can also <b>tap or click the ground</b> to walk there, and drag to look around. Press <b>V</b> for fullscreen.</p>
+    <p><b>W A S D</b> moves relative to the camera; hold <b>Shift</b> to sprint or gallop. On touch screens, use the thumb stick and hold Sprint. Arrow keys use classic walk-and-turn controls. You can also <b>tap or click the ground</b> to walk there, and drag to look around. Press <b>V</b> for fullscreen.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
     <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>R</b> spell scrolls · <b>F</b> mount · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
     <p>Scrolls are one-use spells that cost no mana. Madame Fizz sells them, and some foes drop them. Elowen in the courtyard sells rideable stags; casting and dodging require you to dismount.</p>

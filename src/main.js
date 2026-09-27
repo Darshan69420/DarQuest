@@ -511,6 +511,7 @@ function rewardKill(e) {
 
 async function playerDefeated() {
   world.mode = 'locked';
+  world.clearInput();
   Audio.sfx('defeat');
   const lostRift = endRift(player);
   const lostArchive = !!player.archive;
@@ -550,7 +551,7 @@ world.onTick = (dt) => {
     if (near) {
       const f = FOUNTAINS.find(x => x.id === near.id);
       const pt = PORTALS.find(x => x.id === near.id);
-      text = f ? `Press E to use the ${f.name}` : pt ? `Press E to use the ${pt.name || 'Spiral Door'}` : `Press E to talk to ${NPCS[near.id].name}`;
+      text = f ? `E / Tap · Use ${f.name}` : pt ? `E / Tap · Use ${pt.name || 'Spiral Door'}` : `E / Tap · Talk to ${NPCS[near.id].name}`;
     }
     UI.setPrompt(text);
   }
@@ -633,6 +634,12 @@ $('#btn-mount').addEventListener('click', () => inExplore() && toggleMount());
 $('#btn-mute').addEventListener('click', toggleMute);
 $('#btn-fullscreen').addEventListener('click', toggleFullscreen);
 $('#btn-help').addEventListener('click', () => UI.openHelp());
+$('#prompt').addEventListener('click', () => {
+  if (inExplore() && !UI.isDialogOpen()) {
+    const near = world.nearestInteractable();
+    if (near) talk(near.id);
+  }
+});
 $('#btn-reset').addEventListener('click', () => {
   if (confirm('Start over? This deletes your saved wizard.')) { clearSave(); location.reload(); }
 });
@@ -640,7 +647,7 @@ $('#btn-reset').addEventListener('click', () => {
 // Keep the world from reacting to keys while a menu is open.
 setInterval(() => {
   if (!player) return;
-  if (world.mode === 'explore' && UI.isDialogOpen()) { world.mode = 'menu'; world.keys = {}; }
+  if (world.mode === 'explore' && UI.isDialogOpen()) { world.mode = 'menu'; world.clearInput(); }
   else if (world.mode === 'menu' && !UI.isDialogOpen()) world.mode = 'explore';
 }, 100);
 

@@ -22,8 +22,9 @@ To share it online, you can turn on **GitHub Pages** for this repo (Settings →
 | --- | --- |
 | Move | Camera-relative `W` `A` `S` `D`, classic arrow keys, or tap/click the ground |
 | Sprint / gallop | Hold `Shift` while moving |
+| Touch movement | Drag the thumb stick; hold Sprint to move faster |
 | Look around | Drag with the mouse or your finger; scroll to zoom |
-| Talk / interact | `E` (or tap a character) |
+| Talk / interact | `E`, tap a character, or tap the nearby action prompt |
 | Basic attack / spells | `1` / `2`–`5` (or click the hotbar) |
 | Dodge | `Space` |
 | Next target | `Tab` (or click an enemy) |

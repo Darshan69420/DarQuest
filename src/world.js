@@ -3,15 +3,19 @@ import * as THREE from 'three';
 import {
   makeWizard, makeEnemy, makeTree, makeRoundTree, makeDeadTree, makeLamp, makeHouse, makeTower,
   makeFountain, makeGate, makeCrypt, makeGrave, makeRock, makeStall, makeBookStand, glowMat,
-  makePet, makePortal, mergeGeometries,
+  makePet, makePortal, makeMount, mergeGeometries,
 } from './models.js';
-import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS } from './data.js';
+import { NPCS, SPAWNS, ENEMIES, SCHOOLS, ZONES, zoneAt, PORTALS, FOUNTAINS, GEAR, PETS, MOUNTS } from './data.js';
 import { buildEmberfall } from './maps.js';
+import { buildArchive } from './archive-map.js';
+import { movementIntent } from './movement.js';
+import { groundPath, preferredInteraction } from './navigation.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const COURTYARD_R = 31;
 const LANE = { halfWidth: 8.5, zMin: 24, zMax: 146 };
 const PLAYER_SPEED = 6.5;
+const SPRINT_MULTIPLIER = 1.55;
 
 // Height of a model's bounding box, used to place labels and spell effects.
 function measure(obj) {
@@ -24,8 +28,9 @@ export class World {
   constructor(canvas, labelRoot) {
     this.canvas = canvas;
     this.labelRoot = labelRoot;
+    this.isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isCoarsePointer ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -43,10 +48,13 @@ export class World {
     this.floaters = [];
     this.npcs = [];
     this.enemies = [];
+    this.enemyGeometryCache = new Map();
     this.colliders = [];      // {x, z, r}
     this.staticObjs = [];     // scenery merged into batches after the map is built
     this.animated = [];       // objects with userData.anim
     this.player = null;
+    this.mounted = false;
+    this.mountSpeed = 1;
     this.heading = Math.PI;   // facing -Z (toward the academy)
     this.camYawOffset = 0;
     this.camDist = 10;
@@ -58,6 +66,16 @@ export class World {
     this.dashT = 0;
     this.dashDir = null;
     this.targetEntity = null;
+    this.isMoving = false;
+    this.isSprinting = false;
+    this.touchMove = { x: 0, y: 0 };
+    this.touchSprint = false;
+    this.strideTime = 0;
+    this.inputCode = code => code;
+    this.quality = this.preferredQuality = 'high';
+    this.particleDensity = 1;
+    this.autoQuality = false;
+    this.slowFrames = 0;
 
     this.onTargetTap = null;  // (enemyEntity) => void
     this.onInteract = null;   // (npcId) => void
@@ -88,6 +106,25 @@ export class World {
     this.camera.aspect = w / h;
     this.camera.fov = w < h ? 70 : 55;
     this.camera.updateProjectionMatrix();
+  }
+
+  setQuality(value, runtime = false) {
+    const levels = { low: [1, false, 0.3], medium: [1.5, true, 0.6], high: [2, true, 1] };
+    if (!levels[value]) value = 'high';
+    if (!runtime) { this.preferredQuality = value; this.slowFrames = 0; }
+    this.quality = value;
+    const [ratio, shadows, density] = levels[value];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratio, this.isCoarsePointer ? 1.5 : 2));
+    this.renderer.shadowMap.enabled = shadows;
+    this.particleDensity = density;
+    this.motes.forEach((m, i) => { m.visible = i < this.motes.length * density; });
+    this.resize();
+  }
+
+  setAutoQuality(value) {
+    this.autoQuality = !!value;
+    this.slowFrames = 0;
+    if (!value) this.setQuality(this.preferredQuality, true);
   }
 
   buildEnvironment() {
@@ -131,7 +168,7 @@ export class World {
     scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(0xffd9b0, 2.2);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(this.isCoarsePointer ? 1024 : 2048, this.isCoarsePointer ? 1024 : 2048);
     const sc = sun.shadow.camera;
     sc.left = -35; sc.right = 35; sc.top = 35; sc.bottom = -35; sc.near = 1; sc.far = 150;
     sun.shadow.bias = -0.0005;
@@ -269,6 +306,7 @@ export class World {
 
     // Chapter 2 zone + the portals that connect the zones
     const ember = buildEmberfall(this);
+    buildArchive(this);
     this.fountainModels = { fountain: this.fountain, spring_ember: ember.spring };
     this.portalModels = {};
     for (const pt of PORTALS) {
@@ -293,7 +331,7 @@ export class World {
       this.addLabel(this.fountainModels[f.id], `<div class="name">${f.name}</div><div class="sub">Restores health</div>`, 'npc', 4.5);
     }
     for (const pt of PORTALS) {
-      const l = this.addLabel(this.portalModels[pt.id], `<div class="name">🌀 Spiral Door</div><div class="sub">to ${pt.dest}</div>`, 'npc portal', 6.4);
+      const l = this.addLabel(this.portalModels[pt.id], `<div class="name">🌀 ${pt.name || 'Spiral Door'}</div><div class="sub">to ${pt.dest}</div>`, 'npc portal', 6.4);
       pt.label = l;
     }
   }
@@ -304,9 +342,33 @@ export class World {
   }
 
   spawnEnemies() {
-    SPAWNS.forEach((sp, idx) => {
+    SPAWNS.forEach((sp, idx) => this.addEnemy(sp, idx));
+  }
+
+  addEnemy(sp, uid, dungeon = false) {
       const def = ENEMIES[sp.enemy];
       const model = makeEnemy(def.model);
+      // Animation closures stay independent, while identical immutable mesh data
+      // uses one GPU buffer across creatures. Materials are cached by models.js.
+      model.traverse(mesh => {
+        if (!mesh.isMesh) return;
+        const geometry = mesh.geometry;
+        const names = Object.keys(geometry.attributes).sort();
+        const arrays = names.map(name => geometry.attributes[name].array);
+        if (geometry.index) arrays.push(geometry.index.array);
+        let hash = 2166136261;
+        for (const array of arrays) {
+          const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+          for (const byte of bytes) hash = Math.imul(hash ^ byte, 16777619);
+        }
+        const key = def.model + ':' + names.join(',') + ':' + arrays.map(a => a.length).join(',') + ':' + hash;
+        const shared = this.enemyGeometryCache.get(key);
+        if (shared && shared !== geometry) {
+          mesh.geometry = shared;
+          geometry.dispose();
+        } else this.enemyGeometryCache.set(key, geometry);
+      });
+      model.userData.baseScale = model.scale.clone();
       model.userData.height = measure(model);
       const box = new THREE.Box3().setFromObject(model);
       model.userData.width = box.max.x - box.min.x;
@@ -317,11 +379,23 @@ export class World {
       const label = this.addLabel(model,
         `<div class="name" style="color:${color}">${SCHOOLS[def.school].icon} ${def.name}</div><div class="sub">Level ${def.level}${def.boss ? ' · Boss' : ''}</div><div class="ehp"><div class="fill"></div></div><div class="ecast"><div class="fill"></div></div>`,
         'enemy', model.userData.height + 0.5);
-      this.enemies.push({
-        uid: idx, def, model, label, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
+      const e = {
+        uid, def, model, label, dungeon, home: V(sp.x, 0, sp.z), wanderR: sp.r, baseScale: model.scale.x,
         state: 'idle', target: null, wait: Math.random() * 3, respawnAt: 0,
-      });
-    });
+      };
+      this.enemies.push(e);
+      return e;
+  }
+
+  clearArchiveEnemies() {
+    for (const e of this.enemies.filter(e => e.dungeon)) {
+      this.scene.remove(e.model);
+      e.label.el.remove();
+      const index = this.labels.indexOf(e.label);
+      if (index >= 0) this.labels.splice(index, 1);
+      if (this.targetEntity === e) this.targetEntity = null;
+    }
+    this.enemies = this.enemies.filter(e => !e.dungeon);
   }
 
   // Rebuilds the player model (e.g. after changing gear) and keeps its place.
@@ -332,13 +406,31 @@ export class World {
     const c = SCHOOLS[p.school].color;
     const hat = GEAR[p.equipped?.hat]?.color ?? new THREE.Color(c).multiplyScalar(0.55).getHex();
     const robe = GEAR[p.equipped?.robe]?.color ?? c;
-    this.player = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    const wizard = makeWizard({ robe, hat, trim: 0xf2e6c9, gem: c });
+    const mount = p.mounted && MOUNTS[p.activeMount];
+    this.mounted = !!mount;
+    this.mountSpeed = mount?.speed || 1;
+    if (mount) {
+      const rider = new THREE.Group();
+      const stag = makeMount(mount.color, mount.trim);
+      wizard.position.y = 1.18;
+      wizard.scale.setScalar(0.82);
+      rider.add(stag, wizard);
+      rider.userData.gem = wizard.userData.gem;
+      rider.userData.anim = (t, moving) => {
+        stag.userData.anim(t, moving);
+        wizard.userData.anim(t, false);
+      };
+      this.player = rider;
+    } else this.player = wizard;
     this.player.userData.height = measure(this.player);
+    this.player.userData.baseScale = this.player.scale.clone();
     this.scene.add(this.player);
     this.setPet(p.activePet);
     if (keep) {
       this.player.position.copy(keep);
       this.player.rotation.y = this.heading;
+      if (this.pet) this.pet.position.set(keep.x + 1, 0, keep.z - 1);
       return;
     }
     const zone = ZONES[zoneAt(pos?.x ?? 0)];
@@ -349,19 +441,37 @@ export class World {
     this.snapCamera();
   }
 
+  setMounted(p, mounted) {
+    if (mounted && !MOUNTS[p.activeMount]) return false;
+    p.mounted = mounted;
+    this.spawnPlayer(p);
+    this.snapCamera();
+    return true;
+  }
+
   // ------------------------------------------------------------ input
+
+  clearInput() {
+    this.keys = {};
+    this.touchMove = { x: 0, y: 0 };
+    this.touchSprint = false;
+    document.querySelector('#touch-stick')?.style.setProperty('--stick-x', '0px');
+    document.querySelector('#touch-stick')?.style.setProperty('--stick-y', '0px');
+    document.querySelector('#touch-sprint')?.classList.remove('active');
+  }
 
   bindInput() {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
-      this.keys[e.code] = true;
-      if (this.mode === 'explore' && ['KeyE', 'Enter'].includes(e.code)) {
+      const code = this.inputCode(e.code);
+      this.keys[code] = true;
+      if (this.mode === 'explore' && ['KeyE', 'Enter'].includes(code)) {
         const near = this.nearestInteractable();
         if (near) { e.preventDefault(); this.onInteract?.(near.id); }
       }
     });
-    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
-    window.addEventListener('blur', () => { this.keys = {}; });
+    window.addEventListener('keyup', (e) => { this.keys[this.inputCode(e.code)] = false; });
+    window.addEventListener('blur', () => this.clearInput());
 
     let down = null;
     this.canvas.addEventListener('pointerdown', (e) => {
@@ -382,6 +492,49 @@ export class World {
     this.canvas.addEventListener('wheel', (e) => {
       this.camDist = THREE.MathUtils.clamp(this.camDist + Math.sign(e.deltaY) * 0.8, 4, 16);
     }, { passive: true });
+
+    const stick = document.querySelector('#touch-stick');
+    const sprint = document.querySelector('#touch-sprint');
+    let stickPointer = null;
+    const updateStick = e => {
+      const box = stick.getBoundingClientRect();
+      const radius = box.width * 0.36;
+      const dx = e.clientX - (box.left + box.width / 2);
+      const dy = e.clientY - (box.top + box.height / 2);
+      const length = Math.hypot(dx, dy);
+      const scale = length > radius ? radius / length : 1;
+      const x = dx * scale / radius, y = dy * scale / radius;
+      this.touchMove = Math.hypot(x, y) < 0.12 ? { x: 0, y: 0 } : { x, y: -y };
+      stick.style.setProperty('--stick-x', `${dx * scale}px`);
+      stick.style.setProperty('--stick-y', `${dy * scale}px`);
+    };
+    stick.addEventListener('pointerdown', e => {
+      if (this.mode !== 'explore') return;
+      stickPointer = e.pointerId;
+      stick.setPointerCapture(e.pointerId);
+      updateStick(e);
+      e.preventDefault();
+    });
+    stick.addEventListener('pointermove', e => { if (e.pointerId === stickPointer) updateStick(e); });
+    const releaseStick = e => {
+      if (e.pointerId !== stickPointer) return;
+      stickPointer = null;
+      this.touchMove = { x: 0, y: 0 };
+      stick.style.setProperty('--stick-x', '0px');
+      stick.style.setProperty('--stick-y', '0px');
+    };
+    stick.addEventListener('pointerup', releaseStick);
+    stick.addEventListener('pointercancel', releaseStick);
+    sprint.addEventListener('pointerdown', e => {
+      if (this.mode !== 'explore') return;
+      sprint.setPointerCapture(e.pointerId);
+      this.touchSprint = true;
+      sprint.classList.add('active');
+      e.preventDefault();
+    });
+    const releaseSprint = () => { this.touchSprint = false; sprint.classList.remove('active'); };
+    sprint.addEventListener('pointerup', releaseSprint);
+    sprint.addEventListener('pointercancel', releaseSprint);
   }
 
   tapMove(cx, cy) {
@@ -472,13 +625,7 @@ export class World {
 
   nearestInteractable() {
     if (!this.player) return null;
-    const p = this.player.position;
-    let best = null, bestD = Infinity;
-    for (const it of this.interactables()) {
-      const d = Math.hypot(it.x - p.x, it.z - p.z);
-      if (d < it.r && d < bestD) { best = it; bestD = d; }
-    }
-    return best;
+    return preferredInteraction(this.interactables(), this.player.position, this.heading);
   }
 
   // ------------------------------------------------------------ movement
@@ -495,29 +642,52 @@ export class World {
 
   movePlayer(dt) {
     const k = this.keys;
-    const fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
-    const turn = (k.KeyA || k.ArrowLeft ? 1 : 0) - (k.KeyD || k.ArrowRight ? 1 : 0);
+    const turn = (k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0);
     let speed = 0;
+    let moveX = 0;
+    let moveZ = 0;
 
-    if (fwd || turn) {
+    if (turn || k.KeyW || k.KeyS || k.KeyA || k.KeyD || k.ArrowUp || k.ArrowDown || this.touchMove.x || this.touchMove.y) {
       this.moveTarget = null;
       this.pendingTalk = null;
       this.heading += turn * 2.8 * dt;
-      speed = fwd > 0 ? PLAYER_SPEED : fwd < 0 ? -PLAYER_SPEED * 0.55 : 0;
-      if (fwd) this.camYawOffset *= Math.exp(-3 * dt);
+      const intent = movementIntent(k, this.touchMove, this.heading, this.camYawOffset);
+      if (intent.strength) {
+        moveX = intent.x;
+        moveZ = intent.z;
+        const oldHeading = this.heading;
+        this.heading = Math.atan2(moveX, moveZ);
+        if (!intent.classicArrows) this.camYawOffset += oldHeading - this.heading;
+        const sprinting = !!(k.ShiftLeft || k.ShiftRight || this.touchSprint);
+        speed = PLAYER_SPEED * this.mountSpeed * intent.strength * (sprinting ? SPRINT_MULTIPLIER : 1);
+        this.isSprinting = sprinting;
+      }
     } else if (this.moveTarget) {
       const p = this.player.position;
-      const dx = this.moveTarget.x - p.x, dz = this.moveTarget.z - p.z;
-      const dist = Math.hypot(dx, dz);
       const talk = this.pendingTalk && this.interactables().find(i => i.id === this.pendingTalk);
-      if (dist < 0.3 || (talk && Math.hypot(talk.x - p.x, talk.z - p.z) < talk.r - 0.6)) {
+      if (this.pathTarget !== this.moveTarget) {
+        this.pathTarget = this.moveTarget;
+        let goal = { x: this.moveTarget.x, z: this.moveTarget.z };
+        if (talk) {
+          const distance = Math.hypot(p.x - talk.x, p.z - talk.z) || 1;
+          goal = { x: talk.x + (p.x - talk.x) / distance * (talk.r - 0.8), z: talk.z + (p.z - talk.z) / distance * (talk.r - 0.8) };
+        }
+        this.path = groundPath(p, goal, (x, z) => this.walkable(x, z) && this.colliders.every(c => Math.hypot(x - c.x, z - c.z) >= c.r + 0.15));
+      }
+      while (this.path?.length > 1 && Math.hypot(this.path[0].x - p.x, this.path[0].z - p.z) < 0.15) this.path.shift();
+      const next = this.path?.[0];
+      const dx = next ? next.x - p.x : 0, dz = next ? next.z - p.z : 0;
+      const dist = Math.hypot(dx, dz);
+      if ((!next || (this.path.length === 1 && dist < 0.15)) || (talk && Math.hypot(talk.x - p.x, talk.z - p.z) < talk.r - 0.6)) {
         this.moveTarget = null;
-        if (talk) { this.pendingTalk = null; this.onInteract?.(talk.id); }
+        if (talk && Math.hypot(talk.x - p.x, talk.z - p.z) < talk.r) { this.pendingTalk = null; this.onInteract?.(talk.id); }
       } else {
         const want = Math.atan2(dx, dz);
         let diff = ((want - this.heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         this.heading += diff * Math.min(1, dt * 10);
-        speed = PLAYER_SPEED;
+        speed = Math.min(PLAYER_SPEED * this.mountSpeed, dist / dt);
+        moveX = dx / dist;
+        moveZ = dz / dist;
       }
     }
 
@@ -530,24 +700,30 @@ export class World {
     const moving = speed !== 0;
     if (moving) {
       const p = this.player.position;
-      const nx = p.x + Math.sin(this.heading) * speed * dt;
-      const nz = p.z + Math.cos(this.heading) * speed * dt;
+      const nx = p.x + moveX * speed * dt;
+      const nz = p.z + moveZ * speed * dt;
       if (this.walkable(nx, nz)) p.set(nx, 0, nz);
       else if (this.walkable(nx, p.z)) p.x = nx;
       else if (this.walkable(p.x, nz)) p.z = nz;
       else this.moveTarget = null;
     }
+    this.isMoving = moving;
+    if (!moving) this.isSprinting = false;
     this.player.rotation.y = this.heading;
-    this.player.userData.anim(this.time, moving);
+    this.strideTime += dt * (this.isSprinting ? 1.45 : 1);
+    this.player.userData.anim(this.strideTime, moving);
   }
 
   // Pulls a camera position toward `from` until it is over open ground, so the
   // camera never ends up inside a house, cliff or tree.
   safeCam(from, to) {
-    let best = from.clone();
+    // The look-ahead point may be inside a wall even while the player is in a
+    // valid spot. Start the collision check at the player instead of there.
+    const origin = this.player ? V(this.player.position.x, to.y, this.player.position.z) : from.clone();
+    let best = origin.clone();
     const p = V();
     for (let i = 1; i <= 14; i++) {
-      p.lerpVectors(from, to, i / 14);
+      p.lerpVectors(origin, to, i / 14);
       if (!this.walkable(p.x, p.z)) break;
       best.copy(p);
     }
@@ -565,10 +741,11 @@ export class World {
   followCam() {
     const yaw = this.heading + this.camYawOffset;
     const p = this.player.position;
+    const lift = this.mounted ? 0.9 : 0;
     return {
-      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15, p.z - Math.cos(yaw) * this.camDist),
+      pos: V(p.x - Math.sin(yaw) * this.camDist, this.camHeight + 1.2 + this.camDist * 0.15 + lift, p.z - Math.cos(yaw) * this.camDist),
       // look a little ahead so enemies in front are not hidden behind the hat
-      look: V(p.x + Math.sin(yaw) * 3.5, 1.4, p.z + Math.cos(yaw) * 3.5),
+      look: V(p.x + Math.sin(yaw) * 3.5, 1.4 + lift, p.z + Math.cos(yaw) * 3.5),
     };
   }
 
@@ -577,6 +754,7 @@ export class World {
   // Enemy behaviour lives in combat.js; the world only animates and moves them.
   updateEnemies() {
     for (const e of this.enemies) {
+      if (this.player && e.model.position.distanceToSquared(this.player.position) > 3600) continue;
       if (e.state !== 'dead') e.model.userData.anim?.(this.time, !!e.moving);
     }
   }
@@ -604,33 +782,44 @@ export class World {
   }
 
   respawnEnemy(e) {
+    e.model.userData.effectVersion = (e.model.userData.effectVersion || 0) + 1;
     e.state = 'idle';
     e.model.position.copy(e.home);
     e.model.visible = true;
     e.model.scale.setScalar(e.baseScale);
     e.model.rotation.set(0, Math.PI, 0);
+    const gem = e.model.userData.gem;
+    if (gem?.userData.baseScale) gem.scale.copy(gem.userData.baseScale);
     e.target = null;
   }
 
   // Sends the player back to the zone's safe spot (after being defeated).
   respawnPlayer() {
+    this.player.userData.effectVersion = (this.player.userData.effectVersion || 0) + 1;
+    this.player.scale.copy(this.player.userData.baseScale);
+    const gem = this.player.userData.gem;
+    if (gem?.userData.baseScale) gem.scale.copy(gem.userData.baseScale);
+    this.player.visible = true;
     const sp = ZONES[zoneAt(this.player.position.x)].spawn;
     this.player.position.set(sp.x, 0, sp.z);
     if (this.pet) this.pet.position.set(sp.x + 1, 0, sp.z);
     this.heading = sp.heading;
     this.camYawOffset = 0;
     this.moveTarget = null;
+    this.pendingTalk = null;
+    this.dashT = 0;
+    this.shakeAmt = 0;
+    this.clearInput();
+    this.player.rotation.set(0, this.heading, 0);
     this.snapCamera();
     this.invulnUntil = this.time + 4;
   }
 
   // A quick dash in the direction the player is moving (or facing).
   dash() {
-    if (!this.player || this.dashT > 0) return false;
-    const k = this.keys;
-    const back = (k.KeyS || k.ArrowDown) && !(k.KeyW || k.ArrowUp);
-    const dir = back ? this.heading + Math.PI : this.heading;
-    this.dashDir = V(Math.sin(dir), 0, Math.cos(dir));
+    if (!this.player || this.dashT > 0 || this.mounted) return false;
+    const intent = movementIntent(this.keys, this.touchMove, this.heading, this.camYawOffset);
+    this.dashDir = intent.strength ? V(intent.x, 0, intent.z) : V(Math.sin(this.heading), 0, Math.cos(this.heading));
     this.dashT = 0.22;
     this.invulnUntil = Math.max(this.invulnUntil, this.time + 0.4);
     for (let i = 0; i < 10; i++) this.particle(this.player.position.clone().add(V(0, 0.6, 0)), 0xe8e4ff, { vel: V((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2), life: 0.5, size: 0.12 });
@@ -722,6 +911,7 @@ export class World {
   }
 
   particle(pos, color, { vel = V(), life = 0.7, size = 0.12, gravity = 0 } = {}) {
+    if (Math.random() > this.particleDensity || this.effects.length > 300 * this.particleDensity) return;
     const m = new THREE.Mesh(this.sphereGeo, new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.position.copy(pos);
     m.scale.setScalar(size);
@@ -842,42 +1032,110 @@ export class World {
     for (let i = 0; i < 10; i++) this.particle(p, 0x777777, { vel: V((Math.random() - 0.5) * 2, 1 + Math.random(), (Math.random() - 0.5) * 2), life: 0.8, size: 0.14 });
   }
 
-  castPose(obj) {
-    const gem = obj.userData.gem;
-    const base = obj.scale.x;
+  spellSigil(obj, color) {
+    const glyph = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    for (const radius of [0.85, 1.2]) {
+      const ring = new THREE.Mesh(this.ringGeo, material);
+      ring.rotation.x = -Math.PI / 2;
+      ring.scale.setScalar(radius);
+      glyph.add(ring);
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      const rune = new THREE.Mesh(this.sphereGeo, material);
+      rune.position.set(Math.cos(a), 0.03, Math.sin(a));
+      rune.scale.set(0.08, 0.04, 0.16);
+      rune.rotation.y = -a;
+      glyph.add(rune);
+    }
+    glyph.position.set(obj.position.x, 0.13, obj.position.z);
+    this.scene.add(glyph);
     let t = 0;
     this.effects.push((dt) => {
       t += dt;
+      glyph.position.x = obj.position.x;
+      glyph.position.z = obj.position.z;
+      glyph.rotation.y += dt * 2.8;
+      glyph.scale.setScalar(0.5 + Math.min(1, t * 3) * 0.7);
+      material.opacity = Math.max(0, 0.85 * (1 - t / 0.7));
+      if (t >= 0.7) { this.scene.remove(glyph); material.dispose(); return false; }
+    });
+  }
+
+  castPose(obj, color = 0xb46bff) {
+    this.spellSigil(obj, color);
+    const gem = obj.userData.gem;
+    const base = obj.userData.baseScale ||= obj.scale.clone();
+    const gemBase = gem && (gem.userData.baseScale ||= gem.scale.clone());
+    const version = obj.userData.effectVersion || 0;
+    const pulse = obj.userData.pulse = (obj.userData.pulse || 0) + 1;
+    let t = 0;
+    this.effects.push((dt) => {
+      if ((obj.userData.effectVersion || 0) !== version || obj.userData.pulse !== pulse) return false;
+      t += dt;
       const k = Math.sin(Math.min(1, t / 0.4) * Math.PI);
-      obj.scale.setScalar(base * (1 + k * 0.08));
-      if (gem) gem.scale.setScalar(1 + k * 1.5);
-      if (t >= 0.4) { obj.scale.setScalar(base); return false; }
+      obj.scale.copy(base).multiplyScalar(1 + k * 0.08);
+      if (gem) gem.scale.copy(gemBase).multiplyScalar(1 + k * 1.5);
+      if (t >= 0.4) { obj.scale.copy(base); if (gem) gem.scale.copy(gemBase); return false; }
     });
   }
 
   hitReact(obj) {
-    const base = obj.position.clone();
+    const version = obj.userData.effectVersion || 0;
     let t = 0;
     this.effects.push((dt) => {
+      if ((obj.userData.effectVersion || 0) !== version) return false;
       t += dt;
-      obj.position.x = base.x + Math.sin(t * 60) * 0.12 * (1 - t / 0.35);
-      if (t >= 0.35) { obj.position.copy(base); return false; }
+      obj.rotation.z = Math.sin(t * 60) * 0.06 * Math.max(0, 1 - t / 0.35);
+      if (t >= 0.35) { obj.rotation.z = 0; return false; }
     });
   }
 
   defeat(obj) {
-    const base = obj.scale.x;
+    const base = obj.userData.baseScale ||= obj.scale.clone();
+    const version = obj.userData.effectVersion = (obj.userData.effectVersion || 0) + 1;
+    const gem = obj.userData.gem;
+    if (gem?.userData.baseScale) gem.scale.copy(gem.userData.baseScale);
     let t = 0;
     for (let i = 0; i < 20; i++) this.particle(this.chest(obj), 0x9a8cff, { vel: V((Math.random() - 0.5) * 3, Math.random() * 3, (Math.random() - 0.5) * 3), life: 1.2, size: 0.15 });
     this.effects.push((dt) => {
+      if (obj.userData.effectVersion !== version) return false;
       t += dt;
       obj.rotation.y += dt * 12;
-      obj.scale.setScalar(base * Math.max(0.01, 1 - t));
-      if (t >= 1) { obj.visible = false; obj.scale.setScalar(base); return false; }
+      obj.scale.copy(base).multiplyScalar(Math.max(0.01, 1 - t));
+      if (t >= 1) { obj.visible = false; obj.scale.copy(base); return false; }
     });
   }
 
   shake(amount) { this.shakeAmt = Math.max(this.shakeAmt, amount); }
+
+  dangerZone(position, radius, duration, color = 0xff563f) {
+    const group = new THREE.Group();
+    const dangerColor = this.colorBlindDanger ? 0xffcc33 : color;
+    const fill = new THREE.MeshBasicMaterial({ color: dangerColor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+    const edge = new THREE.MeshBasicMaterial({ color: dangerColor, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
+    const diskGeo = new THREE.CircleGeometry(radius, 48), edgeGeo = new THREE.RingGeometry(radius * 0.94, radius, 48);
+    for (const [geometry, material] of [[diskGeo, fill], [edgeGeo, edge]]) {
+      const mesh = new THREE.Mesh(geometry, material); mesh.rotation.x = -Math.PI / 2; group.add(mesh);
+    }
+    // Spokes make the zone legible without relying on red/green discrimination.
+    const spokeGeo = new THREE.PlaneGeometry(0.08, radius * 1.9);
+    for (let i = 0; i < 4; i++) {
+      const spoke = new THREE.Mesh(spokeGeo, edge); spoke.rotation.set(-Math.PI / 2, 0, i * Math.PI / 4); group.add(spoke);
+    }
+    group.position.set(position.x, 0.09, position.z);
+    this.scene.add(group);
+    let elapsed = 0, canceled = false;
+    this.effects.push(dt => {
+      elapsed += dt;
+      fill.opacity = 0.12 + Math.min(1, elapsed / duration) * 0.15;
+      if (canceled || elapsed >= duration) {
+        this.scene.remove(group); diskGeo.dispose(); edgeGeo.dispose(); spokeGeo.dispose(); fill.dispose(); edge.dispose(); return false;
+      }
+    });
+    return () => { canceled = true; };
+  }
 
   // ------------------------------------------------------------ main loop
 
@@ -899,8 +1157,16 @@ export class World {
     this.hemi.color.lerp(new THREE.Color(a.hemi), k);
   }
 
-  frame() {
-    const dt = Math.min(0.05, this.clock.getDelta());
+  frame(forcedDt = null) {
+    const rawDt = forcedDt == null ? this.clock.getDelta() : forcedDt;
+    const dt = Math.min(0.05, rawDt);
+    if (this.autoQuality && forcedDt == null && this.mode === 'explore' && !document.hidden) {
+      this.slowFrames = rawDt > 1 / 45 && rawDt < 0.2 ? this.slowFrames + dt : Math.max(0, this.slowFrames - dt * 0.3);
+      if (this.slowFrames > 5 && this.quality !== 'low') {
+        this.setQuality(this.quality === 'high' ? 'medium' : 'low', true);
+        this.slowFrames = 0;
+      }
+    }
     this.dt = dt;
     this.time += dt;
 
@@ -908,8 +1174,9 @@ export class World {
     else if (this.player) this.player.userData.anim(this.time, false);
     this.updateEnemies(dt);
     this.updateTargetRing();
-    for (const o of this.animated) o.userData.anim(this.time);
+    for (const o of this.animated) if (!this.player || o.position.distanceToSquared(this.player.position) < 3600) o.userData.anim(this.time);
     for (const n of this.npcs) {
+      if (this.player && n.model.position.distanceToSquared(this.player.position) > 3600) continue;
       n.model.userData.anim(this.time, false);
       if (this.player && this.mode === 'explore') {
         const d = n.model.position.distanceTo(this.player.position);
@@ -920,6 +1187,7 @@ export class World {
       }
     }
     for (const m of this.motes) {
+      if (!m.visible) continue;
       const b = m.userData.base, ph = m.userData.phase;
       m.position.set(b.x + Math.sin(this.time * 0.3 + ph) * 2, b.y + Math.sin(this.time * 0.8 + ph) * 0.8, b.z + Math.cos(this.time * 0.25 + ph) * 2);
     }
@@ -936,7 +1204,14 @@ export class World {
     } else {
       ({ pos, look } = this.followCam());
       pos = this.safeCam(look, pos);
-      this.camera.position.lerp(pos, 1 - Math.exp(-7 * dt));
+      // Smooth only rear distance; interpolating world positions can cross in
+      // front of the player when their heading changes sharply.
+      const p = this.player.position, yaw = this.heading + this.camYawOffset;
+      const rearX = -Math.sin(yaw), rearZ = -Math.cos(yaw);
+      const desired = Math.hypot(pos.x - p.x, pos.z - p.z);
+      const previous = Math.max(0, (this.camera.position.x - p.x) * rearX + (this.camera.position.z - p.z) * rearZ);
+      const distance = Math.min(desired, previous + (desired - previous) * (1 - Math.exp(-7 * dt)));
+      this.camera.position.set(p.x + rearX * distance, pos.y, p.z + rearZ * distance);
       this.camera.lookAt(look);
     }
     if (this.shakeAmt > 0) {
@@ -956,5 +1231,10 @@ export class World {
     this.onTick?.(dt);
     this.updateLabels();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  advanceTime(ms) {
+    const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+    for (let i = 0; i < steps; i++) this.frame(1 / 60);
   }
 }

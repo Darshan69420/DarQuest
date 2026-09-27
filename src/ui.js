@@ -1,8 +1,9 @@
 // DOM user interface: HUD, dialogue, modals, spell cards and toasts.
-import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
-import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell } from './state.js';
+import { SCHOOLS, SPELLS, describe, RULES, SHOP, GEAR, SLOTS, STAT_NAMES, PETS, GEAR_SHOP, DIFFICULTIES, SCROLLS, MOUNTS, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { xpToNext, equip, unequip, sellItem, givePet, setActivePet, basicSpell, giveScroll, scrollCount, buyMount, selectMount } from './state.js';
 
 const $ = (sel) => document.querySelector(sel);
+const sigil = school => ({ blaze: '△', frost: '❄', tempest: 'ϟ', verdant: '❧', umbral: '☽', arcane: '◇', astral: '✧' }[school] || '✧');
 
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,8 +17,8 @@ export function cardHTML(spell, { extra = '', cls = '', basic = false } = {}) {
   const cost = basic ? 0 : spellCost(spell);
   const cd = basic ? BASIC_COOLDOWN : spellCooldown(spell);
   return `<div class="card school-${spell.school} ${cls}" style="--sc:${school.css}" data-spell="${spell.id}">
-    <div class="card-pips" title="Mana cost">${cost}</div>
-    <div class="card-icon">${school.icon}</div>
+    <div class="card-pips" title="Mana cost">${basic ? 'Free' : cost}</div>
+    <div class="card-icon">${sigil(spell.school)}</div>
     <div class="card-name">${esc(spell.name)}</div>
     <div class="card-desc">${esc(describe(spell))}</div>
     <div class="card-acc">${basic ? 'Basic · ' : ''}${cd.toFixed(1)}s</div>
@@ -32,7 +33,7 @@ export function showHUD(show) { $('#hud').classList.toggle('hidden', !show); }
 export function updateHUD(p) {
   const school = SCHOOLS[p.school];
   $('#hud-name').textContent = p.name;
-  $('#hud-school').innerHTML = `${school.icon} ${school.name} · Level ${p.level}`;
+  $('#hud-school').textContent = `${school.name} · Level ${p.level}`;
   $('#hud-school').style.color = school.css;
   $('#hud-hp-fill').style.width = `${(p.hp / p.maxHp) * 100}%`;
   $('#hud-hp-text').textContent = `${Math.ceil(p.hp)} / ${p.maxHp}`;
@@ -50,6 +51,18 @@ export function updateHUD(p) {
 export function updateQuest(info) {
   $('#quest-title').textContent = info.title;
   $('#quest-goal').textContent = info.goal;
+}
+
+export function updateRift(text) {
+  const el = $('#rift-status');
+  el.textContent = text ? `🌀 ${text}` : '';
+  el.classList.toggle('hidden', !text);
+}
+
+export function updateArchive(text) {
+  const el = $('#archive-status');
+  el.textContent = text ? `📚 ${text}` : '';
+  el.classList.toggle('hidden', !text);
 }
 
 export function setPrompt(text) {
@@ -72,10 +85,22 @@ export function toast(text, cls = '') {
 // ------------------------------------------------------------ dialogue
 
 let dialogOpen = false;
+let activeLine = null;
 export function isDialogOpen() { return dialogOpen || !$('#modal').classList.contains('hidden'); }
+export function isTalking() { return dialogOpen; }
+export function completeDialogLine() { return activeLine?.finish() || false; }
+export function advanceDialog() {
+  if (!dialogOpen) return false;
+  if (!completeDialogLine()) closeDialog();
+  return true;
+}
+$('#dialog').addEventListener('click', e => {
+  if (completeDialogLine()) { e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
 
 // buttons: [{label, action?, primary?}] — the dialog closes after any button.
 export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
+  setPrompt('');
   const el = $('#dialog');
   el.innerHTML = `<div class="dlg-speaker">${esc(speaker)}<span>${esc(title || '')}</span></div>
     <div class="dlg-text"></div>
@@ -93,24 +118,30 @@ export function dialog(speaker, title, text, buttons = [{ label: 'Goodbye' }]) {
 export function closeDialog() {
   $('#dialog').classList.add('hidden');
   dialogOpen = false;
+  activeLine = null;
 }
 
 function typewriter(el, text) {
   let i = 0;
+  const line = { finish() {
+    if (i >= text.length) return false;
+    i = text.length; el.textContent = text; return true;
+  } };
+  activeLine = line;
   el.textContent = '';
   const tick = () => {
-    if (!el.isConnected) return;
+    if (!el.isConnected || activeLine !== line) return;
     i = Math.min(text.length, i + 2);
     el.textContent = text.slice(0, i);
     if (i < text.length) requestAnimationFrame(tick);
   };
   tick();
-  el.addEventListener('click', () => { i = text.length; el.textContent = text; }, { once: true });
 }
 
 // ------------------------------------------------------------ modals
 
 export function openModal(title, bodyHTML, onMount) {
+  setPrompt('');
   const el = $('#modal');
   el.innerHTML = `<div class="modal-box">
     <div class="modal-head"><h2>${title}</h2><button class="btn close" aria-label="Close">✕</button></div>
@@ -200,8 +231,8 @@ export function buildHotbar(p, { onSlot, onDodge, onPotion, onTarget }) {
     const s = SPELLS[id];
     const school = s ? SCHOOLS[s.school] : null;
     return `<button class="hb ${s ? '' : 'empty'}" data-i="${i}" style="--sc:${school ? school.css : '#555'}" title="${s ? esc(s.name) + ' · ' + esc(describe(s)) : 'Empty slot (press B)'}">
-      <span class="hb-icon">${school ? school.icon : '·'}</span><span class="hb-key">${i + 1}</span>
-      ${s && i > 0 ? `<span class="hb-cost">${spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
+      <span class="hb-icon">${s ? sigil(s.school) : '·'}</span><span class="hb-key">${i + 1}</span>
+      ${s ? `<span class="hb-cost">${i === 0 ? 'Free' : spellCost(s)}</span>` : ''}<span class="hb-name">${s ? esc(s.name) : ''}</span><span class="hb-cd"></span></button>`;
   }).join('') + `<button class="hb util" data-act="potion" title="Drink a potion (H)"><span class="hb-icon">🧪</span><span class="hb-key">H</span><span class="hb-count"></span><span class="hb-cd"></span></button>
     <button class="hb util" data-act="dodge" title="Dodge (Space)"><span class="hb-icon">💨</span><span class="hb-key">␣</span><span class="hb-cd"></span></button>
     <button class="hb util" data-act="target" title="Next target (Tab)"><span class="hb-icon">🎯</span><span class="hb-key">Tab</span></button>`;
@@ -279,7 +310,11 @@ export function openShop(p, onChange) {
         <button class="btn primary" id="buy" ${full || p.gold < item.price ? 'disabled' : ''}>Buy · 🪙 ${item.price}</button></div>
       <div class="shop-item"><div class="shop-icon">🥚</div>
         <div><b>${egg.name}</b><br><span>${egg.desc}</span><br><span>${unowned.length ? `${unowned.length} pets left to discover` : 'You have every pet!'}</span></div>
-        <button class="btn primary" id="egg" ${!unowned.length || p.gold < egg.price ? 'disabled' : ''}>Buy · 🪙 ${egg.price}</button></div>`;
+        <button class="btn primary" id="egg" ${!unowned.length || p.gold < egg.price ? 'disabled' : ''}>Buy · 🪙 ${egg.price}</button></div>
+      <h3 class="sub-h">One-use spell scrolls · ${scrollCount(p)}/${RULES.maxScrolls}</h3>
+      ${Object.entries(SCROLLS).map(([id, scroll]) => `<div class="shop-item"><div class="shop-icon">${scroll.icon}</div>
+        <div><b>${esc(scroll.name)}</b><br><span>${esc(SPELLS[scroll.spell].name)} · no mana or school requirement · owned ${p.scrolls[id] || 0}</span></div>
+        <button class="btn small primary" data-scroll="${id}" ${p.gold < scroll.price || scrollCount(p) >= RULES.maxScrolls ? 'disabled' : ''}>Buy 🪙${scroll.price}</button></div>`).join('')}`;
     body.querySelector('#buy').addEventListener('click', () => {
       if (p.gold < item.price || p.potions >= RULES.maxPotions) return;
       p.gold -= item.price;
@@ -296,8 +331,51 @@ export function openShop(p, onChange) {
       onChange('pet');
       render(body);
     });
+    body.querySelectorAll('[data-scroll]').forEach(button => button.addEventListener('click', () => {
+      const scroll = SCROLLS[button.dataset.scroll];
+      if (p.gold < scroll.price || !giveScroll(p, button.dataset.scroll)) return;
+      p.gold -= scroll.price;
+      toast(`📜 Bought ${esc(scroll.name)}`, 'good');
+      onChange('loot');
+      render(body);
+    }));
   };
   openModal('🧪 Madame Fizz\'s Potions & Pets', '', render);
+}
+
+export function openScrolls(p, onCast) {
+  const entries = Object.entries(SCROLLS).filter(([id]) => p.scrolls[id]);
+  openModal('📜 Spell Scrolls', `<p class="modal-note">A scroll casts once without mana or school training. Target enemies before using an attack scroll. Press R to open this bag.</p>
+    ${entries.map(([id, scroll]) => `<div class="shop-item"><div class="shop-icon">${scroll.icon}</div>
+      <div><b>${esc(scroll.name)}</b><br><span>${esc(describe(SPELLS[scroll.spell]))} · owned ${p.scrolls[id]}</span></div>
+      <button class="btn small primary" data-cast-scroll="${id}">Cast</button></div>`).join('') || '<p class="modal-note">No scrolls yet. Find them on enemies or buy them from Madame Fizz.</p>'}`, body => {
+    body.querySelectorAll('[data-cast-scroll]').forEach(button => button.addEventListener('click', () => {
+      if (onCast(button.dataset.castScroll)) closeModal();
+    }));
+  });
+}
+
+export function openStable(p, onChange) {
+  const render = body => {
+    body.innerHTML = `<p class="modal-note">Mounts move faster on roads and in the wild. You dismount when a fight begins. Press F or tap 🦌 to mount.</p>
+      <p class="modal-note">Gold: 🪙 ${p.gold}</p>
+      ${Object.entries(MOUNTS).map(([id, mount]) => `<div class="shop-item"><div class="shop-icon">🦌</div>
+        <div><b>${esc(mount.name)}</b><br><span>Level ${mount.level} · ${Math.round(mount.speed * 100)}% travel speed</span></div>
+        ${p.mounts.includes(id)
+          ? `<button class="btn small ${p.activeMount === id ? 'primary' : ''}" data-choose-mount="${id}" ${p.activeMount === id ? 'disabled' : ''}>${p.activeMount === id ? 'Selected' : 'Select'}</button>`
+          : `<button class="btn small primary" data-buy-mount="${id}" ${p.level < mount.level || p.gold < mount.price ? 'disabled' : ''}>Buy 🪙${mount.price}</button>`}</div>`).join('')}`;
+    body.querySelectorAll('[data-buy-mount]').forEach(button => button.addEventListener('click', () => {
+      const id = button.dataset.buyMount;
+      if (!buyMount(p, id)) return;
+      toast(`🦌 ${esc(MOUNTS[id].name)} joined your stable! Press F to ride.`, 'good');
+      onChange('mount'); render(body);
+    }));
+    body.querySelectorAll('[data-choose-mount]').forEach(button => button.addEventListener('click', () => {
+      if (!selectMount(p, button.dataset.chooseMount)) return;
+      onChange('mount'); render(body);
+    }));
+  };
+  openModal('🦌 Elowen\'s Stable', '', render);
 }
 
 // ------------------------------------------------------------ gear
@@ -380,9 +458,11 @@ export function openGearShop(p, onChange) {
 export function openHelp() {
   openModal('❓ How to Play', `<div class="help">
     <h3>Exploring</h3>
-    <p><b>W / S</b> or <b>↑ / ↓</b> to walk. <b>A / D</b> or <b>← / →</b> to turn. You can also <b>tap or click the ground</b> to walk there, and drag to look around.</p>
+    <p><b>W A S D</b> moves relative to the camera; hold <b>Shift</b> to sprint or gallop. On touch screens, use the thumb stick and hold Sprint. Arrow keys use classic walk-and-turn controls. You can also <b>tap or click the ground</b> to walk there, and drag to look around. Press <b>V</b> for fullscreen.</p>
     <p><b>E</b> (or tap them) to talk to characters. <b>!</b> means they have a quest and <b>?</b> means you can turn one in.</p>
-    <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
+    <p><b>B</b> spellbook · <b>C</b> character, gear &amp; pets · <b>R</b> spell scrolls · <b>F</b> mount · <b>H</b> potion · <b>M</b> mute · <b>?</b> this help. Fountains restore your health.</p>
+    <p>Scrolls are one-use spells that cost no mana. Madame Fizz sells them, and some foes drop them. Elowen in the courtyard sells rideable stags; casting and dodging require you to dismount.</p>
+    <p>Visit Riftkeeper Vale in the courtyard for a three-stage Rift Contract. Hunt a different enemy each stage and return to choose one temporary boon. Survive all three stages to claim XP and gold. Defeat ends the run; story progress and ordinary loot remain.</p>
     <p>The minimap shows enemies (red), people (white, gold when they have a quest) and portals (purple). The ⭐ or arrow points to your quest.</p>
     <h3>Gear &amp; pets</h3>
     <p>Enemies can drop hats, robes, boots, wands and amulets. Equip them on the character screen. Pets follow you around and cast spells to help whenever you are fighting.</p>

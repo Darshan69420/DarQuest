@@ -89,6 +89,7 @@ export const SPELLS = {
   // ---------- Astral (anyone can learn) ----------
   minor_mend:     { name: 'Minor Mend',      school: 'astral', pips: 1, type: 'heal', amount: 160, level: 1 },
   moon_ward:      { name: 'Moon Ward',       school: 'astral', pips: 0, type: 'shield', pct: 0.30, level: 3 },
+  astral_pulse:   { name: 'Astral Pulse',    school: 'astral', pips: 3, type: 'nova', min: 180, max: 240, radius: 7, level: 5 },
   star_edge:      { name: 'Star Edge',       school: 'astral', pips: 0, type: 'blade', pct: 0.25, level: 5 },
   sap_strength:   { name: 'Sap Strength',    school: 'astral', pips: 1, type: 'weakness', pct: 0.30, level: 7 },
   greater_mend:   { name: 'Greater Mend',    school: 'astral', pips: 3, type: 'heal', amount: 480, level: 10 },
@@ -126,6 +127,7 @@ export function describe(s) {
   const all = s.target === 'all' ? ' to all enemies' : '';
   const pct = Math.round((s.pct || 0) * 100);
   switch (s.type) {
+    case 'nova': return `${s.min}–${s.max} ${school} damage to enemies within ${s.radius} steps`;
     case 'damage': return `${s.min}–${s.max} ${school} damage${all}` + (s.dot ? `, then ${s.dot.total} over ${s.dot.rounds} rounds` : '');
     case 'drain':  return `${s.min}–${s.max} ${school} damage${all}. Heal ${Math.round(s.heal * 100)}% of it`;
     case 'dot':    return `${s.total} ${school} damage over ${s.rounds} rounds`;
@@ -188,10 +190,24 @@ export const ENEMIES = {
   },
   lord_hollowmere: {
     name: 'Lord Hollowmere', school: 'umbral', level: 8, hp: 1500, xp: 600, gold: [120, 160], model: 'boss', boss: true,
+    intro: 'The crypt door closes. Watch the ground; the dead announce their blows.',
+    patterns: [
+      { name: 'Grave Mark', hint: 'Leave the marked ground', anchor: 'player', radius: 3.4, windup: 1.5, recovery: 1.4, damage: 155 },
+      { name: 'Crypt Toll', hint: 'Back away from Hollowmere', anchor: 'self', radius: 8, windup: 1.8, recovery: 1.6, damage: 185 },
+      { name: 'Last Rites', hint: 'Keep moving; a wider mark follows', anchor: 'player', radius: 5, windup: 2, recovery: 2, damage: 210 },
+    ],
     spells: ['hollow_strike', 'hollow_strike', 'ghoul_claw', 'wither', 'banshee_wail', 'dread_hex', 'grave_mend'],
     resist: { umbral: 0.35 }, boost: {}, speed: 0, aggro: 6, powerPipChance: 0.5,
     phases: [{ at: 0.5, say: 'The Hollow cannot be defeated!', blade: 0.35, pips: 2 }],
     drops: [{ item: 'hollowmere_locket', chance: 1 }, { item: 'hollow_blade', chance: 0.6 }, { item: 'knightsilk_robe', chance: 0.4 }, { pet: 'bat_familiar', chance: 0.25 }],
+  },
+
+  archive_curator: {
+    name: 'The Unbound Curator', school: 'arcane', level: 11, hp: 1850, xp: 650, gold: [90, 130], model: 'boss', boss: true,
+    spells: ['sphinx_sands', 'hex_trap', 'starfall', 'rock_slam', 'stone_skin'],
+    resist: { arcane: 0.35 }, boost: { umbral: 0.15 }, speed: 1.5, range: 6, aggro: 11, powerPipChance: 0.5,
+    phases: [{ at: 0.5, say: 'Every ending is another beginning!', blade: 0.3, pips: 2 }],
+    drops: [{ item: 'obsidian_rod', chance: 0.2 }],
   },
 
   // ---------------- Chapter 2: Emberfall Wilds ----------------
@@ -233,26 +249,36 @@ export const ENEMIES = {
   },
   pyrrhon: {
     name: 'Pyrrhon, the Molten King', school: 'blaze', level: 13, hp: 3600, xp: 1500, gold: [300, 400], model: 'pyrrhon', boss: true,
+    intro: 'Ash falls from the crown. Step clear when the stone begins to glow.',
+    patterns: [
+      { name: 'Cinderfall', hint: 'Leave the falling ember mark', anchor: 'player', radius: 4, windup: 1.4, recovery: 1.2, damage: 220 },
+      { name: 'Furnace Breath', hint: 'Get clear of the throne', anchor: 'self', radius: 10, windup: 2, recovery: 1.5, damage: 280 },
+      { name: 'Caldera', hint: 'Run beyond the wide burning ring', anchor: 'player', radius: 6, windup: 2.2, recovery: 2.2, damage: 310 },
+    ],
     spells: ['fire_serpent', 'phoenix_rush', 'eruption', 'molten_wave', 'kindle', 'searing_blade', 'magma_mend'],
     resist: { blaze: 0.5 }, boost: { frost: 0.2 }, speed: 0, aggro: 7, powerPipChance: 0.6,
     phases: [
-      { at: 0.66, say: 'You think fire can be put out? I AM the fire!', shield: 0.5, cast: 'molten_wave' },
+      { at: 0.66, say: 'The stone remembers every fire.', shield: 0.5 },
       { at: 0.33, say: 'Then we burn TOGETHER!', blade: 0.5, pips: 3, heal: 800 },
     ],
-    reactions: [{ school: 'frost', say: 'Ice?! You DARE bring ice before the Molten King?', cast: 'kindle' }],
+    reactions: [{ school: 'frost', say: 'A cold wind. Then let the furnace answer.', cast: 'searing_blade' }],
     drops: [{ item: 'molten_crown', chance: 1 }, { item: 'robe_of_pyrrhon', chance: 0.6 }, { item: 'kings_scepter', chance: 0.5 }, { pet: 'ember_drake', chance: 1 }],
   },
 };
 for (const [id, e] of Object.entries(ENEMIES)) e.id = id;
 
 // How far away each foe attacks from. Everything else fights up close.
-const RANGED = { frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16 };
+const RANGED = { frost_wisp: 11, storm_crow: 12, lava_imp: 11, ashen_shaman: 12, magma_serpent: 14, lord_hollowmere: 14, pyrrhon: 16, archive_curator: 10 };
 for (const e of Object.values(ENEMIES)) {
   e.range = RANGED[e.id] ?? 2.6;
   e.attackRate = e.boss ? 1.9 : 2.4;
 }
 ENEMIES.magma_guard.speed = 2.2;
 ENEMIES.magma_serpent.speed = 0;
+// Chapter-one quests are three fights, with a readable gap for a dodge.
+Object.assign(ENEMIES.frost_wisp, { attackRate: 3.2, damageScale: 0.55 });
+Object.assign(ENEMIES.hollow_knight, { attackRate: 3.4, damageScale: 0.5 });
+Object.assign(ENEMIES.storm_crow, { attackRate: 3.6, damageScale: 0.5 });
 
 // Where enemies live in the world. `r` = wander radius around the spawn point.
 const X = EMBER_X;
@@ -308,6 +334,16 @@ export const NPCS = {
     name: 'Madame Fizz', title: 'Potions & Pets', x: 15, z: -6, robe: 0xa0346a, hat: 0x6e1f47, trim: 0xffc3e1, service: 'shop', hair: 0xff7ab8, goggles: true, skin: 0xe8b894, eyeColor: 0xa0346a,
     lines: ['Bubble, bubble! A potion in your pack is worth two in the cauldron.', 'My pet eggs hatch into loyal little friends. They even cast spells for you!'],
   },
+  riftkeeper: {
+    name: 'Riftkeeper Vale', title: 'Rift Contracts', x: 22, z: 13, robe: 0x352b73, hat: 0x21164f, trim: 0x81e6e0,
+    hair: 0xc4a4ff, eyeColor: 0x86e3f3,
+    lines: ['The rifts rearrange their trials for every wizard. Return between stages to strengthen your build.'],
+  },
+  elowen: {
+    name: 'Elowen', title: 'Stag Keeper', x: -22, z: 13, robe: 0x37615b, hat: 0x213f43, trim: 0xa4e7e7,
+    hair: 0xd6bf87, eyeColor: 0x4a9ca2, service: 'stable',
+    lines: ['The Moonstags know these roads better than any map. Let them carry you between battles.'],
+  },
   brannoc: {
     name: 'Captain Brannoc', title: 'Lane Watch', x: 7, z: 36, robe: 0x5a5f6b, hat: 0x9aa0b0, trim: 0xc9a24a, hatStyle: 'helmet', hair: 0x2a1a14, skin: 0xc68a5e, eyeColor: 0x3a2a20,
     lines: ['Hollow Lane was a cheerful street once. Now the shadows have moved in.'],
@@ -351,7 +387,7 @@ export const QUESTS = [
     objective: { type: 'defeat', enemy: 'frost_wisp', count: 3 },
     offer: 'Further down the lane, Frostbitten Wisps are freezing the lamp posts. Shatter 3 of them.',
     done: 'The lamps are glowing again. You\'re a natural, apprentice.',
-    reward: { xp: 200, gold: 50 },
+    reward: { xp: 200, gold: 50, potions: 1 },
   },
   {
     id: 'q5', name: 'The Hollow Guard', giver: 'brannoc', turnIn: 'brannoc',
@@ -437,6 +473,31 @@ export const RULES = {
   maxPotions: 5,
   hpPerLevel: 50,
   inventoryMax: 30,
+  maxScrolls: 12,
+};
+
+// Single-use magic works across schools and without mana. The spell itself
+// still uses the normal targeting and damage pipeline.
+export const SCROLLS = {
+  ember: { name: 'Emberburst Scroll', icon: '🔥', spell: 'fire_serpent', price: 60, color: 0xff6a2b },
+  frost: { name: 'Winter Ward Scroll', icon: '❄️', spell: 'glacial_ward', price: 45, color: 0x6fd3ff },
+  storm: { name: 'Stormcall Scroll', icon: '⚡', spell: 'lightning_bats', price: 75, color: 0xb46bff },
+  mend: { name: 'Restoration Scroll', icon: '🌿', spell: 'blossom_mend', price: 55, color: 0x5fdc6a },
+  nova: { name: 'Astral Pulse Scroll', icon: '🌙', spell: 'astral_pulse', price: 90, color: 0xe8e4ff },
+};
+
+// Small drop chances keep found scrolls special; the shop offers a reliable path.
+ENEMIES.gloomsprig.drops.push({ scroll: 'mend', chance: 0.08 });
+ENEMIES.cinder_rat.drops.push({ scroll: 'ember', chance: 0.08 });
+ENEMIES.frost_wisp.drops.push({ scroll: 'frost', chance: 0.09 });
+ENEMIES.storm_crow.drops.push({ scroll: 'storm', chance: 0.08 });
+ENEMIES.lava_imp.drops.push({ scroll: 'ember', chance: 0.1 });
+ENEMIES.ashen_shaman.drops.push({ scroll: 'mend', chance: 0.1 });
+ENEMIES.hollow_knight.drops.push({ scroll: 'nova', chance: 0.06 });
+
+export const MOUNTS = {
+  moonstag: { name: 'Moonstag', color: 0x9fdad8, trim: 0xd7f7ec, price: 160, level: 3, speed: 1.65 },
+  emberstag: { name: 'Emberstag', color: 0xa75a38, trim: 0xffbc71, price: 420, level: 8, speed: 1.85 },
 };
 
 // ---------------------------------------------------------------- difficulty
@@ -529,13 +590,25 @@ export const ZONES = {
     atmosphere: { fog: 0x6a2a18, top: 0x240a10, mid: 0x8c3a2a, bottom: 0xffa050, hemi: 0xffb080 },
     music: 'ember',
   },
+  archive: {
+    name: 'The Shattered Archive',
+    regions: [0, 36, 72, 108].map(z => ({ type: 'circle', x: 1400, z, r: 12 })),
+    spawn: { x: 1400, z: -6, heading: 0 },
+    atmosphere: { fog: 0x242044, top: 0x0c102c, mid: 0x35315c, bottom: 0x8e71a3, hemi: 0xb5aeec },
+    music: 'academy',
+  },
 };
-export function zoneAt(x) { return x > 350 ? 'emberfall' : 'academy'; }
+export function zoneAt(x) { return x > 1100 ? 'archive' : x > 350 ? 'emberfall' : 'academy'; }
 
 // Portals between zones. `unlock` = quest index needed to use it.
 export const PORTALS = [
   { id: 'portal_academy', x: -26, z: 10, to: { x: X, z: -3, heading: 0 }, dest: 'Emberfall Wilds', unlock: 7 },
   { id: 'portal_ember', x: X, z: -17, to: { x: -13, z: 10, heading: Math.PI / 2 }, dest: 'Starfall Academy', unlock: 0 },
+  { id: 'portal_archive_in', name: 'Archive Gate', x: 26, z: -10, to: { x: 1400, z: -6, heading: 0 }, dest: 'Shattered Archive', unlock: 7 },
+  ...[0, 1, 2, 3].map(room => ({ id: `portal_archive_out_${room}`, name: 'Return Gate', x: 1400, z: room * 36 - 8,
+    to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 })),
+  ...[0, 1, 2].map(room => ({ id: `archive_door_${room}`, name: room === 1 ? 'Folio Gate' : room === 2 ? 'Respite Gate' : 'Sealed Chapter', x: 1400, z: room * 36 + 8, to: { x: 1400, z: (room + 1) * 36 - 7, heading: 0 }, dest: 'the next chamber', unlock: 0 })),
+  { id: 'archive_door_3', name: 'Final Chapter', x: 1400, z: 116, to: { x: 21, z: -10, heading: Math.PI }, dest: 'Starfall Academy', unlock: 0 },
 ];
 
 // Healing fountains.

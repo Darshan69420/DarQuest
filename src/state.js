@@ -1,7 +1,30 @@
 // Player progress: stats, spell bar, gear, pets, quests and save/load.
-import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES } from './data.js';
+import { SCHOOLS, SPELLS, QUESTS, RULES, NPCS, ENEMIES, GEAR, PETS, DIFFICULTIES, SCROLLS, MOUNTS } from './data.js';
+import { RIFT_BOONS } from './rifts.js';
+import { archiveWave, ARCHIVE_RUNES, archiveRuneChoices } from './archive.js';
 
-const SAVE_KEY = 'darquest-save-v1';
+const LEGACY_KEY = 'darquest-save-v1';
+const MIGRATION_KEY = 'darquest-slots-migrated-v1';
+let activeSlot = 1;
+const slotKey = slot => {
+  if (![1, 2, 3].includes(slot)) throw new RangeError('Save slot must be 1, 2 or 3.');
+  return `darquest-save-slot${slot}`;
+};
+
+// Copy the original verbatim and retain it as a recovery backup. The marker
+// prevents an intentionally deleted slot from being resurrected on reload.
+export function migrateSaves() {
+  try {
+    if (localStorage.getItem(MIGRATION_KEY)) return true;
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), legacy);
+    localStorage.setItem(MIGRATION_KEY, '1');
+    return true;
+  } catch { return false; }
+}
+
+export function setActiveSlot(slot) { slotKey(slot); activeSlot = slot; }
+export function getActiveSlot() { return activeSlot; }
 
 export function baseHpFor(school, level) {
   return SCHOOLS[school].baseHp + (level - 1) * RULES.hpPerLevel;
@@ -29,7 +52,40 @@ function upgrade(p) {
   p.equipped ??= {};
   p.pets ??= [];
   p.activePet ??= null;
+  p.scrolls ??= {};
+  for (const [id, count] of Object.entries(p.scrolls)) {
+    if (!SCROLLS[id] || !Number.isInteger(count) || count < 1) delete p.scrolls[id];
+  }
+  p.mounts ??= [];
+  p.mounts = [...new Set(p.mounts.filter(id => MOUNTS[id]))];
+  p.activeMount = p.mounts.includes(p.activeMount) ? p.activeMount : (p.mounts[0] || null);
+  p.mounted = !!p.mounted && !!p.activeMount;
   p.difficulty = DIFFICULTIES[p.difficulty] ? p.difficulty : 'normal';
+  p.rift ??= null;
+  p.riftWins ??= 0;
+  p.archiveWins ??= 0;
+  p.archive ??= null;
+  if (p.archive) p.archive.eventChoice ??= null;
+  if (p.archive && (!Number.isSafeInteger(p.archive.seed) || p.archive.seed < 0 ||
+      !Number.isInteger(p.archive.room) || p.archive.room < 0 || p.archive.room > 3 ||
+      !['active', 'cleared', 'event', 'rest', 'claim'].includes(p.archive.status) ||
+      !Array.isArray(p.archive.defeated) || !p.archive.defeated.every(i => Number.isInteger(i) && i >= 0 && i < 3) ||
+      new Set(p.archive.defeated).size !== p.archive.defeated.length ||
+      p.archive.defeated.some(i => i >= archiveWave(p.archive.seed, p.archive.room).length) ||
+      p.archive.kills !== p.archive.defeated.length ||
+      (p.archive.eventChoice != null && (!['seal', 'plunder'].includes(p.archive.eventChoice) || p.archive.room < 1 ||
+        (p.archive.room === 1 && p.archive.status !== 'cleared'))) ||
+      (p.archive.status === 'event' && (p.archive.room !== 1 || p.archive.eventChoice != null ||
+        p.archive.kills !== archiveWave(p.archive.seed, 1).length)) ||
+      (p.archive.rune != null && (p.archive.room < 2 || !archiveRuneChoices(p.archive).includes(p.archive.rune))) ||
+      (p.archive.status === 'rest' && p.archive.rune != null) ||
+      (p.archive.room === 2 && !['rest', 'cleared'].includes(p.archive.status)) ||
+      (p.archive.status === 'rest' && p.archive.room !== 2) ||
+      (p.archive.status === 'claim' && p.archive.room !== 3) ||
+      (['cleared', 'claim'].includes(p.archive.status) && p.archive.room !== 2 &&
+        p.archive.kills !== archiveWave(p.archive.seed, p.archive.room).length))) p.archive = null;
+  if (p.rift && (!['active', 'choice', 'claim'].includes(p.rift.status) ||
+      !Array.isArray(p.rift.boons) || !ENEMIES[p.rift.target])) p.rift = null;
   p.stats ??= {};
   return p;
 }
@@ -54,6 +110,8 @@ export function recalc(p) {
   const add = (stats) => { for (const [k, v] of Object.entries(stats || {})) s[k] = (s[k] || 0) + v; };
   for (const id of Object.values(p.equipped)) if (id && GEAR[id]) add(GEAR[id].stats);
   if (p.activePet && PETS[p.activePet]) add(PETS[p.activePet].stats);
+  for (const id of p.rift?.boons || []) if (RIFT_BOONS[id]) add(RIFT_BOONS[id].stats);
+  if (p.archive?.rune && ARCHIVE_RUNES[p.archive.rune]) add(ARCHIVE_RUNES[p.archive.rune].stats);
   p.stats = s;
   p.maxHp = baseHpFor(p.school, p.level) + s.hp;
   p.maxMana = 100 + (p.level - 1) * 6;
@@ -62,16 +120,24 @@ export function recalc(p) {
   return s;
 }
 
-export function save(p) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(p)); } catch { /* storage unavailable */ }
+export function save(p, slot = activeSlot) {
+  const key = slotKey(slot);
+  if (!migrateSaves()) return false;
+  try {
+    localStorage.setItem(key, JSON.stringify(p));
+    return true;
+  } catch { return false; }
 }
 
-export function load() {
+export function load(slot = activeSlot) {
+  const key = slotKey(slot);
+  migrateSaves();
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const p = JSON.parse(raw);
-    if (!p || !SCHOOLS[p.school]) return null;
+    if (!p || !SCHOOLS[p.school] || typeof p.name !== 'string' ||
+        !Number.isInteger(p.level) || p.level < 1) return null;
     upgrade(p);
     recalc(p);
     p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
@@ -79,12 +145,49 @@ export function load() {
   } catch { return null; }
 }
 
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+export function hasSave(slot = activeSlot) {
+  const key = slotKey(slot);
+  migrateSaves();
+  try { return !!localStorage.getItem(key); } catch { return false; }
 }
 
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+export function clearSave(slot = activeSlot) {
+  const key = slotKey(slot);
+  if (!migrateSaves()) return false;
+  try { localStorage.removeItem(key); return true; } catch { return false; }
+}
+
+export function listSaves() {
+  return [1, 2, 3].map(slot => ({ slot, occupied: hasSave(slot), player: load(slot) }));
+}
+
+export function scrollCount(p) { return Object.values(p.scrolls).reduce((sum, n) => sum + n, 0); }
+
+export function giveScroll(p, id) {
+  if (!SCROLLS[id] || scrollCount(p) >= RULES.maxScrolls) return false;
+  p.scrolls[id] = (p.scrolls[id] || 0) + 1;
+  return true;
+}
+
+export function spendScroll(p, id) {
+  if (!SCROLLS[id] || !p.scrolls[id]) return false;
+  if (--p.scrolls[id] === 0) delete p.scrolls[id];
+  return true;
+}
+
+export function buyMount(p, id) {
+  const mount = MOUNTS[id];
+  if (!mount || p.mounts.includes(id) || p.level < mount.level || p.gold < mount.price) return false;
+  p.gold -= mount.price;
+  p.mounts.push(id);
+  p.activeMount = id;
+  return true;
+}
+
+export function selectMount(p, id) {
+  if (!p.mounts.includes(id) || !MOUNTS[id]) return false;
+  p.activeMount = id;
+  return true;
 }
 
 // Returns the number of levels gained.
@@ -160,12 +263,13 @@ export function setActivePet(p, id) {
 // Rolls drops for a list of defeated enemy definitions.
 export function rollLoot(p, defs) {
   const mult = DIFFICULTIES[p.difficulty].drop;
-  const loot = { items: [], pets: [] };
+  const loot = { items: [], pets: [], scrolls: [] };
   for (const def of defs) {
     for (const d of def.drops || []) {
       if (Math.random() >= Math.min(1, d.chance * mult)) continue;
       if (d.item) loot.items.push({ id: d.item, where: giveItem(p, d.item) });
       if (d.pet && givePet(p, d.pet)) loot.pets.push(d.pet);
+      if (d.scroll && giveScroll(p, d.scroll)) loot.scrolls.push(d.scroll);
     }
   }
   return loot;

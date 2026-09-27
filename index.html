@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>DarQuest</title>
+  <title>Sol Quest — Starfall Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Nunito:wght@400;700;800&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/solquest.css">
   <script type="importmap">{ "imports": { "three": "./lib/three.module.js" } }</script>
 </head>
 <body>
@@ -22,27 +23,37 @@
       <div class="bar mp"><div id="hud-mp-fill" class="fill"></div><span id="hud-mp-text"></span></div>
       <div class="bar xp"><div id="hud-xp-fill" class="fill"></div><span id="hud-xp-text"></span></div>
       <div class="hud-stats">
-        <span title="Gold">🪙 <b id="hud-gold"></b></span>
-        <span title="Potions">🧪 <b id="hud-potions"></b></span>
-        <span id="hud-tp-wrap" title="Training Points: spend them at Mirabel's spell table">📘 TP <b id="hud-tp"></b></span>
+        <span title="Gold">Gold <b id="hud-gold"></b></span>
+        <span title="Potions">Vials <b id="hud-potions"></b></span>
+        <span id="hud-tp-wrap" title="Training Points: spend them at Mirabel's spell table">Lore <b id="hud-tp"></b></span>
       </div>
     </div>
     <div class="hud-card hud-quest">
-      <div class="quest-label">📜 Quest</div>
+      <div class="quest-label">Journal</div>
       <div id="quest-title" class="quest-title"></div>
       <div id="quest-goal" class="quest-goal"></div>
+      <div id="rift-status" class="rift-status hidden"></div>
+      <div id="archive-status" class="rift-status hidden"></div>
     </div>
     <canvas id="minimap" title="Minimap"></canvas>
     <div id="zone-name" class="zone-name"></div>
     <div class="hud-buttons">
-      <button class="btn round" id="btn-char" title="Character, gear &amp; pets (C)">🎒</button>
-      <button class="btn round" id="btn-book" title="Spellbook (B)">📖</button>
-      <button class="btn round" id="btn-potion" title="Drink potion (H)">🧪</button>
-      <button class="btn round" id="btn-mute" title="Sound on/off (M)">🔊</button>
-      <button class="btn round" id="btn-help" title="How to play (?)">❓</button>
-      <button class="btn round" id="btn-reset" title="Start over">↺</button>
+      <button class="btn round" id="btn-char" title="Character, gear &amp; pets (C)">Gear</button>
+      <button class="btn round" id="btn-book" title="Spellbook (B)">Spells</button>
+      <button class="btn round" id="btn-potion" title="Drink potion (H)">Vial</button>
+      <button class="btn round" id="btn-scroll" title="Spell scrolls (R)">Scrolls</button>
+      <button class="btn round" id="btn-mount" title="Mount or dismount (F)">Ride</button>
+      <button class="btn round" id="btn-mute" title="Sound on/off (M)">Sound</button>
+      <button class="btn round" id="btn-fullscreen" title="Toggle fullscreen (V)">⛶</button>
+      <button class="btn round" id="btn-help" title="How to play (?)">Help</button>
+      <button class="btn round" id="btn-settings" title="Settings">Options</button>
+      <button class="btn round" id="btn-reset" title="Save and return to characters">Menu</button>
     </div>
-    <div id="prompt" class="hidden"></div>
+    <button id="prompt" class="hidden" type="button"></button>
+    <div id="touch-controls" aria-label="Touch movement controls">
+      <div id="touch-stick" role="button" aria-label="Move" tabindex="-1"><div id="touch-stick-knob"></div></div>
+      <button id="touch-sprint" type="button" aria-label="Hold to sprint">Sprint</button>
+    </div>
   </div>
 
   <div id="hurt"></div>
@@ -58,10 +69,11 @@
   <!-- Title screen -->
   <div id="title">
     <div class="title-box">
-      <h1 class="logo">Dar<span>Quest</span></h1>
-      <p class="tagline">A spellcasting adventure at Starfall Academy</p>
-      <button id="continue" class="btn primary big hidden"></button>
-      <div class="new-game">
+      <div class="title-intro"><div class="brand-lockup"><svg class="sun-mark" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="17"/><circle cx="40" cy="40" r="26"/><path d="M40 2v12m0 52v12M2 40h12m52 0h12M13 13l9 9m36 36 9 9M13 67l9-9m36-36 9-9"/></svg><div><p class="eyebrow">Chronicles of Starfall</p><h1 class="logo">Sol <span>Quest</span></h1></div></div>
+      <p class="tagline">Study the old magic. Walk the Hollow Lane.<br>Find what the Academy buried.</p>
+      <p class="build-label">Build 0.4 · The First Light <button id="title-settings" class="btn small">Settings</button></p></div>
+      <div id="save-menu"></div>
+      <div id="new-game-form" class="new-game hidden">
         <label for="hero-name">Your wizard's name</label>
         <input id="hero-name" maxlength="24" autocomplete="off">
         <div class="pick-label">Choose your school of magic</div>

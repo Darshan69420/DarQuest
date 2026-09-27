@@ -1,7 +1,8 @@
 // Real-time combat: enemy AI, player spells on a hotbar, dodging, damage and rewards.
-import { SCHOOLS, SPELLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
-import { basicSpell } from './state.js';
+import { SCHOOLS, SPELLS, SCROLLS, OFFENSIVE, DIFFICULTIES, PETS, RULES, spellCost, spellCooldown, BASIC_COOLDOWN } from './data.js';
+import { basicSpell, spendScroll } from './state.js';
 import { sfx } from './audio.js';
+import { archiveModifier } from './archive.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -27,6 +28,7 @@ export class Combat {
     this.gcd = 0;
     this.dodgeReady = 0;
     this.potionReady = 0;
+    this.scrollReady = 0;
     this.target = null;
     this.inCombat = false;
     this.petTimer = 4;
@@ -38,6 +40,7 @@ export class Combat {
     this.p = p;
     this.hero = mods();
     this.ready = {};
+    this.scrollReady = 0;
     for (const e of this.world.enemies) this.initEnemy(e);
   }
 
@@ -45,13 +48,17 @@ export class Combat {
   get now() { return this.world.time; }
 
   initEnemy(e) {
-    e.maxHp = Math.round(e.def.hp * this.diff.hp);
+    const modifier = e.dungeon ? archiveModifier(this.p?.archive) : null;
+    const sealed = e.dungeon && e.def.id === 'archive_curator' && this.p?.archive?.eventChoice === 'seal';
+    e.maxHp = Math.round(e.def.hp * this.diff.hp * (modifier === 'fragile' ? 0.8 : 1) * (sealed ? 0.8 : 1));
     e.hp = e.maxHp;
     e.mods = mods();
     e.cd = {};
     e.cast = null;
     e.phasesDone = new Set();
     e.nextAttack = 0;
+    e.patternIndex = 0;
+    e.introduced = false;
     e.state = e.state === 'dead' ? 'dead' : 'idle';
     this.updateBar(e);
   }
@@ -97,33 +104,49 @@ export class Combat {
 
   castSlot(slot) {
     const spell = this.slotSpell(slot);
-    if (!spell || this.p.hp <= 0) return;
+    return this.castSpell(spell, slot === 0);
+  }
+
+  castScroll(id) {
+    const scroll = SCROLLS[id];
+    if (!scroll || !this.p?.scrolls[id]) return false;
+    return this.castSpell(SPELLS[scroll.spell], false, id);
+  }
+
+  castSpell(spell, basic = false, scrollId = null) {
+    if (!spell || !this.p || this.p.hp <= 0) return false;
+    if (this.world.mounted) { this.onMessage?.('Dismount before casting'); return false; }
     const t = this.now;
-    const basic = slot === 0;
-    const cost = basic ? 0 : spellCost(spell);
-    if (t < this.gcd) return;
-    if ((this.ready[spell.id] || 0) > t) return this.onMessage?.(`${spell.name} isn't ready yet`);
-    if (this.p.mana < cost) return this.onMessage?.('Not enough mana!');
+    const cost = basic || scrollId ? 0 : spellCost(spell);
+    if (t < this.gcd || (scrollId && t < this.scrollReady)) return false;
+    if (!scrollId && (this.ready[spell.id] || 0) > t) { this.onMessage?.(`${spell.name} isn't ready yet`); return false; }
+    if (this.p.mana < cost) { this.onMessage?.('Not enough mana!'); return false; }
     let target = null;
     if (OFFENSIVE.has(spell.type)) {
       if (!this.target || this.target.state === 'dead' || flat(this.target.model.position, this.world.player.position) > PLAYER_RANGE + 6) this.setTarget(this.nearest());
       target = this.target;
-      if (!target) return this.onMessage?.('No enemy in range');
-      if (flat(target.model.position, this.world.player.position) > PLAYER_RANGE) return this.onMessage?.('Too far away!');
+      if (!target) { this.onMessage?.('No enemy in range'); return false; }
+      if (flat(target.model.position, this.world.player.position) > PLAYER_RANGE) { this.onMessage?.('Too far away!'); return false; }
       this.faceTarget(target);
     }
+    if (scrollId && !spendScroll(this.p, scrollId)) return false;
     const haste = (this.p.stats?.pip || 0) / 100;
-    this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste);
-    this.gcd = t + GLOBAL_COOLDOWN;
+    if (scrollId) this.scrollReady = t + 1.5;
+    else this.ready[spell.id] = t + (basic ? BASIC_COOLDOWN : spellCooldown(spell)) * (1 - haste);
+    this.gcd = t + (scrollId ? 0.6 : GLOBAL_COOLDOWN);
     this.p.mana -= cost;
-    this.world.castPose(this.world.player);
+    this.world.castPose(this.world.player, SCHOOLS[spell.school].color);
     sfx('cast', spell.school);
     this.playerSpell(spell, target, this.world.player);
+    if (scrollId) this.world.float(this.world.player, `📜 ${SCROLLS[scrollId].name}`, 'status');
+    return true;
   }
 
   faceTarget(e) {
     const pp = this.world.player.position, m = e.model.position;
+    const oldHeading = this.world.heading;
     this.world.heading = Math.atan2(m.x - pp.x, m.z - pp.z);
+    this.world.camYawOffset += oldHeading - this.world.heading;
     this.world.moveTarget = null;
   }
 
@@ -188,6 +211,19 @@ export class Combat {
       return m;
     };
     switch (spell.type) {
+      case 'nova': {
+        const center = w.player.position;
+        w.shockwave(center, color, spell.radius);
+        w.burst(w.chest(w.player), color, 22, 5);
+        const mult = hitMult();
+        for (const e of this.alive()) {
+          if (flat(e.model.position, center) > spell.radius) continue;
+          const crit = Math.random() < critChance;
+          this.damageEnemy(e, rand(spell.min, spell.max) * mult * (crit ? 1.5 : 1), spell.school, color, crit);
+        }
+        sfx('bighit');
+        break;
+      }
       case 'damage':
       case 'drain': {
         const big = spell.pips >= 4;
@@ -257,7 +293,7 @@ export class Combat {
         if (r.school === spell.school && target.state !== 'dead' && this.now > (target.reactReady || 0)) {
           target.reactReady = this.now + 6;
           setTimeout(() => {
-            if (target.state === 'dead' || this.p.hp <= 0) return;
+            if (target.state !== 'aggro' || this.p.hp <= 0) return;
             this.onMessage?.(`${target.def.name}: "${r.say}"`, 'boss');
             sfx('boss');
             this.enemySpell(target, SPELLS[r.cast]);
@@ -273,8 +309,9 @@ export class Combat {
   }
 
   damageEnemy(e, amount, school, color, crit = false) {
-    if (e.state === 'dead') return 0;
+    if (e.state === 'dead' || e.state === 'return') return 0;
     let m = 1 - (e.def.resist?.[school] || 0) + (e.def.boost?.[school] || 0);
+    if (e.dungeon && archiveModifier(this.p?.archive) === 'resonance') m *= 1.2;
     for (const t of e.mods.traps) m *= 1 + t;
     for (const s of e.mods.shields) m *= 1 - s;
     e.mods.traps = [];
@@ -301,12 +338,23 @@ export class Combat {
   hitHero(amount, school, color, from) {
     const p = this.p, w = this.world;
     if (p.hp <= 0) return;
-    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
     let m = 1 + this.diff.dmg;
+    m *= from.dungeon ? 1 : (from.def.damageScale ?? 1);
+    // Rift targets hit harder on later stages; ordinary quest enemies keep
+    // their usual tuning, even while a contract is active.
+    if (!from.dungeon && p.rift?.status === 'active' && from.def.id === p.rift.target) m *= 1 + p.rift.stage * 0.15;
+    if (from.dungeon) {
+      const modifier = archiveModifier(p.archive);
+      if (modifier === 'fragile') m *= 1.2;
+      if (modifier === 'resonance') m *= 1.15;
+      if (from.def.id === 'archive_curator' && p.archive?.eventChoice === 'plunder') m *= 1.25;
+    }
     for (const b of from.mods.blades) m *= 1 + b;
     for (const x of from.mods.weak) m *= 1 - x;
     from.mods.blades = [];
     from.mods.weak = [];
+    // An attempted hit spends offensive buffs even when it is dodged.
+    if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
     for (const s of this.hero.shields) m *= 1 - s;
     for (const tr of this.hero.traps) m *= 1 + tr;
     this.hero.shields = [];
@@ -333,7 +381,7 @@ export class Combat {
     e.state = 'dead';
     e.cast = null;
     e.mods = mods();
-    e.respawnAt = this.now + (e.def.boss ? 60 : 20);
+    e.respawnAt = e.dungeon ? Infinity : this.now + (e.def.boss ? 60 : 20);
     this.world.defeat(e.model);
     this.updateBar(e);
     if (this.target === e) this.setTarget(this.alive().find(x => x.state === 'aggro') || null);
@@ -343,15 +391,20 @@ export class Combat {
   // ------------------------------------------------------------ enemy AI
 
   aggro(e) {
-    if (e.state !== 'idle' && e.state !== 'return') return;
+    if (e.state !== 'idle') return;
     e.state = 'aggro';
     e.nextAttack = Math.max(e.nextAttack, this.now + rand(0.3, 0.9));
-    // friends nearby join in
-    for (const o of this.world.enemies) {
-      if (o !== e && o.state === 'idle' && flat(o.model.position, e.model.position) < 7) {
+    if (e.def.patterns && !e.introduced) {
+      e.introduced = true;
+      e.nextAttack = this.now + 2.5;
+      this.onMessage?.(`${e.def.name}: ${e.def.intro}`, 'boss');
+    }
+    // Joining friends never recruit another wave of friends.
+    const friends = this.world.enemies.filter(o => o !== e && o.state === 'idle' && o.model.visible && !o.def.boss && this.p.level - o.def.level < 4 && flat(o.model.position, e.model.position) < 7)
+      .sort((a, b) => flat(a.model.position, e.model.position) - flat(b.model.position, e.model.position));
+    for (const o of friends.slice(0, e.def.level <= 10 ? 2 : friends.length)) {
         o.state = 'aggro';
         o.nextAttack = this.now + rand(0.5, 1.5);
-      }
     }
   }
 
@@ -363,7 +416,7 @@ export class Combat {
       sfx('boss');
       this.world.shake(0.4);
       this.world.aura(e.model, SCHOOLS[e.def.school].color);
-      if (ph.blade) e.mods.blades.push(ph.blade);
+      if (ph.blade) e.mods.blades = [...e.mods.blades, ph.blade].slice(-3);
       if (ph.shield) e.mods.shields.push(ph.shield);
       if (ph.heal) { e.hp = Math.min(e.maxHp, e.hp + ph.heal); this.world.float(e.model, `+${ph.heal}`, 'heal'); }
       if (ph.pips) e.nextAttack = this.now + 0.5;
@@ -387,8 +440,9 @@ export class Combat {
 
   // Winds up an attack so the player can see it coming (and dodge).
   startAttack(e) {
+    if (e.def.patterns) return this.startPattern(e);
     const spell = this.chooseSpell(e);
-    const speed = this.diff.speed;
+    const speed = this.diff.speed * (e.dungeon && archiveModifier(this.p?.archive) === 'frenzy' ? 1.25 : 1);
     e.nextAttack = this.now + e.def.attackRate / speed * rand(0.85, 1.15);
     if (!spell) return;
     e.cd[spell.id] = this.now + (1 + spell.pips * 2.4) / speed;
@@ -397,11 +451,35 @@ export class Combat {
     if (spell.pips >= 3) this.world.float(e.model, '⚠️', 'status');
   }
 
+  startPattern(e) {
+    const pattern = e.def.patterns[e.patternIndex++ % e.def.patterns.length];
+    const origin = pattern.anchor === 'self' ? e.model.position : this.world.player.position;
+    const center = { x: origin.x, z: origin.z };
+    e.cast = { pattern, center, t: 0, dur: pattern.windup };
+    e.nextAttack = this.now + pattern.windup + pattern.recovery;
+    this.world.float(e.model, pattern.name, 'status');
+    this.onMessage?.(`${pattern.name} — ${pattern.hint}`, 'boss');
+    this.world.dangerZone?.(center, pattern.radius, pattern.windup, SCHOOLS[e.def.school].color);
+  }
+
+  resolvePattern(e, cast) {
+    const color = SCHOOLS[e.def.school].color;
+    this.world.shockwave(cast.center, color, cast.pattern.radius);
+    this.world.castPose(e.model, color);
+    if (flat(this.world.player.position, cast.center) <= cast.pattern.radius) {
+      this.hitHero(cast.pattern.damage, e.def.school, color, e);
+    } else {
+      e.mods.blades = [];
+      e.mods.weak = [];
+      this.world.float(e.model, 'Miss', 'fizzle');
+    }
+  }
+
   enemySpell(e, spell) {
     const w = this.world;
     const color = SCHOOLS[spell.school].color;
     const pp = w.player.position;
-    this.world.castPose(e.model);
+    this.world.castPose(e.model, SCHOOLS[spell.school].color);
     if (OFFENSIVE.has(spell.type)) {
       if (this.p.hp <= 0) return;
       const melee = e.def.range <= 3;
@@ -411,7 +489,7 @@ export class Combat {
         return;
       }
       const flight = spell.pips >= 4 ? w.meteor(w.player, color, 0.7 + spell.pips * 0.1) : w.projectile(e.model, w.player, color, 0.22 + spell.pips * 0.05, 15);
-      flight.then(() => { if (e.state !== 'dead') this.applyEnemyHit(e, spell, color); });
+      flight.then(() => { if (e.state === 'aggro') this.applyEnemyHit(e, spell, color); });
       return;
     }
     // support spells: heal the most hurt friend nearby, buff itself
@@ -424,7 +502,7 @@ export class Combat {
       w.float(hurt.model, `+${amount}`, 'heal');
       this.updateBar(hurt);
     } else if (spell.type === 'blade') {
-      e.mods.blades.push(spell.pct);
+      e.mods.blades = [...e.mods.blades, spell.pct].slice(-3);
       w.aura(e.model, color);
       w.float(e.model, '⚔️', 'status');
     } else if (spell.type === 'shield') {
@@ -442,14 +520,16 @@ export class Combat {
         const before = this.p.hp;
         this.hitHero(rand(spell.min, spell.max), spell.school, color, e);
         const dealt = before - this.p.hp;
-        if (spell.dot && dealt > 0) this.addOverTime(this.hero.dots, spell.dot.total * (1 + this.diff.dmg), spell.dot.rounds, spell.school);
+        if (spell.dot && dealt > 0) this.addOverTime(this.hero.dots, spell.dot.total * (1 + this.diff.dmg) * (e.dungeon ? 1 : (e.def.damageScale ?? 1)), spell.dot.rounds, spell.school);
         if (spell.type === 'drain' && dealt > 0) { e.hp = Math.min(e.maxHp, e.hp + dealt * spell.heal); this.updateBar(e); }
         sfx(spell.pips >= 4 ? 'bighit' : 'hit');
         break;
       }
       case 'dot':
+        e.mods.blades = [];
+        e.mods.weak = [];
         if (w.time < w.invulnUntil) { w.float(w.player, 'Dodged!', 'status'); return; }
-        this.addOverTime(this.hero.dots, spell.total * (1 + this.diff.dmg), spell.rounds, spell.school);
+        this.addOverTime(this.hero.dots, spell.total * (1 + this.diff.dmg) * (e.dungeon ? 1 : (e.def.damageScale ?? 1)), spell.rounds, spell.school);
         w.float(w.player, `${SCHOOLS[spell.school].icon} burning`, 'status');
         break;
       case 'trap':
@@ -477,7 +557,7 @@ export class Combat {
     if (this.tickTimer >= TICK) {
       this.tickTimer -= TICK;
       this.tickHero();
-      for (const e of w.enemies) if (e.state !== 'dead') this.tickEnemy(e);
+      for (const e of w.enemies) if (e.mods && e.state !== 'dead' && e.state !== 'return' && flat(e.model.position, pp) <= 60) this.tickEnemy(e);
     }
 
     let fighting = false, boss = false;
@@ -489,29 +569,39 @@ export class Combat {
       }
       const d = flat(e.model.position, pp);
       const speed = e.def.speed * this.diff.speed;
+      if (d > 60) {
+        if (e.state !== 'idle') {
+          e.model.position.x = e.home.x;
+          e.model.position.z = e.home.z;
+          this.initEnemy(e);
+        }
+        e.moving = false;
+        continue;
+      }
       if (e.state === 'idle') {
         this.wander(e, dt);
-        if (alivePlayer && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
+        if (alivePlayer && p.level - e.def.level < 4 && d < e.def.aggro && t > w.invulnUntil) this.aggro(e);
       } else if (e.state === 'return') {
         const home = flat(e.model.position, e.home);
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.5 * dt);
         this.updateBar(e);
-        if (home < 0.6 || speed <= 0) { e.state = 'idle'; e.hp = e.maxHp; e.mods = mods(); this.updateBar(e); }
+        if (home < 0.6 || speed <= 0) { e.state = 'idle'; this.initEnemy(e); }
         else w.moveEnemy(e, e.home, Math.max(speed, 2) * 2, dt);
       } else if (e.state === 'aggro') {
+        const leash = e.def.boss ? 35 : 25;
+        if (!alivePlayer || flat(e.model.position, e.home) > leash || flat(pp, e.home) > leash) { e.state = 'return'; e.cast = null; e.mods = mods(); continue; }
         fighting = true;
         if (e.def.boss) boss = true;
-        const leash = e.def.boss ? 40 : 26;
-        if (!alivePlayer || flat(e.model.position, e.home) > leash || d > 45) { e.state = 'return'; e.cast = null; continue; }
-        const range = e.def.speed <= 0 ? Math.max(e.def.range, 26) : e.def.range;
+        const range = e.def.speed <= 0 ? Math.max(e.def.range || 0, 26) : (e.def.range || 4.5);
         if (e.cast) {
           e.cast.t += dt;
           w.faceEnemy(e, pp);
           e.moving = false;
           if (e.cast.t >= e.cast.dur) {
-            const s = e.cast.spell;
+            const cast = e.cast;
             e.cast = null;
-            this.enemySpell(e, s);
+            if (cast.pattern) this.resolvePattern(e, cast);
+            else this.enemySpell(e, cast.spell);
           }
         } else if (d > range * 0.95) {
           w.moveEnemy(e, pp, speed * 1.8, dt, range * 0.8);
@@ -542,7 +632,8 @@ export class Combat {
     }
 
     // regenerate: slowly in a fight, quickly out of one
-    p.mana = Math.min(p.maxMana, p.mana + (fighting ? 5 : 15) * dt);
+    const manaRate = fighting ? (w.player.position.x > 1100 && p.archive?.status === 'active' && archiveModifier(p.archive) === 'frenzy' ? 7.5 : 5) : 15;
+    p.mana = Math.min(p.maxMana, p.mana + manaRate * dt);
     if (!fighting && alivePlayer && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.02 * dt);
 
     if (this.target && (this.target.state === 'dead' || flat(this.target.model.position, pp) > 50)) this.setTarget(null);
